@@ -1,13 +1,20 @@
-import mediapipe as mp
 import cv2
+import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-import numpy as np
 import time
-from mediapipe.framework.formats import landmark_pb2
-#from mediapipe.tasks.python.vision.pose_landmarker import landmark_pb2
 
-# 1. Configuración del Modelo
+# 1. EL "MAPA" DEL ESQUELETO (Biomecánica)
+# Definimos manualmente qué articulación se une con cuál. 
+# Ej: (11, 13) significa "unir Hombro Izquierdo(11) con Codo Izquierdo(13)"
+POSE_CONNECTIONS = [
+    (11, 12), (11, 13), (13, 15), (12, 14), (14, 16), # Brazos
+    (11, 23), (12, 24), (23, 24),                     # Torso
+    (23, 25), (24, 26), (25, 27), (26, 28), (27, 29), (28, 30), (29, 31), (30, 32), # Piernas
+    (0, 1), (1, 2), (2, 3), (3, 7), (0, 4), (4, 5), (5, 6), (6, 8), (9, 10)         # Rostro
+]
+
+# 2. Configuración del Modelo de IA
 model_path = 'pose_landmarker_full.task'
 
 BaseOptions = mp.tasks.BaseOptions
@@ -15,7 +22,6 @@ PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-# 2. Configurar las opciones
 options = PoseLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
     running_mode=VisionRunningMode.VIDEO,
@@ -26,39 +32,49 @@ options = PoseLandmarkerOptions(
 )
 
 # 3. Inicializar Cámara
-cap = cv2.VideoCapture(2) # Prueba 0 = OBS, 1 = Camo o 2 = FaceTime
+cap = cv2.VideoCapture(2) # Usando Camo (2)
 
 print("Iniciando motor biomecánico... Presiona 'q' para salir.")
 
 with PoseLandmarker.create_from_options(options) as landmarker:
-    print("Motor iniciado. Si no ves la ventana, revisa los permisos de cámara de macOS.")
-    
-    # Usaremos el tiempo de inicio para calcular los milisegundos transcurridos
     start_time = time.time()
 
     while cap.isOpened():
         ret, frame = cap.read()
-        if not ret: 
-            print("No se pudo capturar el frame.")
-            break
+        if not ret: break
 
-        frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1) # Efecto espejo
         h, w, _ = frame.shape
 
-        # CALCULAMOS EL TIMESTAMP MANUALMENTE
-        # (Tiempo actual - Tiempo de inicio) convertido a milisegundos
         timestamp_ms = int((time.time() - start_time) * 1000)
-
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
-        
-        # Enviamos el timestamp que calculamos nosotros
         pose_landmarker_result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
+        # 4. RENDERIZADO PROPIO DEL ESQUELETO
         if pose_landmarker_result.pose_landmarks:
             for landmark_list in pose_landmarker_result.pose_landmarks:
+                
+                # A. Dibujar los "Huesos" (Vectores entre articulaciones)
+                for connection in POSE_CONNECTIONS:
+                    start_idx = connection[0]
+                    end_idx = connection[1]
+                    
+                    # Extraemos los datos 3D de los dos puntos a conectar
+                    start_lm = landmark_list[start_idx]
+                    end_lm = landmark_list[end_idx]
+                    
+                    # Transformamos las coordenadas de IA a Píxeles de pantalla
+                    start_point = (int(start_lm.x * w), int(start_lm.y * h))
+                    end_point = (int(end_lm.x * w), int(end_lm.y * h))
+                    
+                    # Trazamos la línea (Color Fucsia)
+                    cv2.line(frame, start_point, end_point, (245, 66, 230), 2)
+
+                # B. Dibujar las "Articulaciones" (Nodos)
                 for lm in landmark_list:
                     cx, cy = int(lm.x * w), int(lm.y * h)
-                    cv2.circle(frame, (cx, cy), 5, (245, 117, 66), cv2.FILLED)
+                    # Dibujamos el círculo (Color Naranja) sobre las líneas
+                    cv2.circle(frame, (cx, cy), 4, (245, 117, 66), cv2.FILLED)
 
         cv2.imshow('Karate AI - Vision Directa', frame)
 
