@@ -10,7 +10,7 @@ class Camera:
         ret, frame = self.cap.read() # Lee un cuadro de video
         if not ret: 
             return None
-        return cv2.flip(frame, 0) # 1 para el efecto espejo, 0 para dejarlo normal
+        return cv2.flip(frame, 1) # 1 para el efecto espejo horizontal, 0 para dejarlo normal, 2 para espejo horizontal, -1 para espejo vertical
 
     def release(self):
         # Libera el hardware al terminar

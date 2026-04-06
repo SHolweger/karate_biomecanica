@@ -34,3 +34,19 @@ class SkeletonRenderer:
                 cv2.circle(frame, (cx, cy), 4, (245, 117, 66), cv2.FILLED)
         
         return frame
+    
+    def draw_diagnostics(self, frame, diagnostics_results):
+        """
+        Recibe los resultados del Analyzer y los pinta en la pantalla.
+        """
+        for res in diagnostics_results:
+            # 1. Dibujar el texto principal arriba a la izquierda
+            cv2.putText(frame, res['mensaje'], (20, res['y_offset']), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, res['color'], 2)
+            
+            # 2. Dibujar el número de los grados junto a la articulación (si es visible)
+            if res['angulo'] is not None:
+                cv2.putText(frame, f"{int(res['angulo'])}", res['pos_angulo'], 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, res['color'], 2)
+                
+        return frame
