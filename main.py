@@ -38,9 +38,11 @@ def main():
             
             # Le pedimos al analista que evalúe ambos brazos
             diagnostico_tsuki = analyzer.analyze_tsuki(landmarks, w, h)
+            diagnostico_postura = analyzer.analyze_stance(landmarks, w, h) # <--- NUEVA LÍNEA
             
             # Le pedimos al dibujante que ponga los resultados en pantalla
             frame = renderer.draw_diagnostics(frame, diagnostico_tsuki)
+            frame = renderer.draw_diagnostics(frame, diagnostico_postura)
         
         # D. Salida: Mostrar ventana
         cv2.imshow('Karate AI - Vision Directa', frame)
