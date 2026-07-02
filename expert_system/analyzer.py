@@ -1,10 +1,19 @@
 from biomechanics.geometry import BiomechanicsMath
+from biomechanics.filters import MovingAverageFilter
 from expert_system.knowledge_base import KarateRules
 
 #Brazos
 class TechniqueAnalyzer:
-    def __init__(self, umbral_visibilidad=0.65):
+    def __init__(self, umbral_visibilidad=0.65, ventana_filtro=5):
         self.umbral = umbral_visibilidad
+        # ANTI-JITTER: un filtro con memoria por cada articulación medida.
+        # Suaviza el ángulo ANTES de que el clasificador y las reglas lo evalúen.
+        self.filtros = {
+            "codo_izq": MovingAverageFilter(ventana_filtro),
+            "codo_der": MovingAverageFilter(ventana_filtro),
+            "rodilla_izq": MovingAverageFilter(ventana_filtro),
+            "rodilla_der": MovingAverageFilter(ventana_filtro),
+        }
 
     def analyze_tsuki(self, landmarks, w, h):
         """
@@ -25,7 +34,9 @@ class TechniqueAnalyzer:
             codo_izq = (int(codo_izq_lm.x * w), int(codo_izq_lm.y * h))
             muneca_izq = (int(muneca_izq_lm.x * w), int(muneca_izq_lm.y * h))
             
-            angulo_izq = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
+            # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
+            angulo_crudo = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
+            angulo_izq = self.filtros["codo_izq"].update(angulo_crudo)
             _, msg, color = KarateRules.evaluate_tsuki(angulo_izq)
             
             resultados.append({
@@ -33,6 +44,8 @@ class TechniqueAnalyzer:
                 "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50
             })
         else:
+            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
+            self.filtros["codo_izq"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO IZQ: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 50
@@ -50,7 +63,9 @@ class TechniqueAnalyzer:
             codo_der = (int(codo_der_lm.x * w), int(codo_der_lm.y * h))
             muneca_der = (int(muneca_der_lm.x * w), int(muneca_der_lm.y * h))
             
-            angulo_der = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
+            # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
+            angulo_crudo = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
+            angulo_der = self.filtros["codo_der"].update(angulo_crudo)
             _, msg, color = KarateRules.evaluate_tsuki(angulo_der)
             
             resultados.append({
@@ -58,6 +73,8 @@ class TechniqueAnalyzer:
                 "mensaje": f"DER - {msg}", "color": color, "y_offset": 90 # Más abajo para no chocar con el texto izq
             })
         else:
+            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
+            self.filtros["codo_der"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO DER: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 90
@@ -88,9 +105,13 @@ class TechniqueAnalyzer:
             rodilla_der = (int(rodilla_der_lm.x * w), int(rodilla_der_lm.y * h))
             tobillo_der = (int(tobillo_der_lm.x * w), int(tobillo_der_lm.y * h))
 
-            # Calculamos ángulos de ambas rodillas
-            angulo_izq = BiomechanicsMath.calculate_angle(cadera_izq, rodilla_izq, tobillo_izq)
-            angulo_der = BiomechanicsMath.calculate_angle(cadera_der, rodilla_der, tobillo_der)
+            # Calculamos ángulos de ambas rodillas (crudos) y los suavizamos con el filtro.
+            # Suavizar ANTES del clasificador también evita el parpadeo entre
+            # posturas cuando el ángulo baila justo en el límite (ej. 130°).
+            angulo_izq = self.filtros["rodilla_izq"].update(
+                BiomechanicsMath.calculate_angle(cadera_izq, rodilla_izq, tobillo_izq))
+            angulo_der = self.filtros["rodilla_der"].update(
+                BiomechanicsMath.calculate_angle(cadera_der, rodilla_der, tobillo_der))
 
             # Lógica de Profundidad (Eje Z) para saber qué pierna está adelante
             if tobillo_izq_lm.z < tobillo_der_lm.z:
@@ -138,6 +159,9 @@ class TechniqueAnalyzer:
                 "mensaje": "", "color": color, "y_offset": 130 
             })
         else:
+            # Piernas ocultas: reseteamos ambos filtros para no arrastrar valores viejos
+            self.filtros["rodilla_izq"].reset()
+            self.filtros["rodilla_der"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255), "y_offset": 130
