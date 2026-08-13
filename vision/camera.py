@@ -1,7 +1,7 @@
 import cv2
 
 class Camera:
-    def __init__(self, source=0):
+    def __init__(self, source=2):
         # Inicializa la cámara (2 para Camo/iPhone, 0 para OBS o 1 Webcam integrada)
         self.cap = cv2.VideoCapture(source) 
 

@@ -1,6 +1,7 @@
 from biomechanics.geometry import BiomechanicsMath
 from biomechanics.filters import MovingAverageFilter
 from expert_system.knowledge_base import KarateRules
+from expert_system.kick_state_machine import MaeGeriStateMachine
 
 #Brazos
 class TechniqueAnalyzer:
@@ -13,6 +14,17 @@ class TechniqueAnalyzer:
             "codo_der": MovingAverageFilter(ventana_filtro),
             "rodilla_izq": MovingAverageFilter(ventana_filtro),
             "rodilla_der": MovingAverageFilter(ventana_filtro),
+            # Suaviza la diferencia de profundidad (Z) usada para decidir qué pierna
+            # está adelante. El eje Z de MediaPipe es más ruidoso que X/Y, y sin
+            # filtrar, la guardia detectada puede "parpadear" entre IZQ/DER ADELANTE.
+            "guardia_z": MovingAverageFilter(ventana_filtro),
+        }
+        # Una máquina de estados independiente por pierna: cualquiera de las dos
+        # puede ser la que patea, no depende de la guardia/eje Z (ver diseño en
+        # kick_state_machine.py).
+        self.maquinas_patada = {
+            "izq": MaeGeriStateMachine(ventana_filtro),
+            "der": MaeGeriStateMachine(ventana_filtro),
         }
 
     def analyze_tsuki(self, landmarks, w, h):
@@ -113,8 +125,14 @@ class TechniqueAnalyzer:
             angulo_der = self.filtros["rodilla_der"].update(
                 BiomechanicsMath.calculate_angle(cadera_der, rodilla_der, tobillo_der))
 
-            # Lógica de Profundidad (Eje Z) para saber qué pierna está adelante
-            if tobillo_izq_lm.z < tobillo_der_lm.z:
+            # Lógica de Profundidad (Eje Z) para saber qué pierna está adelante.
+            # Filtramos la diferencia Z (no solo los ángulos) porque es la señal
+            # más ruidosa: sin suavizarla, la guardia puede "parpadear" de un
+            # frame a otro aunque el usuario esté completamente quieto.
+            z_diff_crudo = tobillo_izq_lm.z - tobillo_der_lm.z
+            z_diff = self.filtros["guardia_z"].update(z_diff_crudo)
+
+            if z_diff < 0:
                 angulo_frontal = angulo_izq
                 angulo_trasero = angulo_der
                 guardia = "IZQ ADELANTE"
@@ -131,18 +149,26 @@ class TechniqueAnalyzer:
             if angulo_izq > 160 and angulo_der > 160:
                 es_correcto, msg, color = KarateRules.evaluate_heiko_dachi(angulo_frontal) # Puedes pasarle cualquiera de los dos, o crear una regla específica para las rodillas en Heiko
                 postura_detectada = "POSTURA NATURAL"
-                
-            # CASO 2: Si la pierna frontal está flexionada (< 130) y la trasera estirada (> 150), es un Zenkutsu
+
+            # CASO 2: Si AMBAS rodillas están moderadamente flexionadas por igual (130-160),
+            # es Kiba Dachi (postura de jinete). Es simétrica, no depende de qué pierna
+            # esté "adelante" según el eje Z (por eso usa izq/der directo, no frontal/trasero).
+            elif 130 <= angulo_izq <= 160 and 130 <= angulo_der <= 160:
+                es_correcto, msg, color = KarateRules.evaluate_kiba_dachi(angulo_izq, angulo_der)
+                postura_detectada = "KIBA DACHI"
+
+            # CASO 3: Si la pierna frontal está flexionada (< 130) y la trasera estirada (> 150), es un Zenkutsu
             elif angulo_frontal < 130 and angulo_trasero > 150:
                 es_correcto, msg, color = KarateRules.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"ZENKUTSU ({guardia})"
-                
-            # CASO 3: Si ambas rodillas están flexionadas, podría ser Kokutsu Dachi o Kiba Dachi
-            elif angulo_frontal < 130 and angulo_trasero < 130:
+
+            # CASO 4: Pierna frontal flexionada (< 130) y trasera no llega a estirarse del todo
+            # (<= 150) -> se acerca más a un Kokutsu Dachi que a una transición real.
+            elif angulo_frontal < 130 and angulo_trasero <= 150:
                  es_correcto, msg, color = KarateRules.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
-                 postura_detectada = f"KOKUTSU/KIBA ({guardia})"
-                 
-            # CASO 4: Transición (El usuario se está moviendo)
+                 postura_detectada = f"KOKUTSU ({guardia})"
+
+            # CASO 5: Transición (el usuario se está moviendo entre posturas)
             else:
                 msg = "EN TRANSICION..."
                 color = (0, 165, 255) # Naranja
@@ -159,12 +185,55 @@ class TechniqueAnalyzer:
                 "mensaje": "", "color": color, "y_offset": 130 
             })
         else:
-            # Piernas ocultas: reseteamos ambos filtros para no arrastrar valores viejos
+            # Piernas ocultas: reseteamos los filtros para no arrastrar valores viejos
             self.filtros["rodilla_izq"].reset()
             self.filtros["rodilla_der"].reset()
+            self.filtros["guardia_z"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255), "y_offset": 130
             })
+
+        return resultados
+
+    #Patadas
+    def analyze_mae_geri(self, landmarks, w, h, timestamp_ms):
+        """
+        Analiza el Mae Geri en AMBAS piernas usando una máquina de estados
+        (Carga -> Extension/Kime -> Recuperando/Hikiashi). A diferencia de
+        analyze_stance, aquí no importa qué pierna está "adelante": cualquiera
+        de las dos puede ser la que patea.
+        """
+        resultados = []
+
+        # Mismo mapeo de espejo que analyze_stance: 24/26/28 = "izq" visual
+        piernas = {
+            "izq": (landmarks[24], landmarks[26], landmarks[28], self.maquinas_patada["izq"], 170),
+            "der": (landmarks[23], landmarks[25], landmarks[27], self.maquinas_patada["der"], 200),
+        }
+
+        for lado, (cadera_lm, rodilla_lm, tobillo_lm, maquina, y_offset) in piernas.items():
+            visible = (cadera_lm.visibility > self.umbral and
+                       rodilla_lm.visibility > self.umbral and
+                       tobillo_lm.visibility > self.umbral)
+
+            angulo_crudo, rodilla_px = None, None
+            if visible:
+                cadera = (int(cadera_lm.x * w), int(cadera_lm.y * h))
+                rodilla_px = (int(rodilla_lm.x * w), int(rodilla_lm.y * h))
+                tobillo = (int(tobillo_lm.x * w), int(tobillo_lm.y * h))
+                angulo_crudo = BiomechanicsMath.calculate_angle(cadera, rodilla_px, tobillo)
+
+            # tobillo_lm.y normalizado (0-1), no en píxeles: así el margen de
+            # "pie en el aire" no depende de la resolución de la cámara.
+            res = maquina.update(visible, angulo_crudo, tobillo_lm.y, timestamp_ms)
+            if res is not None:
+                resultados.append({
+                    "angulo": res["angulo"],
+                    "pos_angulo": (rodilla_px[0] + 20, rodilla_px[1]) if rodilla_px else None,
+                    "mensaje": f"{lado.upper()} - {res['mensaje']}",
+                    "color": res["color"],
+                    "y_offset": y_offset,
+                })
 
         return resultados
