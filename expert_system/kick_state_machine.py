@@ -95,6 +95,7 @@ class MaeGeriStateMachine:
                 "angulo": None,
                 "mensaje": "MAE GERI: TECNICA PERDIDA (oclusion)",
                 "color": NARANJA,
+                "correcto": None,  # técnica abortada, no hay nada que calificar
             }
             self.reset()
             return resultado
@@ -131,20 +132,20 @@ class MaeGeriStateMachine:
             if angulo < UMBRAL_CARGA:
                 self.velocidad_pico = 0.0
                 self._entrar_estado(CARGA, t_ms)
-                return {"angulo": angulo, "mensaje": "MAE GERI: CARGA", "color": NARANJA}
+                return {"angulo": angulo, "mensaje": "MAE GERI: CARGA", "color": NARANJA, "correcto": None}
             return None
 
         if self.estado == CARGA:
             if angulo > UMBRAL_EXTENSION:
                 self.angulo_maximo_extension = angulo
                 self._entrar_estado(EXTENSION, t_ms)
-                return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA}
+                return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA, "correcto": None}
             if self._tiempo_en_estado_actual(t_ms) > TIMEOUT_CARGA_MS:
                 # Se quedó cargando sin abrir la pierna: se descarta el intento,
                 # sin diagnóstico final (no fue una patada completa).
                 self._entrar_estado(REPOSO, t_ms)
                 return None
-            return {"angulo": angulo, "mensaje": "MAE GERI: CARGA", "color": NARANJA}
+            return {"angulo": angulo, "mensaje": "MAE GERI: CARGA", "color": NARANJA, "correcto": None}
 
         if self.estado == EXTENSION:
             self.angulo_maximo_extension = max(self.angulo_maximo_extension, angulo)
@@ -154,20 +155,23 @@ class MaeGeriStateMachine:
                 es_kime_ok, msg_kime, color_kime = KarateRules.evaluate_mae_geri(
                     self.angulo_maximo_extension, self.velocidad_pico)
                 pie_recogido = ankle_y < (self.ankle_y_reposo - MARGEN_PIE_AIRE)
-                _, msg_hiki, color_hiki = KarateRules.evaluate_hikiashi(pie_recogido)
+                es_hiki_ok, msg_hiki, color_hiki = KarateRules.evaluate_hikiashi(pie_recogido)
 
-                # El peor de los dos resultados manda el color mostrado.
+                # El peor de los dos resultados manda el color mostrado. La técnica
+                # completa solo cuenta como "correcta" si AMBAS fases lo fueron.
                 color = color_kime if not es_kime_ok else color_hiki
+                es_correcto = es_kime_ok and es_hiki_ok
 
                 self._entrar_estado(RECUPERANDO, t_ms)
-                return {"angulo": angulo, "mensaje": f"{msg_kime} | {msg_hiki}", "color": color}
+                return {"angulo": angulo, "mensaje": f"{msg_kime} | {msg_hiki}", "color": color,
+                        "correcto": es_correcto}
 
             if self._tiempo_en_estado_actual(t_ms) > TIMEOUT_EXTENSION_MS:
                 # Sostuvo el Kime sin recoger la pierna: se descarta el intento.
                 self._entrar_estado(REPOSO, t_ms)
                 return None
 
-            return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA}
+            return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA, "correcto": None}
 
         if self.estado == RECUPERANDO:
             if angulo > UMBRAL_APOYO:

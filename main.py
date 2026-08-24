@@ -8,6 +8,7 @@ from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
 from persistence.database import Database
 from persistence.cli_auth import login_o_registro, elegir_o_crear_perfil
+from persistence.medicion_logger import MedicionLogger
 
 def main():
     print("Iniciando componentes del sistema experto...")
@@ -18,6 +19,7 @@ def main():
     entrenador = login_o_registro(db)
     atleta = elegir_o_crear_perfil(db)
     id_sesion = db.iniciar_sesion(atleta["id_atleta"], entrenador["id_entrenador"])
+    logger_mediciones = MedicionLogger(db, id_sesion)
     print(f"\nSesión iniciada: {entrenador['nombre']} entrenando a {atleta['nombre']}. 'q' para terminar.\n")
 
     # 1. Inicialización de Objetos
@@ -56,10 +58,11 @@ def main():
             frame = renderer.draw_diagnostics(frame, diagnostico_postura)
             frame = renderer.draw_diagnostics(frame, diagnostico_patada)
 
-            # NOTA: falta decidir qué diagnósticos son "evaluaciones finales"
-            # (dignas de guardarse con db.guardar_medicion) y cuáles son solo
-            # el estado transitorio de cada frame — guardar los 30fps crudos
-            # llenaría la base de datos de ruido. Pendiente para la próxima sesión.
+            # Persistencia: solo guarda cuando el diagnóstico de una categoría
+            # CAMBIA respecto al anterior (ver MedicionLogger) — no en cada frame.
+            logger_mediciones.registrar(diagnostico_tsuki, timestamp_ms)
+            logger_mediciones.registrar(diagnostico_postura, timestamp_ms)
+            logger_mediciones.registrar(diagnostico_patada, timestamp_ms)
         
         # D. Salida: Mostrar ventana
         cv2.imshow('Karate AI - Vision Directa', frame)

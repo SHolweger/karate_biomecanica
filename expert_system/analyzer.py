@@ -49,18 +49,20 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
             angulo_izq = self.filtros["codo_izq"].update(angulo_crudo)
-            _, msg, color = KarateRules.evaluate_tsuki(angulo_izq)
-            
+            es_correcto, msg, color = KarateRules.evaluate_tsuki(angulo_izq)
+
             resultados.append({
                 "angulo": angulo_izq, "pos_angulo": (codo_izq[0] + 20, codo_izq[1]),
-                "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50
+                "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50, "categoria": "codo_izq",
+                "correcto": es_correcto
             })
         else:
             # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
             self.filtros["codo_izq"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
-                "mensaje": "BRAZO IZQ: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 50
+                "mensaje": "BRAZO IZQ: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 50,
+                "categoria": "codo_izq", "correcto": None
             })
 
         # ---------------- BRAZO DERECHO ----------------
@@ -78,18 +80,21 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
             angulo_der = self.filtros["codo_der"].update(angulo_crudo)
-            _, msg, color = KarateRules.evaluate_tsuki(angulo_der)
-            
+            es_correcto, msg, color = KarateRules.evaluate_tsuki(angulo_der)
+
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (codo_der[0] - 60, codo_der[1]), # -60 para que no tape el codo
-                "mensaje": f"DER - {msg}", "color": color, "y_offset": 90 # Más abajo para no chocar con el texto izq
+                "mensaje": f"DER - {msg}", "color": color, "y_offset": 90, "categoria": "codo_der",
+                "correcto": es_correcto
+                # Más abajo para no chocar con el texto izq
             })
         else:
             # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
             self.filtros["codo_der"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
-                "mensaje": "BRAZO DER: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 90
+                "mensaje": "BRAZO DER: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 90,
+                "categoria": "codo_der", "correcto": None
             })
 
         return resultados
@@ -168,8 +173,10 @@ class TechniqueAnalyzer:
                  es_correcto, msg, color = KarateRules.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
                  postura_detectada = f"KOKUTSU ({guardia})"
 
-            # CASO 5: Transición (el usuario se está moviendo entre posturas)
+            # CASO 5: Transición (el usuario se está moviendo entre posturas) — no es una
+            # evaluación (nada que calificar de correcto/incorrecto), por eso es_correcto=None.
             else:
+                es_correcto = None
                 msg = "EN TRANSICION..."
                 color = (0, 165, 255) # Naranja
                 postura_detectada = "MOVIENDOSE"
@@ -178,11 +185,13 @@ class TechniqueAnalyzer:
             # Agregamos los resultados visuales
             resultados.append({
                 "angulo": angulo_izq, "pos_angulo": (rodilla_izq[0] + 20, rodilla_izq[1]),
-                "mensaje": f"{postura_detectada}: {msg}", "color": color, "y_offset": 130
+                "mensaje": f"{postura_detectada}: {msg}", "color": color, "y_offset": 130,
+                "categoria": "postura", "correcto": es_correcto
             })
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (rodilla_der[0] - 60, rodilla_der[1]),
-                "mensaje": "", "color": color, "y_offset": 130 
+                "mensaje": "", "color": color, "y_offset": 130, "categoria": "postura_der_numero",
+                "correcto": es_correcto
             })
         else:
             # Piernas ocultas: reseteamos los filtros para no arrastrar valores viejos
@@ -191,7 +200,8 @@ class TechniqueAnalyzer:
             self.filtros["guardia_z"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
-                "mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255), "y_offset": 130
+                "mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255), "y_offset": 130,
+                "categoria": "postura", "correcto": None
             })
 
         return resultados
@@ -234,6 +244,8 @@ class TechniqueAnalyzer:
                     "mensaje": f"{lado.upper()} - {res['mensaje']}",
                     "color": res["color"],
                     "y_offset": y_offset,
+                    "categoria": f"mae_geri_{lado}",
+                    "correcto": res.get("correcto"),
                 })
 
         return resultados

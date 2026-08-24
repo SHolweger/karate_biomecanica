@@ -8,6 +8,7 @@ from vision.camera import Camera
 from vision.tracker import PoseTracker
 from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
+from persistence.medicion_logger import MedicionLogger
 from gui import theme
 
 
@@ -38,6 +39,7 @@ class LiveScreen(ctk.CTkFrame):
         self.analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65)
 
         self.id_sesion = db.iniciar_sesion(atleta["id_atleta"], entrenador["id_entrenador"])
+        self.logger_mediciones = MedicionLogger(db, self.id_sesion)
         self.start_time = time.time()
         self._activo = True
         self._after_id = None
@@ -75,6 +77,10 @@ class LiveScreen(ctk.CTkFrame):
                 frame = self.renderer.draw_diagnostics(frame, diagnostico_tsuki)
                 frame = self.renderer.draw_diagnostics(frame, diagnostico_postura)
                 frame = self.renderer.draw_diagnostics(frame, diagnostico_patada)
+
+                self.logger_mediciones.registrar(diagnostico_tsuki, timestamp_ms)
+                self.logger_mediciones.registrar(diagnostico_postura, timestamp_ms)
+                self.logger_mediciones.registrar(diagnostico_patada, timestamp_ms)
 
             imagen_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             imagen_pil = Image.fromarray(imagen_rgb)

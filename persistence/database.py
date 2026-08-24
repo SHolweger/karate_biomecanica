@@ -53,10 +53,23 @@ class Database:
                 timestamp_ms      INTEGER NOT NULL,
                 angulo_promedio   REAL,
                 diagnostico       TEXT NOT NULL,
+                correcto          INTEGER,
                 FOREIGN KEY (id_sesion) REFERENCES sesion(id_sesion)
             );
         """)
+        self._migrar_columna_correcto()
         self.conn.commit()
+
+    def _migrar_columna_correcto(self):
+        """
+        Agrega la columna 'correcto' a bases de datos creadas antes del
+        13-ago-2026 (no la tenían). SQLite no soporta "ADD COLUMN IF NOT
+        EXISTS", así que se verifica manualmente antes de intentarlo —
+        el CREATE TABLE de arriba solo aplica a bases de datos nuevas.
+        """
+        columnas = [fila["name"] for fila in self.conn.execute("PRAGMA table_info(tecnica_evaluada)")]
+        if "correcto" not in columnas:
+            self.conn.execute("ALTER TABLE tecnica_evaluada ADD COLUMN correcto INTEGER")
 
     @staticmethod
     def _hash_password(password):
@@ -123,17 +136,21 @@ class Database:
 
     # ---------------- Mediciones de técnicas ----------------
 
-    def guardar_medicion(self, id_sesion, nombre_tecnica, angulo_promedio, diagnostico, timestamp_ms):
+    def guardar_medicion(self, id_sesion, nombre_tecnica, angulo_promedio, diagnostico, timestamp_ms, correcto=None):
+        # correcto: True/False si el diagnóstico es una evaluación cerrada
+        # (ej. "TSUKI: EXCELENTE"), None si es un estado transitorio sin
+        # calificar (ej. "EN TRANSICION...", "MAE GERI: CARGA").
         self.conn.execute(
-            "INSERT INTO tecnica_evaluada (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, diagnostico) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, diagnostico),
+            "INSERT INTO tecnica_evaluada (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, diagnostico, correcto) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, diagnostico,
+             None if correcto is None else int(correcto)),
         )
         self.conn.commit()
 
     def consultar_historial(self, id_atleta):
         filas = self.conn.execute(
-            """SELECT s.id_sesion, s.fecha, t.nombre_tecnica, t.angulo_promedio, t.diagnostico
+            """SELECT s.id_sesion, s.fecha, t.nombre_tecnica, t.angulo_promedio, t.diagnostico, t.correcto
                FROM sesion s JOIN tecnica_evaluada t ON t.id_sesion = s.id_sesion
                WHERE s.id_atleta = ?
                ORDER BY s.fecha DESC""",
