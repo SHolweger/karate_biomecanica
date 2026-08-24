@@ -1,0 +1,285 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1600" viewBox="0 0 1440 1600">
+  <title>Diagrama de clases — Sistema experto de análisis biomecánico</title>
+  <rect width="1440" height="1600" fill="#ffffff"/>
+  <rect x="60" y="60" width="1350" height="270" rx="8" fill="#f1f5f9" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <text x="76" y="82" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#5b6a80" text-anchor="start">CAPA DE PRESENTACIÓN (GUI)</text>
+  <text x="273.4" y="82" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#93a1b5" text-anchor="start" font-style="italic">Cap. 3 — capa de interfaz gráfica de usuario</text>
+  <rect x="60" y="400" width="1350" height="210" rx="8" fill="#f1f5f9" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <text x="76" y="422" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#5b6a80" text-anchor="start">CAPA DE ADQUISICIÓN DE DATOS</text>
+  <text x="287.20000000000005" y="422" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#93a1b5" text-anchor="start" font-style="italic">Cap. 3 — captura óptica e ingesta inercial</text>
+  <rect x="60" y="680" width="1350" height="210" rx="8" fill="#f1f5f9" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <text x="76" y="702" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#5b6a80" text-anchor="start">CAPA DE PROCESAMIENTO BIOMECÁNICO Y FUSIÓN</text>
+  <text x="383.8" y="702" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#93a1b5" text-anchor="start" font-style="italic">Cap. 3 — sincronización temporal y fusión sensorial</text>
+  <rect x="60" y="960" width="1350" height="250" rx="8" fill="#f1f5f9" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <text x="76" y="982" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#5b6a80" text-anchor="start">CAPA DE INFERENCIA (SISTEMA EXPERTO)</text>
+  <text x="342.4" y="982" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#93a1b5" text-anchor="start" font-style="italic">Cap. 3 — motor heurístico y base de conocimientos</text>
+  <rect x="60" y="1280" width="1350" height="250" rx="8" fill="#f1f5f9" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <text x="76" y="1302" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#5b6a80" text-anchor="start">CAPA DE PERSISTENCIA</text>
+  <text x="232.0" y="1302" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#93a1b5" text-anchor="start" font-style="italic">RF-07 — SQLite embebido, local (RNF-02)</text>
+  <rect x="70" y="100" width="230" height="184" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="100" width="230" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="185.0" y="115" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«CTk» gui/app.py</text>
+  <text x="185.0" y="135" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">App</text>
+  <line x1="70" y1="144" x2="300" y2="144" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="159" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- db : Database</text>
+  <text x="80" y="174" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- entrenador : dict</text>
+  <text x="80" y="189" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- atleta : dict</text>
+  <text x="80" y="204" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- pantalla_actual</text>
+  <line x1="70" y1="214" x2="300" y2="214" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="229" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _mostrar(pantalla)</text>
+  <text x="80" y="244" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ on_login_exitoso(e)</text>
+  <text x="80" y="259" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ on_perfil_elegido(a)</text>
+  <text x="80" y="274" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ on_terminar_sesion()</text>
+  <rect x="350" y="100" width="230" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="350" y="100" width="230" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="465.0" y="115" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«CTkFrame»</text>
+  <text x="465.0" y="135" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">LoginScreen</text>
+  <line x1="350" y1="144" x2="580" y2="144" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="360" y="159" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- db : Database</text>
+  <line x1="350" y1="169" x2="580" y2="169" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="360" y="184" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _intentar_login()</text>
+  <text x="360" y="199" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _crear_cuenta(rol)</text>
+  <rect x="630" y="100" width="230" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="630" y="100" width="230" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="745.0" y="115" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«CTkFrame»</text>
+  <text x="745.0" y="135" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">PerfilScreen</text>
+  <line x1="630" y1="144" x2="860" y2="144" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="640" y="159" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- db : Database</text>
+  <line x1="630" y1="169" x2="860" y2="169" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="640" y="184" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _elegir(atleta)</text>
+  <text x="640" y="199" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _abrir_form_nuevo()</text>
+  <rect x="910" y="100" width="250" height="169" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="910" y="100" width="250" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="1035.0" y="115" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«CTkFrame»</text>
+  <text x="1035.0" y="135" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">LiveScreen</text>
+  <line x1="910" y1="144" x2="1160" y2="144" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="920" y="159" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- cam : Camera</text>
+  <text x="920" y="174" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- tracker : PoseTracker</text>
+  <text x="920" y="189" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- renderer : SkeletonRenderer</text>
+  <text x="920" y="204" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- analyzer : TechniqueAnalyzer</text>
+  <text x="920" y="219" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- logger : MedicionLogger</text>
+  <line x1="910" y1="229" x2="1160" y2="229" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="920" y="244" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ _actualizar_frame()</text>
+  <text x="920" y="259" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ cerrar()</text>
+  <rect x="1190" y="100" width="215" height="105" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="1190" y="100" width="215" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="1297.5" y="115" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«módulo» vía consola</text>
+  <text x="1297.5" y="135" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">main + cli_auth</text>
+  <line x1="1190" y1="144" x2="1405" y2="144" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="1190" y1="150" x2="1405" y2="150" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="1200" y="165" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ main()</text>
+  <text x="1200" y="180" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ login_o_registro(db)</text>
+  <text x="1200" y="195" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ elegir_o_crear_perfil(db)</text>
+  <rect x="70" y="440" width="250" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="440" width="250" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="195.0" y="455" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">vision/camera.py</text>
+  <text x="195.0" y="475" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Camera</text>
+  <line x1="70" y1="484" x2="320" y2="484" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="499" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- cap : cv2.VideoCapture</text>
+  <line x1="70" y1="509" x2="320" y2="509" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="524" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ get_frame()</text>
+  <text x="80" y="539" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ release()</text>
+  <rect x="360" y="440" width="270" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="360" y="440" width="270" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="495.0" y="455" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">vision/tracker.py</text>
+  <text x="495.0" y="475" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">PoseTracker</text>
+  <line x1="360" y1="484" x2="630" y2="484" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="370" y="499" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- landmarker : PoseLandmarker</text>
+  <line x1="360" y1="509" x2="630" y2="509" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="370" y="524" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ process_frame(frame, ts_ms)</text>
+  <text x="370" y="539" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ close()</text>
+  <rect x="670" y="440" width="250" height="124" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <rect x="670" y="440" width="250" height="44" rx="4" fill="#eef1f6" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <text x="795.0" y="455" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">RF-02 — planificado</text>
+  <text x="795.0" y="475" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#8896ab" text-anchor="middle">ImuReceiver</text>
+  <line x1="670" y1="484" x2="920" y2="484" stroke="#8896ab" stroke-width="1.2"/>
+  <text x="680" y="499" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">- puerto_serial</text>
+  <text x="680" y="514" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">- buffer : deque</text>
+  <line x1="670" y1="524" x2="920" y2="524" stroke="#8896ab" stroke-width="1.2"/>
+  <text x="680" y="539" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">+ leer_trama()</text>
+  <text x="680" y="554" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">+ cerrar()</text>
+  <rect x="70" y="720" width="250" height="75" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="720" width="250" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="195.0" y="735" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">biomechanics/geometry.py</text>
+  <text x="195.0" y="755" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">BiomechanicsMath</text>
+  <line x1="70" y1="764" x2="320" y2="764" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="70" y1="770" x2="320" y2="770" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="785" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ calculate_angle(a, b, c)  «static»</text>
+  <rect x="360" y="720" width="250" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="360" y="720" width="250" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="485.0" y="735" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">RNF-03 — anti-jitter</text>
+  <text x="485.0" y="755" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">MovingAverageFilter</text>
+  <line x1="360" y1="764" x2="610" y2="764" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="370" y="779" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- buffer : deque</text>
+  <line x1="360" y1="789" x2="610" y2="789" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="370" y="804" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ update(value)</text>
+  <text x="370" y="819" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ reset()</text>
+  <rect x="650" y="720" width="250" height="109" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="650" y="720" width="250" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="775.0" y="735" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">RF-06</text>
+  <text x="775.0" y="755" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">SkeletonRenderer</text>
+  <line x1="650" y1="764" x2="900" y2="764" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="660" y="779" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- POSE_CONNECTIONS : list</text>
+  <line x1="650" y1="789" x2="900" y2="789" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="660" y="804" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ draw(frame, landmarks)</text>
+  <text x="660" y="819" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ draw_diagnostics(frame, r)</text>
+  <rect x="940" y="720" width="250" height="90" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <rect x="940" y="720" width="250" height="44" rx="4" fill="#eef1f6" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <text x="1065.0" y="735" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">RF-04 — planificado</text>
+  <text x="1065.0" y="755" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#8896ab" text-anchor="middle">SensorFusion</text>
+  <line x1="940" y1="764" x2="1190" y2="764" stroke="#8896ab" stroke-width="1.2"/>
+  <line x1="940" y1="770" x2="1190" y2="770" stroke="#8896ab" stroke-width="1.2"/>
+  <text x="950" y="785" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">+ alinear(ts_video, ts_imu)</text>
+  <text x="950" y="800" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="start">+ cuaternion_a_angulo(q)</text>
+  <rect x="200" y="1000" width="310" height="154" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="200" y="1000" width="310" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="355.0" y="1015" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">motor de inferencia (RF-05)</text>
+  <text x="355.0" y="1035" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">TechniqueAnalyzer</text>
+  <line x1="200" y1="1044" x2="510" y2="1044" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="210" y="1059" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- umbral : float</text>
+  <text x="210" y="1074" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- filtros : dict&lt;str, MovingAverageFilter&gt;</text>
+  <text x="210" y="1089" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- maquinas_patada : dict&lt;str, MaeGeriSM&gt;</text>
+  <line x1="200" y1="1099" x2="510" y2="1099" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="210" y="1114" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ analyze_tsuki(lm, w, h)</text>
+  <text x="210" y="1129" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ analyze_stance(lm, w, h)</text>
+  <text x="210" y="1144" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ analyze_mae_geri(lm, w, h, ts)</text>
+  <rect x="550" y="1000" width="310" height="139" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="550" y="1000" width="310" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="705.0" y="1015" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">cinemática dinámica — 4 fases</text>
+  <text x="705.0" y="1035" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">MaeGeriStateMachine</text>
+  <line x1="550" y1="1044" x2="860" y2="1044" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="560" y="1059" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- estado : str</text>
+  <text x="560" y="1074" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- velocidad_pico : float</text>
+  <text x="560" y="1089" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- filtro_angulo : MovingAverageFilter</text>
+  <line x1="550" y1="1099" x2="860" y2="1099" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="560" y="1114" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ update(vis, ang, ankle_y, ts)</text>
+  <text x="560" y="1129" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ reset()</text>
+  <rect x="900" y="1000" width="330" height="180" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="900" y="1000" width="330" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="1065.0" y="1015" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">base de conocimientos (RF-05)</text>
+  <text x="1065.0" y="1035" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">KarateRules</text>
+  <line x1="900" y1="1044" x2="1230" y2="1044" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="900" y1="1050" x2="1230" y2="1050" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="910" y="1065" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_tsuki(ang)  «static»</text>
+  <text x="910" y="1080" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_heiko_dachi(ang)</text>
+  <text x="910" y="1095" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_kiba_dachi(i, d)</text>
+  <text x="910" y="1110" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_zenkutsu_dachi(f, t)</text>
+  <text x="910" y="1125" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_kokutsu_dachi(f, t)</text>
+  <text x="910" y="1140" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_mae_geri(ang, vel)</text>
+  <text x="910" y="1155" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_hikiashi(recogido)</text>
+  <text x="910" y="1170" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ evaluate_age_uke(ang)</text>
+  <rect x="70" y="1320" width="320" height="154" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="1320" width="320" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="230.0" y="1335" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">RF-07 / RF-08</text>
+  <text x="230.0" y="1355" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Database</text>
+  <line x1="70" y1="1364" x2="390" y2="1364" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="1379" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- conn : sqlite3.Connection</text>
+  <line x1="70" y1="1389" x2="390" y2="1389" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="80" y="1404" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ autenticar_entrenador(u, p)</text>
+  <text x="80" y="1419" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ crear_atleta(...)</text>
+  <text x="80" y="1434" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ iniciar_sesion(...) / cerrar_sesion(id)</text>
+  <text x="80" y="1449" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ guardar_medicion(...)</text>
+  <text x="80" y="1464" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ consultar_historial(id_atleta)</text>
+  <rect x="440" y="1320" width="280" height="94" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="440" y="1320" width="280" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="580.0" y="1335" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">anti-duplicados</text>
+  <text x="580.0" y="1355" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">MedicionLogger</text>
+  <line x1="440" y1="1364" x2="720" y2="1364" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="450" y="1379" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">- _ultimo_mensaje : dict</text>
+  <line x1="440" y1="1389" x2="720" y2="1389" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="450" y="1404" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ registrar(diagnostico, ts_ms)</text>
+  <rect x="780" y="1320" width="300" height="75" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <rect x="780" y="1320" width="300" height="44" rx="4" fill="#eef4ff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="930.0" y="1335" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«módulo» matplotlib</text>
+  <text x="930.0" y="1355" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">reportes</text>
+  <line x1="780" y1="1364" x2="1080" y2="1364" stroke="#2563eb" stroke-width="1.2"/>
+  <line x1="780" y1="1370" x2="1080" y2="1370" stroke="#2563eb" stroke-width="1.2"/>
+  <text x="790" y="1385" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="start">+ generar_reporte_progreso(db, id)</text>
+  <polyline points="300,144 350,144" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="339.0" y1="149.0" x2="350" y2="144" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="339.0" y1="139.0" x2="350" y2="144" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="300,144 308.0,150.0 316.0,144.0 308.0,138.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <polyline points="185,284 185,300 745,300 745,209" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="750.0" y1="220.0" x2="745" y2="209" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="740.0" y1="220.0" x2="745" y2="209" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="185,284 179.0,292.0 185.0,300.0 191.0,292.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <polyline points="215,284 215,316 890,316 890,180 910,180" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="899.0" y1="185.0" x2="910" y2="180" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="899.0" y1="175.0" x2="910" y2="180" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="215,284 209.0,292.0 215.0,300.0 221.0,292.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <polyline points="1035,269 1035,292 1300,292 1300,360 195,360 195,440" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="190.0" y1="429.0" x2="195" y2="440" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="200.0" y1="429.0" x2="195" y2="440" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="1035,269 1035,292 1300,292 1300,382 495,382 495,440" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="490.0" y1="429.0" x2="495" y2="440" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="500.0" y1="429.0" x2="495" y2="440" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="1035,269 1035,292 1300,292 1300,645 775,645 775,720" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="770.0" y1="709.0" x2="775" y2="720" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="780.0" y1="709.0" x2="775" y2="720" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="1035,269 1035,292 1300,292 1300,925 355,925 355,1000" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="350.0" y1="989.0" x2="355" y2="1000" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="360.0" y1="989.0" x2="355" y2="1000" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="1035,269 1035,292 1300,292 1300,1245 580,1245 580,1320" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="575.0" y1="1309.0" x2="580" y2="1320" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="585.0" y1="1309.0" x2="580" y2="1320" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="70,200 28,200 28,1390 70,1390" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="59.0" y1="1395.0" x2="70" y2="1390" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="59.0" y1="1385.0" x2="70" y2="1390" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="34" y="800" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">usa / inyecta</text>
+  <polyline points="280,1000 280,930 450,930 450,829" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="455.0" y1="840.0" x2="450" y2="829" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="445.0" y1="840.0" x2="450" y2="829" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="280,1000 286.0,992.0 280.0,984.0 274.0,992.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="456" y="924" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">5</text>
+  <polyline points="510,1070 550,1070" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="539.0" y1="1075.0" x2="550" y2="1070" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="539.0" y1="1065.0" x2="550" y2="1070" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="510,1070 518.0,1076.0 526.0,1070.0 518.0,1064.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="526" y="1060" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">2</text>
+  <polyline points="235,1000 235,950 195,950 195,795" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="200.0" y1="806.0" x2="195" y2="795" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="190.0" y1="806.0" x2="195" y2="795" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="450,1154 450,1192 1065,1192 1065,1180" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="1070.0" y1="1191.0" x2="1065" y2="1180" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="1060.0" y1="1191.0" x2="1065" y2="1180" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="700,1000 700,902 485,902 485,829" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="490.0" y1="840.0" x2="485" y2="829" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="480.0" y1="840.0" x2="485" y2="829" stroke="#2563eb" stroke-width="1.6"/>
+  <polygon points="700,1000 706.0,992.0 700.0,984.0 694.0,992.0" fill="#2563eb" stroke="#2563eb" stroke-width="1.4"/>
+  <polyline points="860,1055 900,1055" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="889.0" y1="1060.0" x2="900" y2="1055" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="889.0" y1="1050.0" x2="900" y2="1055" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="440,1365 390,1365" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round"/>
+  <line x1="401.0" y1="1360.0" x2="390" y2="1365" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="401.0" y1="1370.0" x2="390" y2="1365" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="930,1395 930,1502 230,1502 230,1474" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="235.0" y1="1485.0" x2="230" y2="1474" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="225.0" y1="1485.0" x2="230" y2="1474" stroke="#2563eb" stroke-width="1.6"/>
+  <polyline points="795,564 795,648 1065,648 1065,720" fill="none" stroke="#8896ab" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="1060.0" y1="709.0" x2="1065" y2="720" stroke="#8896ab" stroke-width="1.6"/>
+  <line x1="1070.0" y1="709.0" x2="1065" y2="720" stroke="#8896ab" stroke-width="1.6"/>
+  <polyline points="1065,810 1065,958 400,958 400,1000" fill="none" stroke="#8896ab" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="395.0" y1="989.0" x2="400" y2="1000" stroke="#8896ab" stroke-width="1.6"/>
+  <line x1="405.0" y1="989.0" x2="400" y2="1000" stroke="#8896ab" stroke-width="1.6"/>
+  <rect x="1190" y="232" width="215" height="96" rx="6" fill="#fffdf2" stroke="#c9a227" stroke-width="1.3" opacity="1"/>
+  <polyline points="1387,232 1405,232 1405,250" fill="none" stroke="#c9a227" stroke-width="1.3" stroke-linejoin="round"/>
+  <text x="1202" y="250" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#5a4a10" text-anchor="start">main.py</text>
+  <text x="1202" y="268" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">Vía alterna por consola: instancia</text>
+  <text x="1202" y="282" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">directamente Camera, PoseTracker,</text>
+  <text x="1202" y="296" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">SkeletonRenderer, TechniqueAnalyzer,</text>
+  <text x="1202" y="310" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">Database y MedicionLogger — el mismo</text>
+  <text x="1202" y="324" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">pipeline que LiveScreen, sin GUI.</text>
+  <line x1="1297" y1="205" x2="1297" y2="232" stroke="#c9a227" stroke-width="1.3" stroke-dasharray="4 3"/>
+  <rect x="960" y="428" width="290" height="82" rx="6" fill="#fffdf2" stroke="#c9a227" stroke-width="1.3" opacity="1"/>
+  <polyline points="1232,428 1250,428 1250,446" fill="none" stroke="#c9a227" stroke-width="1.3" stroke-linejoin="round"/>
+  <text x="972" y="446" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#5a4a10" text-anchor="start">Separación de responsabilidades</text>
+  <text x="972" y="464" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">TechniqueAnalyzer responde «¿qué hay AHORA?»;</text>
+  <text x="972" y="478" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">MaeGeriStateMachine responde «¿en qué FASE de</text>
+  <text x="972" y="492" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">un evento de varios frames estamos?». Por eso</text>
+  <text x="972" y="506" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#5a4a10" text-anchor="start">son clases separadas y no una sola.</text>
+  <rect x="60" y="1545" width="690" height="45" rx="6" fill="#ffffff" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <rect x="78" y="1558" width="26" height="18" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.8" opacity="1"/>
+  <text x="114" y="1572" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">Implementado y verificado (git log)</text>
+  <rect x="360" y="1558" width="26" height="18" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="4 3"/>
+  <text x="396" y="1572" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="start">Planificado (Sprint 4-5, depende del IMU)</text>
+</svg>
