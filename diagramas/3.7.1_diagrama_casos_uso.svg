@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="800" viewBox="0 0 1180 800">
+  <title>Diagrama de casos de uso — Sistema experto de análisis biomecánico</title>
+  <rect width="1180" height="800" fill="#ffffff"/>
+  <rect x="210" y="55" width="700" height="700" rx="8" fill="#fbfcfe" stroke="#1b2a4a" stroke-width="2" opacity="1"/>
+  <text x="560" y="82" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Sistema Experto de Análisis Biomecánico (Edge — equipo del Dojo)</text>
+  <ellipse cx="400" cy="140" rx="120" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="400" y="131" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Autenticarse en</text>
+  <text x="400" y="147" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">el sistema</text>
+  <text x="400" y="164" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-08</text>
+  <ellipse cx="400" cy="222" rx="120" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="400" y="213" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Gestionar perfiles</text>
+  <text x="400" y="229" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">de deportistas</text>
+  <text x="400" y="246" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-07</text>
+  <ellipse cx="400" cy="304" rx="120" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="400" y="295" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Iniciar sesión</text>
+  <text x="400" y="311" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">de evaluación</text>
+  <text x="400" y="328" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-07</text>
+  <ellipse cx="400" cy="430" rx="120" ry="40" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="400" y="421" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Analizar técnica</text>
+  <text x="400" y="437" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">en tiempo real</text>
+  <text x="400" y="460" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-01 / RF-05</text>
+  <ellipse cx="400" cy="585" rx="120" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="400" y="576" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Consultar historial y</text>
+  <text x="400" y="592" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">generar reporte de progreso</text>
+  <text x="400" y="609" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-07</text>
+  <ellipse cx="400" cy="682" rx="120" ry="34" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.7" stroke-dasharray="6 4"/>
+  <text x="400" y="673" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Editar umbrales</text>
+  <text x="400" y="689" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">biomecánicos</text>
+  <text x="400" y="706" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#8896ab" text-anchor="middle">RF-08</text>
+  <ellipse cx="750" cy="300" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="750" y="291" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Estimar pose:</text>
+  <text x="750" y="307" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">33 landmarks</text>
+  <text x="750" y="324" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-03</text>
+  <ellipse cx="750" cy="382" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="750" y="373" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Aplicar filtro</text>
+  <text x="750" y="389" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">anti-jitter</text>
+  <text x="750" y="406" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RNF-03</text>
+  <ellipse cx="750" cy="464" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="750" y="455" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Evaluar contra base</text>
+  <text x="750" y="471" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">de conocimientos</text>
+  <text x="750" y="488" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-05</text>
+  <ellipse cx="750" cy="546" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="750" y="537" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Registrar medición</text>
+  <text x="750" y="553" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">en base de datos</text>
+  <text x="750" y="570" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-07</text>
+  <ellipse cx="750" cy="640" rx="112" ry="34" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.7" stroke-dasharray="6 4"/>
+  <text x="750" y="631" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Ingerir telemetría</text>
+  <text x="750" y="647" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">inercial (100 Hz)</text>
+  <text x="750" y="664" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#8896ab" text-anchor="middle">RF-02</text>
+  <ellipse cx="750" cy="715" rx="112" ry="34" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.7" stroke-dasharray="6 4"/>
+  <text x="750" y="706" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Fusionar visión</text>
+  <text x="750" y="722" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">+ IMU</text>
+  <text x="750" y="739" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#8896ab" text-anchor="middle">RF-04</text>
+  <circle cx="95" cy="250" r="13" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="263" x2="95" y2="298" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="75" y1="276" x2="115" y2="276" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="298" x2="78" y2="326" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="298" x2="112" y2="326" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="95" y="346" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Entrenador</text>
+  <text x="95" y="363" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">(actor primario)</text>
+  <circle cx="95" cy="600" r="13" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="613" x2="95" y2="648" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="75" y1="626" x2="115" y2="626" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="648" x2="78" y2="676" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="95" y1="648" x2="112" y2="676" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="95" y="696" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Deportista</text>
+  <text x="95" y="713" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">(actor secundario)</text>
+  <circle cx="1080" cy="600" r="13" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1080" y1="613" x2="1080" y2="648" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1060" y1="626" x2="1100" y2="626" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1080" y1="648" x2="1063" y2="676" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1080" y1="648" x2="1097" y2="676" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="1080" y="696" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Módulos IMU</text>
+  <text x="1080" y="713" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">(sistema externo)</text>
+  <line x1="120" y1="300" x2="280" y2="140" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="300" x2="280" y2="222" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="300" x2="280" y2="304" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="300" x2="280" y2="430" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="312" x2="280" y2="585" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="312" x2="280" y2="682" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="120" y1="650" x2="280" y2="445" stroke="#1b2a4a" stroke-width="1.3"/>
+  <line x1="1055" y1="650" x2="862" y2="640" stroke="#8896ab" stroke-width="1.3" stroke-dasharray="6 4"/>
+  <polyline points="512,430 638,300" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="633.9346322386048" y1="311.3786108539052" x2="638" y2="300" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="626.7539554861403" y1="304.4188780015166" x2="638" y2="300" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="575.0" y="360.0" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«include»</text>
+  <polyline points="512,430 638,382" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="629.5006115537414" y1="390.58838727815674" x2="638" y2="382" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="625.9406582778214" y1="381.243509928867" x2="638" y2="382" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="575.0" y="401.0" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«include»</text>
+  <polyline points="512,430 638,464" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="626.0772409181432" y1="465.9615850417451" x2="638" y2="464" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="628.6824710517108" y1="456.30690866440597" x2="638" y2="464" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="575.0" y="442.0" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«include»</text>
+  <polyline points="512,430 638,546" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="626.5207721738321" y1="542.2280868892652" x2="638" y2="546" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="633.2938669237582" y1="534.8711046608972" x2="638" y2="546" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="575.0" y="483.0" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«include»</text>
+  <polyline points="512,430 638,715" fill="none" stroke="#8896ab" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="628.9791181581944" y1="706.9611138336097" x2="638" y2="715" stroke="#8896ab" stroke-width="1.6"/>
+  <line x1="638.1251563115726" y1="702.9176022289582" x2="638" y2="715" stroke="#8896ab" stroke-width="1.6"/>
+  <text x="575.0" y="567.5" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">«include»</text>
+  <polyline points="280,304 252,304 252,148 284,145" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="273.5147270568132" y1="151.00491892592007" x2="284" y2="145" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="272.58131996988254" y1="141.0485766653272" x2="284" y2="145" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="256" y="245" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">«include»</text>
+  <polyline points="310,682 228,682 228,132 286,130" fill="none" stroke="#8896ab" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="275.17884538630943" y1="135.3761150310055" x2="286" y2="130" stroke="#8896ab" stroke-width="1.6"/>
+  <line x1="274.83422262791163" y1="125.38205503746963" x2="286" y2="130" stroke="#8896ab" stroke-width="1.6"/>
+  <text x="232" y="480" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">«include»</text>
+  <ellipse cx="750" cy="175" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
+  <text x="750" y="166" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Visualizar diagnóstico</text>
+  <text x="750" y="182" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">y esqueleto en pantalla</text>
+  <text x="750" y="199" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-06</text>
+  <polyline points="658,209 500,400" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="503.158773513542" y1="388.3371465802684" x2="500" y2="400" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="510.86408310596244" y1="394.71117231640676" x2="500" y2="400" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="600" y="300" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="middle" font-style="italic">«extend»</text>
+  <rect x="210" y="768" width="700" height="0.1" rx="4" fill="#ffffff" stroke="none" stroke-width="0" opacity="1"/>
+  <ellipse cx="255" cy="782" rx="22" ry="10" fill="#eef4ff" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="288" y="786" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">Implementado y verificado</text>
+  <ellipse cx="500" cy="782" rx="22" ry="10" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="533" y="786" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="start">Planificado (Sprint 4-5)</text>
+</svg>

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="830" viewBox="0 0 1250 830">
+  <title>Diagrama de despliegue físico — arquitectura Edge del Dojo</title>
+  <rect width="1250" height="830" fill="#ffffff"/>
+  <polyline points="500,90 514,76 1034,76 1020,90" fill="#e8edf4" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/>
+  <polyline points="1020,90 1034,76 1034,706 1020,720" fill="#dde4ee" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="500" y="90" width="520" height="630" rx="0" fill="#f7f9fc" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <text x="760.0" y="112" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">«device»</text>
+  <text x="760.0" y="132" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Equipo de cómputo del Dojo (Edge)</text>
+  <text x="760.0" y="150" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#7d8ba0" text-anchor="middle" font-style="italic">Laptop / PC del entrenador — sin conexión a la nube</text>
+  <rect x="530" y="175" width="460" height="400" rx="6" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.5" opacity="1" stroke-dasharray="3 3"/>
+  <text x="760" y="196" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">«executionEnvironment»  Python 3.11 + venv</text>
+  <rect x="550" y="214" width="420" height="54" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="562,226 562,256 580,256 580,234 572,226 562,226" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="592" y="238" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">gui/  —  App, LoginScreen, PerfilScreen, LiveScreen</text>
+  <text x="592" y="255" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">CustomTkinter · capa de presentación (RF-06, RNF-04)</text>
+  <rect x="550" y="282" width="420" height="54" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="562,294 562,324 580,324 580,302 572,294 562,294" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="592" y="306" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">vision/  +  pose_landmarker_full.task</text>
+  <text x="592" y="323" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">OpenCV · MediaPipe Pose — 33 landmarks (RF-01, RF-03)</text>
+  <rect x="550" y="350" width="420" height="54" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="562,362 562,392 580,392 580,370 572,362 562,362" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="592" y="374" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">biomechanics/  —  geometry, filters, renderer</text>
+  <text x="592" y="391" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">Ángulos articulares · filtro anti-jitter SMA (RNF-03)</text>
+  <rect x="550" y="418" width="420" height="54" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="562,430 562,460 580,460 580,438 572,430 562,430" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="592" y="442" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">expert_system/  —  analyzer, knowledge_base, fsm</text>
+  <text x="592" y="459" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">Motor de inferencia + base de conocimientos (RF-05)</text>
+  <rect x="550" y="486" width="420" height="54" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="562,498 562,528 580,528 580,506 572,498 562,498" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="592" y="510" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">persistence/  —  database, medicion_logger, reportes</text>
+  <text x="592" y="527" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">Acceso a datos y reportes matplotlib (RF-07)</text>
+  <rect x="530" y="600" width="240" height="64" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="542,612 542,652 560,652 560,620 552,612 542,612" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="572" y="624" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">karate_sistema.db</text>
+  <text x="572" y="641" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">SQLite embebido · un solo archivo local</text>
+  <rect x="790" y="600" width="200" height="64" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" opacity="1"/>
+  <polyline points="802,612 802,652 820,652 820,620 812,612 802,612" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="832" y="624" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="bold" fill="#1b2a4a" text-anchor="start">evidencias/*.png</text>
+  <text x="832" y="641" font-family="Arial, Helvetica, sans-serif" font-size="10.3" font-weight="normal" fill="#6b7a90" text-anchor="start">Reportes de progreso generados</text>
+  <polyline points="70,150 84,136 374,136 360,150" fill="#e8edf4" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/>
+  <polyline points="360,150 374,136 374,256 360,270" fill="#dde4ee" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="70" y="150" width="290" height="120" rx="0" fill="#f7f9fc" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <text x="215.0" y="172" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">«device»</text>
+  <text x="215.0" y="192" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Cámara externa</text>
+  <text x="215.0" y="210" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#7d8ba0" text-anchor="middle" font-style="italic">iPhone (Continuity) / webcam USB</text>
+  <text x="215" y="236" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#7d8ba0" text-anchor="middle">≥ 60 fps de captura · 1080p</text>
+  <polyline points="70,440 84,426 374,426 360,440" fill="#e8edf4" stroke="#8896ab" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <polyline points="360,440 374,426 374,576 360,590" fill="#dde4ee" stroke="#8896ab" stroke-width="1.6" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <rect x="70" y="440" width="290" height="150" rx="0" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <text x="215.0" y="462" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">«device»</text>
+  <text x="215.0" y="482" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="bold" fill="#8896ab" text-anchor="middle">Módulos IMU vestibles</text>
+  <text x="215" y="520" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="middle">4 × BNO055 (9-DOF, fusión en chip)</text>
+  <text x="215" y="538" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="middle">+ 2 × ESP32 (WiFi / Bluetooth)</text>
+  <text x="215" y="562" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">Sprint 4-5 — hardware en tránsito</text>
+  <line x1="360" y1="210" x2="500" y2="210" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="430" y="200" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">«USB 3.0 / Continuity»</text>
+  <text x="430" y="228" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#7d8ba0" text-anchor="middle">flujo de video RGB</text>
+  <line x1="360" y1="505" x2="500" y2="505" stroke="#8896ab" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="430" y="495" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">«BLE / Serial»</text>
+  <text x="430" y="523" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#8896ab" text-anchor="middle">tramas a 100 Hz (RF-02)</text>
+  <circle cx="1130" cy="330" r="13" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1130" y1="343" x2="1130" y2="378" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1110" y1="356" x2="1150" y2="356" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1130" y1="378" x2="1113" y2="406" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1130" y1="378" x2="1147" y2="406" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="1130" y="426" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#1b2a4a" text-anchor="middle">Entrenador</text>
+  <line x1="1034" y1="356" x2="1108" y2="356" stroke="#1b2a4a" stroke-width="1.8"/>
+  <text x="1071" y="344" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">monitor + GUI local</text>
+  <rect x="70" y="660" width="380" height="120" rx="6" fill="#f2fbf4" stroke="#2e9e57" stroke-width="1.4" opacity="1"/>
+  <text x="86" y="684" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#1e6b3a" text-anchor="start">RNF-02 — Arquitectura local independiente</text>
+  <text x="86" y="706" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2c5c40" text-anchor="start">No existe nodo de servidor ni servicios en la nube.</text>
+  <text x="86" y="721" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2c5c40" text-anchor="start">Inferencia y persistencia ocurren íntegramente en el</text>
+  <text x="86" y="736" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2c5c40" text-anchor="start">equipo del Dojo: sin costos de API, sin dependencia de</text>
+  <text x="86" y="751" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2c5c40" text-anchor="start">conectividad y sin que los datos biométricos salgan</text>
+  <text x="86" y="766" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2c5c40" text-anchor="start">de las instalaciones de la Asociación (RNF-05).</text>
+  <ellipse cx="1120" cy="620" rx="62" ry="30" fill="#f4f6f9" stroke="#8896ab" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <text x="1120" y="625" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="normal" fill="#6b7a90" text-anchor="middle">Internet</text>
+  <line x1="1072" y1="592" x2="1168" y2="648" stroke="#d0455a" stroke-width="2.4"/>
+  <line x1="1168" y1="592" x2="1072" y2="648" stroke="#d0455a" stroke-width="2.4"/>
+  <text x="1120" y="676" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#d0455a" text-anchor="middle" font-style="italic">no requerido</text>
+  <rect x="500" y="745" width="520" height="42" rx="6" fill="#ffffff" stroke="#dbe3ec" stroke-width="1.2" opacity="1"/>
+  <rect x="516" y="756" width="24" height="18" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.6" opacity="1"/>
+  <text x="548" y="770" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">Desplegado y en uso</text>
+  <rect x="730" y="756" width="24" height="18" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.6" opacity="1" stroke-dasharray="4 3"/>
+  <text x="762" y="770" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="start">Planificado (Sprint 4-5)</text>
+</svg>

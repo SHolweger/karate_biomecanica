@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1330" height="985" viewBox="0 0 1330 985">
+  <title>Diagrama entidad-relación — base de datos local SQLite</title>
+  <rect width="1330" height="985" fill="#ffffff"/>
+  <rect x="70" y="110" width="280" height="187" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="110" width="280" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="70" y="134" width="280" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
+  <text x="210.0" y="131" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">ENTRENADOR</text>
+  <text x="80" y="158" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
+  <text x="112" y="158" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_entrenador : INTEGER</text>
+  <text x="112" y="179" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">nombre : TEXT</text>
+  <text x="112" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">usuario : TEXT  (UNIQUE)</text>
+  <text x="112" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">correo : TEXT</text>
+  <text x="112" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">password_hash : TEXT</text>
+  <text x="112" y="263" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">rol : TEXT</text>
+  <text x="112" y="284" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_registro : TEXT</text>
+  <rect x="520" y="110" width="270" height="145" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="520" y="110" width="270" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="520" y="134" width="270" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
+  <text x="655.0" y="131" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">ATLETA</text>
+  <text x="530" y="158" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
+  <text x="562" y="158" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_atleta : INTEGER</text>
+  <text x="562" y="179" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">nombre : TEXT</text>
+  <text x="562" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_nacimiento : TEXT</text>
+  <text x="562" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">grado_cinturon : TEXT</text>
+  <text x="562" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_registro : TEXT</text>
+  <rect x="950" y="110" width="320" height="208" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
+  <rect x="950" y="110" width="320" height="32" rx="4" fill="#8896ab" stroke="#8896ab" stroke-width="1.8" opacity="1"/>
+  <rect x="950" y="134" width="320" height="8" rx="0" fill="#8896ab" stroke="none" stroke-width="0" opacity="1"/>
+  <text x="1110.0" y="131" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">UMBRAL_REFERENCIA</text>
+  <text x="960" y="158" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
+  <text x="992" y="158" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">id_umbral : INTEGER</text>
+  <text x="960" y="179" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
+  <text x="992" y="179" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">id_entrenador : INTEGER</text>
+  <text x="992" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">nombre_tecnica : TEXT</text>
+  <text x="992" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">articulacion : TEXT</text>
+  <text x="992" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">valor_min : REAL</text>
+  <text x="992" y="263" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">valor_max : REAL</text>
+  <text x="992" y="284" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">fuente : TEXT</text>
+  <text x="992" y="305" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">fecha_modificacion : TEXT</text>
+  <rect x="400" y="420" width="290" height="166" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="400" y="420" width="290" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="400" y="444" width="290" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
+  <text x="545.0" y="441" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">SESION</text>
+  <text x="410" y="468" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
+  <text x="442" y="468" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_sesion : INTEGER</text>
+  <text x="410" y="489" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
+  <text x="442" y="489" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_atleta : INTEGER</text>
+  <text x="410" y="510" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
+  <text x="442" y="510" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_entrenador : INTEGER</text>
+  <text x="442" y="531" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha : TEXT</text>
+  <text x="442" y="552" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">hora_inicio : TEXT</text>
+  <text x="442" y="573" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">hora_fin : TEXT</text>
+  <rect x="385" y="700" width="320" height="229" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="385" y="700" width="320" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="385" y="724" width="320" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
+  <text x="545.0" y="721" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">TECNICA_EVALUADA</text>
+  <text x="395" y="748" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
+  <text x="427" y="748" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_medicion : INTEGER</text>
+  <text x="395" y="769" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
+  <text x="427" y="769" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_sesion : INTEGER</text>
+  <text x="395" y="790" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
+  <text x="427" y="790" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_umbral : INTEGER</text>
+  <text x="427" y="811" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">nombre_tecnica : TEXT</text>
+  <text x="427" y="832" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">timestamp_ms : INTEGER</text>
+  <text x="427" y="853" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">angulo_promedio : REAL</text>
+  <text x="427" y="874" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">velocidad_pico : REAL</text>
+  <text x="427" y="895" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">diagnostico : TEXT</text>
+  <text x="427" y="916" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">correcto : INTEGER</text>
+  <polyline points="350,230 375,230 375,480 400,480" fill="none" stroke="#1b2a4a" stroke-width="1.5" stroke-linejoin="round"/>
+  <line x1="363" y1="222" x2="363" y2="238" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="385" y1="480" x2="400" y2="471" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="385" y1="480" x2="400" y2="480" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="385" y1="480" x2="400" y2="489" stroke="#1b2a4a" stroke-width="1.5"/>
+  <text x="378" y="355" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start" font-style="italic">supervisa</text>
+  <text x="358" y="218" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">1</text>
+  <text x="378" y="503" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">N</text>
+  <line x1="655" y1="249" x2="655" y2="420" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="663" y1="262" x2="647" y2="262" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="655" y1="405" x2="664" y2="420" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="655" y1="405" x2="655" y2="420" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="655" y1="405" x2="646" y2="420" stroke="#1b2a4a" stroke-width="1.5"/>
+  <text x="665" y="340" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start" font-style="italic">participa en</text>
+  <text x="636" y="268" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">1</text>
+  <text x="636" y="414" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">N</text>
+  <line x1="545" y1="566" x2="545" y2="700" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="553" y1="579" x2="537" y2="579" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="545" y1="685" x2="554" y2="700" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="545" y1="685" x2="545" y2="700" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="545" y1="685" x2="536" y2="700" stroke="#1b2a4a" stroke-width="1.5"/>
+  <text x="555" y="640" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start" font-style="italic">contiene</text>
+  <text x="526" y="588" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">1</text>
+  <text x="526" y="694" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">N</text>
+  <polyline points="1115,300 1115,810 705,810" fill="none" stroke="#8896ab" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="1123" y1="313" x2="1107" y2="313" stroke="#8896ab" stroke-width="1.8"/>
+  <line x1="720" y1="810" x2="705" y2="819" stroke="#8896ab" stroke-width="1.5"/>
+  <line x1="720" y1="810" x2="705" y2="810" stroke="#8896ab" stroke-width="1.5"/>
+  <line x1="720" y1="810" x2="705" y2="801" stroke="#8896ab" stroke-width="1.5"/>
+  <text x="900" y="800" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">evaluada contra</text>
+  <text x="1095" y="322" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#8896ab" text-anchor="start">1</text>
+  <text x="718" y="830" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#8896ab" text-anchor="start">N</text>
+  <polyline points="210,110 210,62 1000,62 1000,110" fill="none" stroke="#8896ab" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="202" y1="97" x2="218" y2="97" stroke="#8896ab" stroke-width="1.8"/>
+  <line x1="1000" y1="95" x2="1009" y2="110" stroke="#8896ab" stroke-width="1.5"/>
+  <line x1="1000" y1="95" x2="1000" y2="110" stroke="#8896ab" stroke-width="1.5"/>
+  <line x1="1000" y1="95" x2="991" y2="110" stroke="#8896ab" stroke-width="1.5"/>
+  <text x="610" y="52" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">calibra / modifica   (RF-08 — solo entrenadores autorizados)</text>
+  <rect x="70" y="700" width="265" height="150" rx="6" fill="#fffdf2" stroke="#c9a227" stroke-width="1.4" opacity="1"/>
+  <polyline points="315,700 335,700 335,720" fill="none" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
+  <text x="84" y="724" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#7a6412" text-anchor="start">Nota — UMBRAL_REFERENCIA.fuente</text>
+  <text x="84" y="744" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">Toma dos valores:</text>
+  <text x="84" y="758" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">  • 'literatura'  → umbral inicial tomado de</text>
+  <text x="84" y="772" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">     la bibliografía Shotokan (estado actual).</text>
+  <text x="84" y="786" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">  • 'modelado_experto' → umbral promediado</text>
+  <text x="84" y="800" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">     de ejecuciones de cinturones negros.</text>
+  <text x="84" y="814" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">Permite reemplazar umbrales sin cambiar el</text>
+  <text x="84" y="828" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">modelo de datos (ver 'Estrategia de recolección</text>
+  <text x="84" y="842" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">inicial de datos', Capítulo 3).</text>
+  <rect x="950" y="862" width="320" height="90" rx="6" fill="#fbfcfe" stroke="#1b2a4a" stroke-width="1.2" opacity="1"/>
+  <text x="965" y="884" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#1b2a4a" text-anchor="start">Leyenda</text>
+  <rect x="968" y="894" width="22" height="13" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.6" opacity="1"/>
+  <text x="1000" y="905" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">Tabla implementada y en uso</text>
+  <rect x="968" y="918" width="22" height="13" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.6" opacity="1" stroke-dasharray="4 3"/>
+  <text x="1000" y="929" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="start">Tabla propuesta (cierra RF-08)</text>
+  <text x="390" y="950" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">Columnas propuestas en TECNICA_EVALUADA:  id_umbral (FK)  y  velocidad_pico.</text>
+</svg>
