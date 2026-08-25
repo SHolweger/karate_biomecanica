@@ -15,8 +15,8 @@ def svg_responsivo(ruta):
 
 LAMINAS = [
     dict(
-        num="3.7.1", titulo="Diagrama de casos de uso", script="d1_casos_uso.py",
-        archivo="3.7.1_diagrama_casos_uso.svg", estado="4 actores · 13 casos de uso",
+        num="3.8.1", titulo="Diagrama de casos de uso", script="d1_casos_uso.py",
+        archivo="3.8.1_diagrama_casos_uso.svg", estado="4 actores · 13 casos de uso",
         lee=[
             ("El deportista es actor <em>secundario</em>",
              "Es medido, no opera el sistema. Esa distinción es la que justifica que el perfil de atleta no tenga contraseña: "
@@ -39,8 +39,8 @@ LAMINAS = [
         ],
     ),
     dict(
-        num="3.7.2", titulo="Diagrama de entidad-relación", script="d2_entidad_relacion.py",
-        archivo="3.7.2_diagrama_entidad_relacion.svg", estado="4 tablas en uso · 1 propuesta",
+        num="3.8.2", titulo="Diagrama de entidad-relación", script="d2_entidad_relacion.py",
+        archivo="3.8.2_diagrama_entidad_relacion.svg", estado="4 tablas en uso · 1 propuesta",
         lee=[
             ("Las cuatro tablas azules existen y tienen datos reales",
              "<code>entrenador</code>, <code>atleta</code>, <code>sesion</code> y <code>tecnica_evaluada</code> son el esquema que ya corre en "
@@ -65,8 +65,8 @@ LAMINAS = [
         ],
     ),
     dict(
-        num="3.7.3", titulo="Diagrama de clases", script="d3_clases.py",
-        archivo="3.7.3_diagrama_clases.svg", estado="15 clases · 5 capas",
+        num="3.8.3", titulo="Diagrama de clases", script="d3_clases.py",
+        archivo="3.8.3_diagrama_clases.svg", estado="15 clases · 5 capas",
         lee=[
             ("La máquina de estados vive fuera del motor de inferencia",
              "<code>TechniqueAnalyzer</code> responde “¿qué hay ahora?”; <code>MaeGeriStateMachine</code> responde “¿en qué fase de un evento de varios "
@@ -93,8 +93,8 @@ LAMINAS = [
         ],
     ),
     dict(
-        num="3.7.4", titulo="Diagrama de despliegue físico", script="d4_despliegue.py",
-        archivo="3.7.4_diagrama_despliegue.svg", estado="1 nodo Edge · 2 periféricos",
+        num="3.8.4", titulo="Diagrama de despliegue físico", script="d4_despliegue.py",
+        archivo="3.8.4_diagrama_despliegue.svg", estado="1 nodo Edge · 2 periféricos",
         lee=[
             ("Un solo nodo de cómputo, sin capa de servidor",
              "Todo el software vive en un <code>«device»</code>: el equipo del dojo. No hay nodo en la nube que dibujar porque no existe — eso es el RNF-02 hecho gráfico."),
@@ -375,13 +375,13 @@ footer {{
 
 <header class="portada">
   <div class="marca">
-    <span>Capítulo 3 · sección 3.7</span>
+    <span>Capítulo 3 · sección 3.8</span>
     <span class="ao">ao</span><span class="aka">aka</span>
     <span>Holweger Puerto · 1290-22-2830</span>
   </div>
   <h1>Láminas del Sistema Experto</h1>
   <p class="bajada">
-    Los cuatro diagramas de la sección 3.7, generados <strong>desde el código real del repositorio</strong> y no
+    Los cuatro diagramas de la sección 3.8, generados <strong>desde el código real del repositorio</strong> y no
     dibujados aparte. Cada lámina va acompañada de las decisiones de ingeniería que representa y de las preguntas
     de terna que más probablemente dispare.
   </p>
@@ -419,7 +419,7 @@ footer {{
 {"".join(bloque_lamina(l) for l in LAMINAS)}
 
 <section class="cierre">
-  <h2>La decisión que el 3.7.2 desbloquea: alcance del RF-08</h2>
+  <h2>La decisión que el 3.8.2 desbloquea: alcance del RF-08</h2>
   <p>
     El 22 de agosto quedó pendiente decidir cuánto de la edición de umbrales se construye ahora, precisamente porque esa
     forma se define en el modelo de datos. Con el diagrama en la mano, la recomendación es <strong>construir la tabla y la

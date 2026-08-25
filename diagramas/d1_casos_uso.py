@@ -1,4 +1,4 @@
-"""3.7.1 — Diagrama de casos de uso."""
+"""3.8.1 — Diagrama de casos de uso."""
 from _svg import (Lienzo, actor, caso_uso, TINTA, ACENTO, GRIS, GRIS_BG, BANDA_BG, BLANCO)
 
 W, H = 1180, 800
@@ -68,5 +68,5 @@ c.texto(288, 786, "Implementado y verificado", size=11.5)
 c.elipse(500, 782, 22, 10, fill=GRIS_BG, stroke=GRIS, sw=1.5, dash="6 4")
 c.texto(533, 786, "Planificado (Sprint 4-5)", size=11.5, fill=GRIS)
 
-c.guardar("3.7.1_diagrama_casos_uso.svg")
-print("3.7.1_diagrama_casos_uso.svg")
+c.guardar("3.8.1_diagrama_casos_uso.svg")
+print("3.8.1_diagrama_casos_uso.svg")

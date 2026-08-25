@@ -1,4 +1,4 @@
-"""3.7.3 — Diagrama de clases, organizado por las capas del Capítulo 3."""
+"""3.8.3 — Diagrama de clases, organizado por las capas del Capítulo 3."""
 from _svg import (Lienzo, caja_clase, TINTA, ACENTO, ACENTO_BG, GRIS, GRIS_BG, BANDA_BG, BLANCO)
 
 W, H = 1440, 1600
@@ -176,5 +176,5 @@ c.texto(114, 1572, "Implementado y verificado (git log)", size=11.5)
 c.rect(360, 1558, 26, 18, fill=GRIS_BG, stroke=GRIS, sw=1.8, dash="4 3")
 c.texto(396, 1572, "Planificado (Sprint 4-5, depende del IMU)", size=11.5, fill=GRIS)
 
-c.guardar("3.7.3_diagrama_clases.svg")
-print("3.7.3_diagrama_clases.svg")
+c.guardar("3.8.3_diagrama_clases.svg")
+print("3.8.3_diagrama_clases.svg")

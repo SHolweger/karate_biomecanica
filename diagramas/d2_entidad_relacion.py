@@ -1,4 +1,4 @@
-"""3.7.2 — Diagrama entidad-relación (SQLite local)."""
+"""3.8.2 — Diagrama entidad-relación (SQLite local)."""
 from _svg import (Lienzo, caja_entidad, pata_gallo, TINTA, ACENTO, GRIS, GRIS_BG, BLANCO)
 
 W, H = 1330, 985
@@ -122,5 +122,5 @@ c.texto(1000, 929, "Tabla propuesta (cierra RF-08)", size=10.5, fill=GRIS)
 c.texto(390, 950, "Columnas propuestas en TECNICA_EVALUADA:  id_umbral (FK)  y  velocidad_pico.",
         size=10.5, fill=GRIS, italic=True)
 
-c.guardar("3.7.2_diagrama_entidad_relacion.svg")
-print("3.7.2_diagrama_entidad_relacion.svg")
+c.guardar("3.8.2_diagrama_entidad_relacion.svg")
+print("3.8.2_diagrama_entidad_relacion.svg")
