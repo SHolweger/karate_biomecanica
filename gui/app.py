@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 
 from persistence.database import Database
+from expert_system.knowledge_base import UMBRALES_LITERATURA
 from gui import theme
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
@@ -35,6 +36,9 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("dark")
 
         self.db = db if db is not None else Database()
+        # Siembra idempotente de los umbrales biomecanicos (RF-08): si el
+        # entrenador ya recalibro alguno, su version vigente no se toca.
+        self.db.sembrar_umbrales(UMBRALES_LITERATURA)
         self.entrenador = None
         self.atleta = None
         self.pantalla_actual = None

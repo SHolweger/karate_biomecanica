@@ -15,7 +15,10 @@ UMBRAL_CARGA = 75        # Rodilla muy flexionada = talón recogido. Calibrado e
                           # el recojo/hikiashi natural solo bajó a ~71-90° — con 60°
                           # el ciclo nunca cerraba porque el recojo no llegaba tan
                           # profundo como la carga deliberada del inicio.
-UMBRAL_EXTENSION = 160   # Rodilla casi extendida = Kime (mismo criterio que evaluate_tsuki)
+# El umbral de extension (Kime) NO vive aqui: es el mismo criterio que evalua
+# KarateRules.evaluate_mae_geri, y duplicarlo significaria que recalibrar el
+# Kime desde la interfaz dejaria la transicion de estados con el valor viejo.
+# Se lee de la base de conocimientos en el constructor.
 UMBRAL_APOYO = 140       # Pierna vuelve a estar bajo el cuerpo, lista para una nueva patada
 
 # Timeouts anti-atasco: si la técnica no progresa, se descarta el intento.
@@ -48,8 +51,12 @@ class MaeGeriStateMachine:
     permite probarla con números sintéticos, sin cámara (ver test_mae_geri_fsm.py).
     """
 
-    def __init__(self, ventana_filtro=5):
+    def __init__(self, ventana_filtro=5, reglas=None):
         self.filtro_angulo = MovingAverageFilter(ventana_filtro)
+        # Sin reglas explicitas se instancian las de literatura: la maquina
+        # sigue siendo construible sin base de datos (ver test_mae_geri_fsm.py).
+        self.reglas = reglas or KarateRules()
+        self.umbral_extension = self.reglas.rango("mae_geri", "rodilla_kime")[0]
         self._reset_estado()
 
     def _reset_estado(self):
@@ -136,7 +143,7 @@ class MaeGeriStateMachine:
             return None
 
         if self.estado == CARGA:
-            if angulo > UMBRAL_EXTENSION:
+            if angulo > self.umbral_extension:
                 self.angulo_maximo_extension = angulo
                 self._entrar_estado(EXTENSION, t_ms)
                 return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA, "correcto": None}
@@ -152,10 +159,10 @@ class MaeGeriStateMachine:
 
             if angulo < UMBRAL_CARGA:
                 # Se cierra el Kime y se evalúa el Hikiashi en el mismo instante.
-                es_kime_ok, msg_kime, color_kime = KarateRules.evaluate_mae_geri(
+                es_kime_ok, msg_kime, color_kime = self.reglas.evaluate_mae_geri(
                     self.angulo_maximo_extension, self.velocidad_pico)
                 pie_recogido = ankle_y < (self.ankle_y_reposo - MARGEN_PIE_AIRE)
-                es_hiki_ok, msg_hiki, color_hiki = KarateRules.evaluate_hikiashi(pie_recogido)
+                es_hiki_ok, msg_hiki, color_hiki = self.reglas.evaluate_hikiashi(pie_recogido)
 
                 # El peor de los dos resultados manda el color mostrado. La técnica
                 # completa solo cuenta como "correcta" si AMBAS fases lo fueron.
@@ -164,7 +171,8 @@ class MaeGeriStateMachine:
 
                 self._entrar_estado(RECUPERANDO, t_ms)
                 return {"angulo": angulo, "mensaje": f"{msg_kime} | {msg_hiki}", "color": color,
-                        "correcto": es_correcto}
+                        "correcto": es_correcto,
+                        "id_umbral": self.reglas.id_umbral_principal("mae_geri")}
 
             if self._tiempo_en_estado_actual(t_ms) > TIMEOUT_EXTENSION_MS:
                 # Sostuvo el Kime sin recoger la pierna: se descarta el intento.

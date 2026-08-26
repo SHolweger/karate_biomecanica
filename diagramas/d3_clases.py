@@ -1,15 +1,15 @@
 """3.8.3 — Diagrama de clases, organizado por las capas del Capítulo 3."""
 from _svg import (Lienzo, caja_clase, TINTA, ACENTO, ACENTO_BG, GRIS, GRIS_BG, BANDA_BG, BLANCO)
 
-W, H = 1440, 1600
+W, H = 1440, 1660
 c = Lienzo(W, H, "Diagrama de clases — Sistema experto de análisis biomecánico")
 
 BANDAS = [
     (60,   330, "CAPA DE PRESENTACIÓN (GUI)", "Cap. 3 — capa de interfaz gráfica de usuario"),
     (400,  610, "CAPA DE ADQUISICIÓN DE DATOS", "Cap. 3 — captura óptica e ingesta inercial"),
     (680,  890, "CAPA DE PROCESAMIENTO BIOMECÁNICO Y FUSIÓN", "Cap. 3 — sincronización temporal y fusión sensorial"),
-    (960, 1210, "CAPA DE INFERENCIA (SISTEMA EXPERTO)", "Cap. 3 — motor heurístico y base de conocimientos"),
-    (1280,1530, "CAPA DE PERSISTENCIA", "RF-07 — SQLite embebido, local (RNF-02)"),
+    (960, 1265, "CAPA DE INFERENCIA (SISTEMA EXPERTO)", "Cap. 3 — motor heurístico y base de conocimientos"),
+    (1335,1590, "CAPA DE PERSISTENCIA", "RF-07 — SQLite embebido, local (RNF-02)"),
 ]
 for y0, y1, titulo, sub in BANDAS:
     c.rect(60, y0, 1350, y1 - y0, fill=BANDA_BG, stroke="#dbe3ec", sw=1.2, rx=8)
@@ -63,33 +63,40 @@ fus = caja_clase(c, 940, 720, 250, "SensorFusion", [],
 
 # ---------------- CAPA D: inferencia ----------------
 analy = caja_clase(c, 200, 1000, 310, "TechniqueAnalyzer", [
-    "- umbral : float", "- filtros : dict<str, MovingAverageFilter>",
+    "- umbral : float", "- reglas : KarateRules",
+    "- filtros : dict<str, MovingAverageFilter>",
     "- maquinas_patada : dict<str, MaeGeriSM>"],
     ["+ analyze_tsuki(lm, w, h)", "+ analyze_stance(lm, w, h)",
      "+ analyze_mae_geri(lm, w, h, ts)"], estereotipo="motor de inferencia (RF-05)")
 
 fsm = caja_clase(c, 550, 1000, 310, "MaeGeriStateMachine", [
-    "- estado : str", "- velocidad_pico : float", "- filtro_angulo : MovingAverageFilter"],
+    "- estado : str", "- velocidad_pico : float",
+    "- umbral_extension : float", "- reglas : KarateRules"],
     ["+ update(vis, ang, ankle_y, ts)", "+ reset()"],
     estereotipo="cinemática dinámica — 4 fases")
 
-reglas = caja_clase(c, 900, 1000, 330, "KarateRules", [],
-    ["+ evaluate_tsuki(ang)  «static»", "+ evaluate_heiko_dachi(ang)",
+reglas = caja_clase(c, 900, 1000, 330, "KarateRules", [
+    "- _rangos : dict<(tecnica, articulacion)>",
+    "- _ids : dict<(tecnica, articulacion)>"],
+    ["+ rango(tecnica, articulacion)", "+ id_umbral_principal(tecnica)",
+     "+ evaluate_tsuki(ang)", "+ evaluate_heiko_dachi(ang)",
      "+ evaluate_kiba_dachi(i, d)", "+ evaluate_zenkutsu_dachi(f, t)",
      "+ evaluate_kokutsu_dachi(f, t)", "+ evaluate_mae_geri(ang, vel)",
      "+ evaluate_hikiashi(recogido)", "+ evaluate_age_uke(ang)"],
-    estereotipo="base de conocimientos (RF-05)")
+    estereotipo="base de conocimientos (RF-05 / RF-08)")
 
 # ---------------- CAPA E: persistencia ----------------
-bd = caja_clase(c, 70, 1320, 320, "Database", ["- conn : sqlite3.Connection"],
+bd = caja_clase(c, 70, 1375, 320, "Database", ["- conn : sqlite3.Connection"],
     ["+ autenticar_entrenador(u, p)", "+ crear_atleta(...)",
      "+ iniciar_sesion(...) / cerrar_sesion(id)", "+ guardar_medicion(...)",
-     "+ consultar_historial(id_atleta)"], estereotipo="RF-07 / RF-08")
+     "+ consultar_historial(id_atleta)", "+ sembrar_umbrales(defaults)",
+     "+ cargar_umbrales_vigentes()", "+ actualizar_umbral(...)"],
+    estereotipo="RF-07 / RF-08")
 
-mlog = caja_clase(c, 440, 1320, 280, "MedicionLogger", ["- _ultimo_mensaje : dict"],
+mlog = caja_clase(c, 440, 1375, 280, "MedicionLogger", ["- _ultimo_mensaje : dict"],
     ["+ registrar(diagnostico, ts_ms)"], estereotipo="anti-duplicados")
 
-rep = caja_clase(c, 780, 1320, 300, "reportes", [],
+rep = caja_clase(c, 780, 1375, 300, "reportes", [],
     ["+ generar_reporte_progreso(db, id)"], estereotipo="«módulo» matplotlib")
 
 # ================= RELACIONES =================
@@ -110,12 +117,12 @@ c.conector([(215, borde_inf(app)), (215, 316), (890, 316), (890, 180), (live[0],
 # LiveScreen ⟶ pipeline (bus vertical a la derecha, un canal por destino)
 for destino_x, destino_y, canal_y in [(195, cam[1], 360), (495, track[1], 382),
                                       (775, rend[1], 645), (355, analy[1], 925),
-                                      (580, mlog[1], 1245)]:
+                                      (580, mlog[1], 1300)]:
     c.conector([(1035, borde_inf(live)), (1035, 292), (BUS, 292), (BUS, canal_y),
                 (destino_x, canal_y), (destino_x, destino_y)], color=ACENTO)
 
 # App ⇢ Database: App crea la instancia y la inyecta a todas las pantallas
-c.conector([(app[0], 200), (28, 200), (28, 1390), (bd[0], 1390)], tipo="dep", color=ACENTO)
+c.conector([(app[0], 200), (28, 200), (28, 1445), (bd[0], 1445)], tipo="dep", color=ACENTO)
 c.texto(34, 800, "usa / inyecta", size=10.5, fill=ACENTO, italic=True)
 
 # TechniqueAnalyzer
@@ -134,8 +141,8 @@ c.conector([(700, fsm[1]), (700, 902), (485, 902), (485, borde_inf(filt))],
 c.conector([(borde_der(fsm), 1055), (reglas[0], 1055)], tipo="dep", color=ACENTO)
 
 # Persistencia
-c.conector([(mlog[0], 1365), (borde_der(bd), 1365)], color=ACENTO)
-c.conector([(930, borde_inf(rep)), (930, 1502), (230, 1502), (230, borde_inf(bd))],
+c.conector([(mlog[0], 1420), (borde_der(bd), 1420)], color=ACENTO)
+c.conector([(930, borde_inf(rep)), (930, 1557), (230, 1557), (230, borde_inf(bd))],
            tipo="dep", color=ACENTO)
 
 # Cadena IMU (planificada)
@@ -162,6 +169,13 @@ nota(1190, 232, 215, [
 ], "main.py")
 c.linea(1297, borde_inf(consola), 1297, 232, stroke="#c9a227", sw=1.3, dash="4 3")
 
+nota(960, 520, 290, [
+    "KarateRules ya no lleva constantes: recibe los",
+    "umbrales vigentes de la base de datos al arrancar",
+    "(RF-08). Sin base de datos cae en los valores de",
+    "literatura, y por eso sigue siendo probable sola.",
+], "Umbrales parametrizados")
+
 nota(960, 428, 290, [
     "TechniqueAnalyzer responde «¿qué hay AHORA?»;",
     "MaeGeriStateMachine responde «¿en qué FASE de",
@@ -170,11 +184,11 @@ nota(960, 428, 290, [
 ], "Separación de responsabilidades")
 
 # ---------------- leyenda ----------------
-c.rect(60, 1545, 690, 45, fill=BLANCO, stroke="#dbe3ec", sw=1.2, rx=6)
-c.rect(78, 1558, 26, 18, fill=BLANCO, stroke=ACENTO, sw=1.8)
-c.texto(114, 1572, "Implementado y verificado (git log)", size=11.5)
-c.rect(360, 1558, 26, 18, fill=GRIS_BG, stroke=GRIS, sw=1.8, dash="4 3")
-c.texto(396, 1572, "Planificado (Sprint 4-5, depende del IMU)", size=11.5, fill=GRIS)
+c.rect(60, 1605, 690, 45, fill=BLANCO, stroke="#dbe3ec", sw=1.2, rx=6)
+c.rect(78, 1618, 26, 18, fill=BLANCO, stroke=ACENTO, sw=1.8)
+c.texto(114, 1632, "Implementado y verificado (git log)", size=11.5)
+c.rect(360, 1618, 26, 18, fill=GRIS_BG, stroke=GRIS, sw=1.8, dash="4 3")
+c.texto(396, 1632, "Planificado (Sprint 4-5, depende del IMU)", size=11.5, fill=GRIS)
 
 c.guardar("3.8.3_diagrama_clases.svg")
 print("3.8.3_diagrama_clases.svg")
