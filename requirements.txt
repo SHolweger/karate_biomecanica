@@ -1,0 +1,12 @@
+# Dependencias de ejecución del sistema (Shotokan AI).
+# Instalación:  pip install -r requirements.txt
+#
+# Se usan rangos abiertos en vez de versiones exactas porque MediaPipe publica
+# ruedas distintas por sistema operativo y arquitectura (el proyecto se
+# desarrolla en macOS Apple Silicon y se verifica en Linux x86_64 en CI).
+mediapipe>=0.10.9
+opencv-python>=4.8
+numpy>=1.24
+customtkinter>=5.2
+pillow>=10.0
+matplotlib>=3.7

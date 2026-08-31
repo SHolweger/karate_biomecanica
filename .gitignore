@@ -2,5 +2,18 @@
 /venv
 __pycache__/
 *.pyc
-*.md
 *.db
+
+# Artefactos de las pruebas automatizadas
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Los apuntes personales en Markdown no se versionan, pero la documentación
+# del proyecto (README y carpeta docs/) sí: es parte de los entregables.
+*.md
+!README.md
+!docs/*.md
+!tests/*.md
+!.github/*.md

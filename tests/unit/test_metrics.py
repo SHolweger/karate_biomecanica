@@ -1,13 +1,12 @@
 """
-test_metrics.py — Verificación de la instrumentación de rendimiento.
+Pruebas unitarias de biomechanics/metrics.py (PerformanceMonitor).
 
-No requiere cámara ni hardware: se inyecta un reloj determinista en el
-PerformanceMonitor para comprobar la aritmética de las mediciones con
-valores conocidos de antemano.
-
-Uso:
-    ./venv/bin/python test_metrics.py
+No requieren cámara ni hardware: se inyecta un reloj determinista para
+comprobar la aritmética de las mediciones contra valores conocidos de
+antemano. Que el monitor reciba su fuente de tiempo por parámetro es
+justamente lo que hace verificable una clase que mide tiempo real.
 """
+import pytest
 from biomechanics.metrics import PerformanceMonitor
 
 
@@ -24,6 +23,7 @@ class RelojSimulado:
         return v
 
 
+@pytest.mark.unitaria
 def test_mide_cada_etapa_por_separado():
     # iniciar=0.0 | marcar('pose')=0.010 | marcar('analisis')=0.035 | cerrar=0.040
     reloj = RelojSimulado([0.0, 0.010, 0.035, 0.040])
@@ -40,6 +40,7 @@ def test_mide_cada_etapa_por_separado():
     assert abs(m.resumen_total()["media"] - 40.0) < 1e-6, m.resumen_total()
 
 
+@pytest.mark.unitaria
 def test_descarta_fotogramas_de_calentamiento():
     # 4 fotogramas con etapa de 10, 20, 30 y 40 ms. Con descarte=2 solo
     # deben promediarse los dos ultimos.
@@ -61,6 +62,7 @@ def test_descarta_fotogramas_de_calentamiento():
     assert len(m.etapas["etapa"]) == 4
 
 
+@pytest.mark.unitaria
 def test_estadisticas_con_valores_conocidos():
     impares = PerformanceMonitor._estadisticas([30, 10, 50, 20, 40])
     assert impares["media"] == 30
@@ -75,6 +77,7 @@ def test_estadisticas_con_valores_conocidos():
     assert PerformanceMonitor._estadisticas([]) is None
 
 
+@pytest.mark.unitaria
 def test_fps_se_calcula_entre_inicios_de_fotograma():
     # Fotogramas que arrancan cada 40 ms => 25 fps sostenidos.
     valores = []
@@ -94,6 +97,7 @@ def test_fps_se_calcula_entre_inicios_de_fotograma():
     assert abs(m.resumen_total()["media"] - 1.0) < 1e-6
 
 
+@pytest.mark.unitaria
 def test_marcar_sin_iniciar_frame_falla():
     m = PerformanceMonitor()
     try:
@@ -103,33 +107,9 @@ def test_marcar_sin_iniciar_frame_falla():
     raise AssertionError("marcar() sin iniciar_frame() deberia lanzar RuntimeError")
 
 
+@pytest.mark.unitaria
 def test_sin_datos_suficientes_no_revienta():
     m = PerformanceMonitor(descartar_iniciales=5)
     assert m.resumen_total() is None
     assert m.resumen_fps() is None
     assert m.resumen_etapas() == {}
-
-
-if __name__ == "__main__":
-    pruebas = [
-        test_mide_cada_etapa_por_separado,
-        test_descarta_fotogramas_de_calentamiento,
-        test_estadisticas_con_valores_conocidos,
-        test_fps_se_calcula_entre_inicios_de_fotograma,
-        test_marcar_sin_iniciar_frame_falla,
-        test_sin_datos_suficientes_no_revienta,
-    ]
-
-    ok, fallidas = 0, 0
-    for prueba in pruebas:
-        try:
-            prueba()
-            print(f"PASS - {prueba.__name__}")
-            ok += 1
-        except AssertionError as e:
-            print(f"FAIL - {prueba.__name__}: {e}")
-            fallidas += 1
-
-    print(f"\n{ok}/{len(pruebas)} pruebas pasaron.")
-    if fallidas:
-        raise SystemExit(1)
