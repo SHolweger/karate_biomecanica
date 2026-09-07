@@ -9,6 +9,7 @@ idénticas y el historial del alumno sería inútil.
 import pytest
 
 from persistence.medicion_logger import NOMBRES_TECNICA, MedicionLogger
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -25,6 +26,32 @@ def _filas(db, id_sesion):
     ).fetchall()
 
 
+@ficha(
+    id_caso="TC-AUTO-011",
+    nombre="Treinta cuadros consecutivos con el mismo diagnóstico generan un único "
+           "registro en la base de datos",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="sin la regla, una sesión de 10 minutos generaría ~18 000 filas "
+                         "idénticas",
+    componente="persistence/medicion_logger.py (MedicionLogger)",
+    requisitos="RF-07",
+    precondiciones="Base temporal con entrenador, atleta y sesión abierta "
+                   "(fixture `sesion_de_prueba`)",
+    datos_entrada="30 diagnósticos idénticos: categoria=\"codo_izq\", "
+                  "mensaje=\"IZQ - TSUKI: EXCELENTE\", timestamp_ms = frame * 33",
+    pasos=[
+        Paso("Instanciar `MedicionLogger(db, id_sesion)`",
+             "Memoria de últimos mensajes vacía"),
+        Paso("Invocar `logger.registrar(...)` 30 veces con el mismo mensaje",
+             "Cada llamada retorna sin excepción"),
+        Paso("Consultar `SELECT * FROM tecnica_evaluada WHERE id_sesion = ?`",
+             "Se obtiene el conjunto de filas persistidas"),
+        Paso("Verificar la deduplicación", "assert len(filas) == 1"),
+    ],
+    resultado_esperado="PASSED. Caso complementario: "
+                       "test_cada_cambio_real_de_diagnostico_se_registra",
+)
 def test_treinta_frames_identicos_generan_una_sola_fila(sesion_de_prueba):
     """Un segundo de video sosteniendo la misma postura = 1 registro, no 30."""
     db, id_sesion, _, _ = sesion_de_prueba

@@ -52,7 +52,7 @@ lista los índices disponibles en el equipo.
 La suite cubre la lógica biomecánica, las reglas del sistema experto, la máquina
 de estados de las patadas, la persistencia y el flujo completo de la interfaz.
 
-**197 casos · 99 % de cobertura de la lógica de negocio · ~2 segundos de ejecución**
+**245 casos · 19 documentados con ficha formal · 92 % de cobertura · ~4 segundos de ejecución**
 
 ## Instalación de las dependencias de prueba
 
@@ -86,14 +86,41 @@ pytest --cov --cov-report=term-missing   # resumen en consola
 pytest --cov --cov-report=html           # reporte navegable en htmlcov/index.html
 ```
 
+## Reportes con formato normalizado
+
+Cada caso de prueba documentado declara su ficha formal (ID, tipo, prioridad,
+precondiciones, datos de entrada, pasos, aserciones y criterio de salida) junto
+al script que lo ejecuta, con el decorador `@ficha(...)` de
+[`tests/reporte/plantilla.py`](tests/reporte/plantilla.py). La ficha se valida
+al importar el módulo: una ficha incompleta rompe la recolección de pytest antes
+de ejecutar nada.
+
+```bash
+pytest --reporte-formal                  # genera la evidencia y el documento de casos
+pytest --exigir-fichas                   # falla si el formato documental no se cumple
+pytest --reporte-formal --cov            # la evidencia incluye el % de cobertura
+```
+
+`--reporte-formal` escribe dos documentos, ambos generados y no editables a mano:
+
+| Archivo | Contenido |
+|---|---|
+| `evidencias/evidencia_ejecucion_<fecha>.md` | Identificación de la corrida (entorno, commit, comando), resumen por nivel, veredicto de cada caso documentado, cobertura y detalle prueba por prueba |
+| `docs/casos_prueba_automatizados.generado.md` | Las fichas completas de todos los casos y la tabla de trazabilidad contra requisitos |
+
+`--exigir-fichas` convierte en error tres incumplimientos del formato: un módulo
+de pruebas sin ningún caso documentado, IDs repetidos y huecos en la serie
+`TC-AUTO-###`.
+
 ## Estructura de la suite
 
 | Carpeta | Contenido | Casos |
 |---|---|:--:|
-| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate | 98 |
-| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola | 91 |
+| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, plantilla de reportes | 138 |
+| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales | 99 |
 | `tests/e2e/` | Flujo completo de la GUI: login → perfil → análisis → cierre | 8 |
 | `tests/helpers/` | Dobles de prueba: cámara y poses sintéticas | — |
+| `tests/reporte/` | Plantilla formal de los casos y complemento de pytest que emite los reportes | — |
 | `tests/conftest.py` | Fixtures compartidas (base de datos temporal, cámara sintética) | — |
 
 ## Cómo se prueba sin cámara ni karateka
@@ -116,8 +143,9 @@ landmarks = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=170,
 ## Integración continua
 
 `.github/workflows/pruebas.yml` ejecuta la suite en cada *push* y *pull request*
-sobre Ubuntu con Python 3.11 y 3.12, y publica el reporte JUnit XML y el informe
-de cobertura como artefactos descargables.
+sobre Ubuntu con Python 3.11 y 3.12 con `--exigir-fichas --reporte-formal`, y
+publica como artefactos descargables el reporte JUnit XML, el informe de
+cobertura, la evidencia de ejecución y el documento de casos generado.
 
 ## Scripts de evidencia (no forman parte de la suite)
 
@@ -128,5 +156,6 @@ ejecutan a mano y quedan fuera de `pytest` a propósito (`testpaths = tests`).
 ## Documentación
 
 - [`docs/informe_tecnico_pruebas_automatizadas.md`](docs/informe_tecnico_pruebas_automatizadas.md) — análisis comparativo de herramientas y justificación de la selección
-- [`docs/casos_prueba_automatizados.md`](docs/casos_prueba_automatizados.md) — fichas de los 14 casos de prueba documentados
+- [`docs/casos_prueba_automatizados.md`](docs/casos_prueba_automatizados.md) — versión redactada a mano de las fichas (la de entrega del curso)
+- `docs/casos_prueba_automatizados.generado.md` — la misma información generada desde el código en cada corrida con `--reporte-formal`, con el veredicto real de cada caso
 - [`docs/guia_de_entrega.md`](docs/guia_de_entrega.md) — cómo ejecutar, capturar evidencia y exportar los entregables a PDF

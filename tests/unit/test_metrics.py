@@ -8,6 +8,7 @@ justamente lo que hace verificable una clase que mide tiempo real.
 """
 import pytest
 from biomechanics.metrics import PerformanceMonitor
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 
 class RelojSimulado:
@@ -23,6 +24,37 @@ class RelojSimulado:
         return v
 
 
+@ficha(
+    id_caso="TC-AUTO-015",
+    nombre="El instrumento que mide la latencia del pipeline cronometra cada etapa por "
+           "separado con un reloj determinista",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="es el instrumento con el que se declara el cumplimiento del "
+                         "RNF-01; si mide mal, el resultado reportado en el capítulo 4 "
+                         "no vale",
+    componente="biomechanics/metrics.py (PerformanceMonitor)",
+    requisitos=["RNF-01", "RF-01"],
+    precondiciones="`PerformanceMonitor` construido con `descartar_iniciales=0` y un "
+                   "reloj simulado inyectado por parámetro",
+    datos_entrada="Secuencia de lecturas del reloj: iniciar=0.0 s, marcar('pose')=0.010 s, "
+                  "marcar('analisis')=0.035 s, cerrar=0.040 s",
+    pasos=[
+        Paso("Inyectar el reloj determinista y abrir un fotograma",
+             "El monitor no consulta el reloj real del sistema"),
+        Paso("Marcar las etapas `pose` y `analisis` y cerrar el fotograma",
+             "Cada marca queda asociada a su etapa"),
+        Paso("Consultar `resumen_etapas()`",
+             "assert abs(etapas['pose']['media'] - 10.0) < 1e-6 y "
+             "abs(etapas['analisis']['media'] - 25.0) < 1e-6"),
+        Paso("Consultar el total del fotograma",
+             "assert abs(resumen_total()['media'] - 40.0) < 1e-6"),
+    ],
+    resultado_esperado="PASSED. La aritmética de las mediciones coincide con los valores "
+                       "conocidos de antemano en milisegundos",
+    evidencia="Reporte de consola de pytest; medición real del sistema en "
+              "`evidencias/rendimiento_*.csv` y `evidencias/rendimiento_*.png`.",
+)
 @pytest.mark.unitaria
 def test_mide_cada_etapa_por_separado():
     # iniciar=0.0 | marcar('pose')=0.010 | marcar('analisis')=0.035 | cerrar=0.040

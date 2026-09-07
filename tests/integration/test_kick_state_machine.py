@@ -15,6 +15,7 @@ from expert_system.kick_state_machine import (
     TIMEOUT_CARGA_MS, TIMEOUT_EXTENSION_MS, TOLERANCIA_FRAMES_OCULTO,
     MaeGeriStateMachine,
 )
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -35,6 +36,33 @@ def _poner_de_pie(maquina, t_ms=0):
     return maquina
 
 
+@ficha(
+    id_caso="TC-AUTO-007",
+    nombre="Una patada correcta recorre Reposo → Carga → Extensión → Recuperando → "
+           "Reposo y se califica como correcta",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es la única técnica evaluada en movimiento; un error de "
+                         "transición deja al sistema atascado",
+    componente="expert_system/kick_state_machine.py (MaeGeriStateMachine)",
+    requisitos=["RF-01", "RF-05"],
+    precondiciones="`MaeGeriStateMachine(ventana_filtro=1)` recién instanciada, con la "
+                   "referencia de \"pie en el suelo\" registrada (ankle_y = 0.90)",
+    datos_entrada="Secuencia de cuadros a ~30 fps: (175°, y=0.90, t=0), (45°, 0.90, 33 ms), "
+                  "(170°, 0.50, 66 ms), (45°, 0.50, 100 ms), (175°, 0.90, 133 ms)",
+    pasos=[
+        Paso("Enviar el cuadro de pie y luego el de rodilla flexionada",
+             "assert maquina.estado == \"CARGA\""),
+        Paso("Enviar el cuadro de extensión explosiva",
+             "assert maquina.estado == \"EXTENSION\""),
+        Paso("Enviar el cuadro de recojo con el pie aún elevado",
+             "assert resultado[\"correcto\"] is True; el mensaje contiene "
+             "\"KIME EXCELENTE\" e \"HIKIASHI: CORRECTO\""),
+        Paso("Enviar el cuadro de apoyo final",
+             "assert maquina.estado == \"REPOSO\" (lista para la siguiente patada)"),
+    ],
+    resultado_esperado="PASSED sin excepciones",
+)
 def test_ciclo_completo_de_una_patada_correcta(maquina):
     """
     Camino feliz: recojo de rodilla, extensión explosiva, Hikiashi con el pie
@@ -160,6 +188,31 @@ def test_oclusion_breve_no_interrumpe_la_tecnica(maquina):
         assert "CARGA" in resultado["mensaje"]
 
 
+@ficha(
+    id_caso="TC-AUTO-008",
+    nombre="Perder de vista la pierna más allá de la tolerancia aborta la técnica en vez "
+           "de emitir un diagnóstico inventado",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="evaluar con datos incompletos daría retroalimentación falsa al "
+                         "atleta",
+    componente="expert_system/kick_state_machine.py (MaeGeriStateMachine)",
+    requisitos=["RF-01", "RF-03"],
+    precondiciones="Máquina de estados en estado `CARGA` (técnica en curso)",
+    datos_entrada="6 cuadros consecutivos con visible=False (tolerancia configurada: "
+                  "5 cuadros ≈ 165 ms a 30 fps)",
+    pasos=[
+        Paso("Llevar la máquina al estado `CARGA`", "assert maquina.estado == \"CARGA\""),
+        Paso("Enviar cuadros con visible=False dentro de la tolerancia",
+             "El estado se conserva y se repite el último diagnóstico"),
+        Paso("Enviar el cuadro que excede la tolerancia",
+             "assert \"TECNICA PERDIDA\" in resultado[\"mensaje\"]"),
+        Paso("Verificar que no se emite veredicto y la máquina se reinicia",
+             "assert resultado[\"correcto\"] is None y assert maquina.estado == \"REPOSO\""),
+    ],
+    resultado_esperado="PASSED. Caso complementario: "
+                       "test_oclusion_breve_no_interrumpe_la_tecnica",
+)
 def test_oclusion_prolongada_aborta_la_tecnica(maquina):
     """
     Si la pierna desaparece más allá de la tolerancia, el sistema no puede

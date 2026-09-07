@@ -11,6 +11,7 @@ import sqlite3
 import pytest
 
 from persistence.database import Database
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -36,6 +37,30 @@ def test_registro_y_autenticacion_exitosa(db):
     assert entrenador["rol"] == "principal"
 
 
+@ficha(
+    id_caso="TC-AUTO-009",
+    nombre="Ninguna credencial incorrecta concede acceso al sistema",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es el control de acceso a los expedientes de los alumnos",
+    componente="persistence/database.py (Database.autenticar_entrenador)",
+    requisitos="RF-08",
+    precondiciones="Base de datos SQLite temporal con un entrenador registrado: "
+                   "usuario=\"sholweger\", password=\"clave123\"",
+    datos_entrada="(\"sholweger\", \"clave_incorrecta\"), (\"usuario_inexistente\", "
+                  "\"clave123\"), (\"SHOLWEGER\", \"clave123\"), (\"\", \"\")",
+    pasos=[
+        Paso("Crear la base temporal y registrar al entrenador",
+             "La tabla `entrenador` contiene una fila"),
+        Paso("Invocar `db.autenticar_entrenador(usuario, password)` con cada par inválido",
+             "La consulta se ejecuta sin excepción"),
+        Paso("Verificar la denegación de acceso",
+             "assert db.autenticar_entrenador(...) is None"),
+        Paso("Verificar el camino positivo de control",
+             "Con las credenciales correctas devuelve el diccionario del entrenador"),
+    ],
+    resultado_esperado="PASSED en los cuatro pares parametrizados",
+)
 @pytest.mark.parametrize("usuario, password, motivo", [
     ("sholweger", "clave_incorrecta", "contraseña equivocada"),
     ("usuario_inexistente", "clave123", "usuario que no existe"),
@@ -49,6 +74,28 @@ def test_credenciales_invalidas_no_dan_acceso(db, usuario, password, motivo):
     assert db.autenticar_entrenador(usuario, password) is None, f"dio acceso con {motivo}"
 
 
+@ficha(
+    id_caso="TC-AUTO-010",
+    nombre="La contraseña se almacena como hash SHA-256, nunca en texto plano",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="requisito no funcional de seguridad verificable automáticamente",
+    componente="persistence/database.py (Database.crear_entrenador)",
+    requisitos="RNF-05",
+    precondiciones="Base de datos SQLite temporal vacía",
+    datos_entrada="nombre=\"Sensei\", usuario=\"sensei\", password=\"MiClaveSecreta\"",
+    pasos=[
+        Paso("Registrar al entrenador con `db.crear_entrenador(...)`", "Inserción exitosa"),
+        Paso("Consultar la fila **cruda** con SQL directo, sin pasar por la API",
+             "Se obtiene el campo `password_hash` tal como quedó almacenado"),
+        Paso("Verificar que no coincide con la contraseña original",
+             "assert fila[\"password_hash\"] != \"MiClaveSecreta\""),
+        Paso("Verificar el algoritmo y la longitud del digest",
+             "assert fila[\"password_hash\"] == sha256(\"MiClaveSecreta\").hexdigest() "
+             "y len(...) == 64"),
+    ],
+    resultado_esperado="PASSED",
+)
 def test_la_contrasena_nunca_se_guarda_en_texto_plano(db):
     """
     RNF-05: en la tabla debe quedar el hash SHA-256, no la contraseña. Se
