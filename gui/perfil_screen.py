@@ -15,6 +15,16 @@ class PerfilScreen(ctk.CTkFrame):
         self.master_app = master
         self.entrenador = entrenador
 
+        # Barra superior: acceso a la calibración de umbrales (RF-08). Vive
+        # aquí y no en la pantalla en vivo porque recalibrar en medio de una
+        # medición cambiaría el criterio a mitad de la evaluación.
+        barra = ctk.CTkFrame(self, fg_color="transparent")
+        barra.pack(fill="x", padx=20, pady=14)
+        ctk.CTkButton(barra, text="Calibrar umbrales", fg_color="transparent", border_width=1,
+                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
+                      hover_color=theme.CARD_HOVER, width=160,
+                      command=self._abrir_umbrales).pack(side="right")
+
         contenedor = ctk.CTkFrame(self, fg_color="transparent")
         contenedor.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -73,6 +83,9 @@ class PerfilScreen(ctk.CTkFrame):
 
     def _elegir(self, atleta):
         self.master_app.on_perfil_elegido(atleta)
+
+    def _abrir_umbrales(self):
+        self.master_app.on_abrir_umbrales()
 
     def _abrir_form_nuevo(self):
         if self.form_nuevo is not None:

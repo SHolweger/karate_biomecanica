@@ -34,28 +34,8 @@ pytestmark = [pytest.mark.e2e, pytest.mark.lenta]
 MODELO_POSE = "pose_landmarker_full.task"
 
 
-@pytest.fixture(autouse=True)
-def requiere_entorno_grafico():
-    """Sin servidor de ventanas (CI headless) Tkinter no puede crear la aplicación."""
-    if os.name != "nt" and not os.environ.get("DISPLAY"):
-        pytest.skip("sin entorno gráfico disponible (DISPLAY no definido)")
-
-
-@pytest.fixture
-def app(db):
-    """Aplicación real con la base de datos temporal, con la ventana oculta."""
-    aplicacion = App(db=db)
-    aplicacion.withdraw()
-    yield aplicacion
-    if isinstance(aplicacion.pantalla_actual, LiveScreen):
-        aplicacion.pantalla_actual.cerrar()
-    aplicacion.destroy()
-
-
-@pytest.fixture
-def entrenador_registrado(db):
-    db.crear_entrenador("Sensei Ejemplo", "sensei", "sensei@dojo.gt", "clave123", rol="principal")
-    return db.autenticar_entrenador("sensei", "clave123")
+# Las fixtures `app`, `entrenador_registrado` y el guardia de entorno gráfico
+# viven en tests/e2e/conftest.py: las comparten todos los módulos de interfaz.
 
 
 def test_el_primer_arranque_pide_crear_la_cuenta_inicial(app):

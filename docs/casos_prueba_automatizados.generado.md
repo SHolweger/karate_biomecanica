@@ -1,8 +1,8 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Generado:** 2026-09-06 00:30:31
-**Casos documentados:** 19 de 245 pruebas recolectadas
+**Generado:** 2026-09-07 04:23:56
+**Casos documentados:** 21 de 276 pruebas recolectadas
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -12,9 +12,9 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 7 | 23 |
+| Unitaria | 8 | 28 |
 | API/Integración | 10 | 16 |
-| Interfaz (UI/E2E) | 2 | 2 |
+| Interfaz (UI/E2E) | 3 | 3 |
 
 ---
 
@@ -587,6 +587,64 @@
 
 ---
 
+## TC-AUTO-020 — El formulario de calibración rechaza todo rango imposible antes de escribirlo en la base de datos
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-020 |
+| **Nombre de la Prueba** | El formulario de calibración rechaza todo rango imposible antes de escribirlo en la base de datos |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — un umbral invertido o fuera del rango articular medible haría que una técnica no pueda aprobarse nunca, y el atleta recibiría correcciones imposibles de satisfacer sin que nada delate el error |
+| **Componente bajo prueba** | `gui/validacion_umbrales.py (interpretar_rango)` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | Ninguna. `interpretar_rango` es una función pura, sin estado ni dependencias de la interfaz gráfica |
+| **Datos de Entrada (Test Data)** | Cinco rangos inválidos: mínimo vacío, mínimo no numérico, máximo menor que el mínimo (175–160), valor negativo (-5) y ángulo de 200° (fuera del rango articular de 0–180°) |
+| **Archivo / Clase del Script** | `tests/unit/test_validacion_umbrales.py::test_rechaza_los_rangos_imposibles` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Invocar `interpretar_rango(texto_min, texto_max)` con cada rango inválido | assert se levanta `ValorInvalido` en los cinco casos |
+| 2 | Leer el mensaje de la excepción | assert el fragmento esperado aparece en el mensaje (indica al entrenador cuál campo corregir, no un rastro técnico) |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Ningún rango inválido llega a `Database.actualizar_umbral`, de modo que no se crea una versión de umbral inservible
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-021 — Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-021 |
+| **Nombre de la Prueba** | Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es la única vía por la que un instructor puede ajustar el criterio técnico del sistema; si la pantalla no escribe en la base de datos, el RF-08 queda sostenido solo por código que nadie del dojo puede ejecutar |
+| **Componente bajo prueba** | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; entrenador autenticado; umbrales de literatura ya sembrados por `App` al arrancar |
+| **Datos de Entrada (Test Data)** | Umbral `tsuki` / `codo`, vigente en 160–175°, editado a 170–175° desde el formulario; ángulo de prueba 165°, correcto con el criterio anterior |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_umbrales.py::test_recalibrar_cambia_el_criterio_del_sistema_experto` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Autenticarse y abrir la pantalla con `_abrir_umbrales()` (el manejador del botón real) | assert isinstance(app.pantalla_actual, UmbralesScreen) |
+| 2 | Escribir 170 en el campo del mínimo y disparar `_guardar_cambios()` | assert guardados == 1 (se escribe solo el umbral modificado) |
+| 3 | Releer los umbrales vigentes y construir `KarateRules` con ellos | assert reglas.evaluate_tsuki(165)[0] is False (165° ya no aprueba) |
+| 4 | Consultar `historial_umbral('tsuki', 'codo')` | assert len(historial) == 2 y la versión vigente quedó firmada por el entrenador que la guardó |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El criterio nuevo rige la siguiente sesión de análisis y la versión anterior permanece en el historial, de modo que las mediciones ya registradas siguen siendo interpretables
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla de la pantalla de calibración para el expediente.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -610,3 +668,5 @@
 | TC-AUTO-017 | `biomechanics/renderer.py (SkeletonRenderer.draw)` | RF-06 | API/Integración |
 | TC-AUTO-018 | `persistence/database.py (actualizar_umbral, historial_umbral)` | RF-08 | API/Integración |
 | TC-AUTO-019 | `tests/reporte/plantilla.py (FichaCasoPrueba)` | RF-08 | Unitaria |
+| TC-AUTO-020 | `gui/validacion_umbrales.py (interpretar_rango)` | RF-08 | Unitaria |
+| TC-AUTO-021 | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` | RF-08 | Interfaz (UI/E2E) |

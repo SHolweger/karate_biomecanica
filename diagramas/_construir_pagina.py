@@ -33,9 +33,11 @@ LAMINAS = [
              "Porque el control de acceso está en quien <em>consulta y modifica</em>, no en quien es medido. El atleta nunca opera la aplicación: "
              "el entrenador autenticado abre la sesión y elige el perfil. Poner una contraseña por atleta añadiría una barrera de usabilidad "
              "(RNF-04, ciclo en ≤3 clics) sin cerrar ningún hueco real de seguridad, porque el acceso a la base de datos ya está detrás del login del entrenador."),
-            ("¿Por qué “Editar umbrales biomecánicos” aparece punteado?",
-             "Porque el requerimiento RF-08 lo exige y todavía no está construido. Preferí que el diagrama diga la verdad sobre el estado del código "
-             "antes que prometer una función inexistente. La convención de color es consistente en las cuatro láminas."),
+            ("¿Cómo se restringe “Editar umbrales biomecánicos” a un entrenador autorizado?",
+             "Por el «include» a “Autenticarse en el sistema”: a la pantalla de calibración solo se llega desde la selección de perfiles, y a esa "
+             "solo se llega con el login resuelto. La restricción no queda únicamente en la navegación — cada versión de umbral que se guarda anota el "
+             "<code>id_entrenador</code> que la firmó, así que el requisito es verificable en la base de datos y no solo en el recorrido de pantallas. "
+             "El caso pasó de punteado a azul cuando la pantalla se construyó (<code>gui/umbrales_screen.py</code>)."),
         ],
     ),
     dict(

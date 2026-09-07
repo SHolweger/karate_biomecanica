@@ -45,6 +45,23 @@ Ambas vías usan el mismo motor de análisis. Si la cámara no abre, ajusta el
 índice en `vision/camera.py` (`Camera(source=...)`); `python test_camaras.py`
 lista los índices disponibles en el equipo.
 
+## Calibración de umbrales (RF-08)
+
+En la selección de perfiles, el botón **Calibrar umbrales** abre la edición de
+los criterios biomecánicos con los que el sistema experto evalúa cada técnica.
+Los umbrales son datos de la tabla `umbral_referencia`, no constantes del código
+fuente: un instructor puede endurecer o relajar un criterio sin tocar Python.
+
+Cada guardado **crea una versión nueva y conserva la anterior**, marcada como no
+vigente. Las mediciones ya registradas siguen apuntando por `id_umbral` al
+criterio con el que fueron evaluadas, así que recalibrar no invalida en silencio
+el historial de progreso de un atleta. El botón *Historial* de cada fila muestra
+esas versiones con su fuente (`literatura` o `modelado_experto`) y su fecha.
+
+Los cambios rigen desde la siguiente sesión de análisis: la pantalla en vivo
+carga los umbrales al abrirse, para no cambiar el criterio a mitad de una
+medición.
+
 ---
 
 # Pruebas automatizadas
@@ -52,7 +69,7 @@ lista los índices disponibles en el equipo.
 La suite cubre la lógica biomecánica, las reglas del sistema experto, la máquina
 de estados de las patadas, la persistencia y el flujo completo de la interfaz.
 
-**245 casos · 19 documentados con ficha formal · 92 % de cobertura · ~4 segundos de ejecución**
+**276 casos · 21 documentados con ficha formal · 94 % de cobertura · ~4 segundos de ejecución**
 
 ## Instalación de las dependencias de prueba
 
@@ -116,12 +133,13 @@ de pruebas sin ningún caso documentado, IDs repetidos y huecos en la serie
 
 | Carpeta | Contenido | Casos |
 |---|---|:--:|
-| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, plantilla de reportes | 138 |
+| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, validación de la calibración, plantilla de reportes | 160 |
 | `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales | 99 |
-| `tests/e2e/` | Flujo completo de la GUI: login → perfil → análisis → cierre | 8 |
+| `tests/e2e/` | Flujo completo de la GUI: login → perfil → análisis → cierre, y calibración de umbrales | 17 |
 | `tests/helpers/` | Dobles de prueba: cámara y poses sintéticas | — |
 | `tests/reporte/` | Plantilla formal de los casos y complemento de pytest que emite los reportes | — |
 | `tests/conftest.py` | Fixtures compartidas (base de datos temporal, cámara sintética) | — |
+| `tests/e2e/conftest.py` | Andamiaje de interfaz: aplicación con ventana oculta, entrenador registrado, guardia de entorno gráfico | — |
 
 ## Cómo se prueba sin cámara ni karateka
 

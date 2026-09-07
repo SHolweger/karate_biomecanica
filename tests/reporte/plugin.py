@@ -40,6 +40,19 @@ RUTA_CASOS_POR_DEFECTO = "docs/casos_prueba_automatizados.generado.md"
 
 NOMBRE_PROYECTO = "Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan"
 
+
+def _ruta_legible(ruta, raiz):
+    """
+    Ruta relativa al proyecto cuando el archivo cae dentro de él, y absoluta
+    cuando no. `--dir-evidencias` acepta cualquier carpeta, incluida una fuera
+    del repositorio: asumir que siempre está adentro rompía la corrida al
+    imprimir el resumen, después de haber escrito los documentos.
+    """
+    try:
+        return ruta.relative_to(raiz)
+    except ValueError:
+        return ruta
+
 # Marca de pytest -> nivel de la pirámide de pruebas, para el resumen por nivel.
 NIVELES = {
     "unitaria": "Unitaria",
@@ -259,7 +272,7 @@ class ReporteFormal:
 
         terminalreporter.write_sep("-", "reportes con formato normalizado")
         for ruta in (ruta_evidencia, ruta_casos):
-            terminalreporter.write_line(f"  {ruta.relative_to(raiz)}")
+            terminalreporter.write_line(f"  {_ruta_legible(ruta, raiz)}")
 
     # -- contenido de los documentos ---------------------------------------
     def _documento_evidencia(self, exitstatus) -> str:
