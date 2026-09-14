@@ -37,7 +37,7 @@ def pantalla_umbrales(app, entrenador_registrado):
     puede producir — y sin entrenador la pantalla es de solo lectura.
     """
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_umbrales()
+    app._navegar("umbrales")
     return app.pantalla_actual
 
 

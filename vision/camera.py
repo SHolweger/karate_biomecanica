@@ -13,6 +13,8 @@ vive en `vision/fuentes.py`, que no importa OpenCV y por eso puede verificarse
 en el entorno de integración continua. Aquí queda solo lo que necesita hardware.
 """
 import contextlib
+import os
+import sys
 
 import cv2
 
@@ -29,25 +31,45 @@ __all__ = ["Camera", "CamaraNoDisponible", "describir", "es_url",
 @contextlib.contextmanager
 def _sin_ruido_de_opencv():
     """
-    Silencia lo que OpenCV escribe en la terminal mientras se sondean cámaras.
+    Silencia lo que se escribe en la terminal mientras se sondean cámaras.
 
-    Preguntar por un índice que no existe hace que el backend imprima mensajes
-    como `OpenCV: out device of bound (0-1)` o avisos de AVFoundation en macOS.
-    No son errores del sistema —sondear índices inexistentes es precisamente
-    como se descubre cuáles hay— pero ensucian la salida y hacen creer al
-    usuario que algo se rompió.
+    Preguntar por un índice inexistente hace que el backend de captura imprima
+    mensajes como:
 
-    Se restaura el nivel anterior al salir, para no ocultar errores reales
-    durante el análisis en vivo.
+        OpenCV: out device of bound (0-2): 3
+        OpenCV: camera failed to properly initialize!
+        [WARN] VIDEOIO/FFMPEG: Failed list devices for backend avfoundation
+
+    No son errores del sistema —sondear índices vacíos es precisamente cómo se
+    descubre cuáles existen— pero llenan la consola y hacen creer al usuario que
+    algo se rompió.
+
+    Se silencia al nivel del DESCRIPTOR de archivo, no con `cv2.setLogLevel`:
+    esos mensajes los emite el backend nativo (AVFoundation en macOS) con
+    `fprintf` directo a la salida de error, por debajo del sistema de bitácora
+    de OpenCV, de modo que bajar el nivel no los alcanza.
+
+    El silencio dura solo el sondeo. Un error durante el análisis en vivo sí
+    debe verse.
     """
     try:
         nivel_previo = cv2.getLogLevel()
-        cv2.setLogLevel(0)          # 0 = SILENT
+        cv2.setLogLevel(0)              # 0 = SILENT, para lo que sí pasa por OpenCV
     except AttributeError:
-        nivel_previo = None         # versiones de OpenCV sin control de bitácora
+        nivel_previo = None             # versiones sin control de bitácora
+
+    copia_stderr = None
     try:
+        sys.stderr.flush()
+        copia_stderr = os.dup(2)        # se guarda el destino real de la salida de error
+        with open(os.devnull, "w") as nulo:
+            os.dup2(nulo.fileno(), 2)
         yield
     finally:
+        if copia_stderr is not None:
+            sys.stderr.flush()
+            os.dup2(copia_stderr, 2)    # se restaura antes de devolver el control
+            os.close(copia_stderr)
         if nivel_previo is not None:
             cv2.setLogLevel(nivel_previo)
 

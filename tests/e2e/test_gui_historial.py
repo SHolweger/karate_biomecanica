@@ -52,7 +52,7 @@ def dojo_con_historia(db, entrenador_registrado):
 def historial(app, entrenador_registrado, dojo_con_historia):
     """Pantalla de alumnos abierta por la misma vía que el usuario."""
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_historial()
+    app._navegar("historial")
     return app.pantalla_actual
 
 
@@ -195,7 +195,7 @@ def test_volver_desde_el_reporte_regresa_al_perfil_del_alumno(app, dojo_con_hist
 
 def test_la_biblioteca_muestra_las_tecnicas_que_el_sistema_evalua(app, entrenador_registrado):
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_tecnicas()
+    app._navegar("tecnicas")
 
     assert isinstance(app.pantalla_actual, TecnicasScreen)
 
@@ -209,7 +209,7 @@ def test_la_biblioteca_refleja_una_recalibracion_del_entrenador(app, db, entrena
                          id_entrenador=entrenador_registrado["id_entrenador"],
                          fuente="modelado_experto")
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_tecnicas()
+    app._navegar("tecnicas")
 
     vigente = db.cargar_umbrales_vigentes()[("tsuki", "codo")]
     assert (vigente["valor_min"], vigente["valor_max"]) == (165.0, 174.0)
@@ -218,8 +218,8 @@ def test_la_biblioteca_refleja_una_recalibracion_del_entrenador(app, db, entrena
 
 def test_desde_la_biblioteca_se_llega_a_la_calibracion(app, entrenador_registrado):
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_tecnicas()
+    app._navegar("tecnicas")
 
-    app.pantalla_actual._abrir_umbrales()
+    app._navegar("umbrales")
 
     assert isinstance(app.pantalla_actual, UmbralesScreen)

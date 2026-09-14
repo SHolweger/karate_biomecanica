@@ -48,17 +48,19 @@ class TecnicasScreen(ctk.CTkFrame):
     señala el origen de cada valor, bibliográfico o de modelado experto.
     """
 
-    def __init__(self, master, db, entrenador=None):
+    def __init__(self, master, db, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.db = db
         self.entrenador = entrenador
 
         cp.encabezado(
             self, "Biblioteca de técnicas",
             "Lo que el sistema experto sabe evaluar y con qué criterio",
-            acciones=[("Volver", self._volver, False),
-                      ("Calibrar umbrales", self._abrir_umbrales, False)],
+            acciones=[("Calibrar umbrales", self._abrir_umbrales, False)],
         )
 
         self.lista = ctk.CTkScrollableFrame(self, fg_color="transparent")

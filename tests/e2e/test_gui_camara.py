@@ -56,7 +56,7 @@ def camaras_simuladas(monkeypatch):
 def pantalla_camara(app, entrenador_registrado, camaras_simuladas):
     """Pantalla abierta por la misma vía que el usuario: login y botón de la barra."""
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_camara()
+    app._navegar("camara")
     return app.pantalla_actual
 
 
@@ -165,7 +165,7 @@ def test_avisa_cuando_la_camara_configurada_ya_no_esta_conectada(app, db, entren
     """
     db.guardar_config(CLAVE_FUENTE, "4")
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_camara()
+    app._navegar("camara")
 
     assert "no está disponible" in app.pantalla_actual.error_var.get()
 
@@ -193,7 +193,7 @@ def test_abrir_la_pantalla_con_una_camara_ip_ya_configurada_no_inventa_un_error(
     """
     db.guardar_config(CLAVE_FUENTE, "http://192.168.1.50:8080/video")
     app.on_login_exitoso(entrenador_registrado)
-    app.pantalla_actual._abrir_camara()
+    app._navegar("camara")
     pantalla = app.pantalla_actual
 
     assert pantalla.error_var.get() == "", \

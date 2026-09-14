@@ -1,3 +1,5 @@
+import sqlite3
+
 import customtkinter as ctk
 from gui import theme
 
@@ -123,6 +125,18 @@ class LoginScreen(ctk.CTkFrame):
             self.error_var.set("Nombre, usuario y contraseña son obligatorios.")
             return
 
-        self.db.crear_entrenador(nombre, usuario, correo, password, rol=rol)
+        # El nombre de usuario es UNIQUE en la base. Sin este manejo, intentar
+        # registrar uno repetido lanzaba sqlite3.IntegrityError: la traza salía
+        # por la terminal, la ventana no mostraba nada y el botón parecía no
+        # responder. Un usuario ocupado es un caso normal, no una falla del
+        # sistema, y debe explicarse en la pantalla.
+        try:
+            self.db.crear_entrenador(nombre, usuario, correo, password, rol=rol)
+        except sqlite3.IntegrityError:
+            self.error_var.set(
+                f"El usuario «{usuario}» ya está registrado. "
+                f"Elige otro nombre o ingresa con esa cuenta.")
+            return
+
         entrenador = self.db.autenticar_entrenador(usuario, password)
         self.master_app.on_login_exitoso(entrenador)

@@ -81,9 +81,12 @@ class UmbralesScreen(ctk.CTkFrame):
     de la evaluación, que es justo lo que el versionado busca evitar.
     """
 
-    def __init__(self, master, db, entrenador=None):
+    def __init__(self, master, db, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.db = db
         self.entrenador = entrenador
         self.puede_editar = entrenador is not None

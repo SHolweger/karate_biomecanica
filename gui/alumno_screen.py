@@ -19,9 +19,12 @@ class AlumnoScreen(ctk.CTkFrame):
     bien.
     """
 
-    def __init__(self, master, db, id_atleta, entrenador=None):
+    def __init__(self, master, db, id_atleta, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.db = db
         self.id_atleta = id_atleta
         self.entrenador = entrenador

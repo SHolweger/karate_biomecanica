@@ -22,9 +22,12 @@ class ReporteScreen(ctk.CTkFrame):
     base de datos.
     """
 
-    def __init__(self, master, db, id_sesion, entrenador=None):
+    def __init__(self, master, db, id_sesion, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.db = db
         self.id_sesion = id_sesion
         self.entrenador = entrenador

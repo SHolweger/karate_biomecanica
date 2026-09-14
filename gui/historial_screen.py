@@ -18,9 +18,12 @@ class HistorialScreen(ctk.CTkFrame):
     mostrarle 0 % afirmaría que falla todo cuando en realidad nunca fue medido.
     """
 
-    def __init__(self, master, db, entrenador=None):
+    def __init__(self, master, db, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.db = db
         self.entrenador = entrenador
         self.resumen = []
@@ -28,8 +31,7 @@ class HistorialScreen(ctk.CTkFrame):
         cp.encabezado(
             self, "Alumnos y progreso",
             "Estado de cada atleta a partir de sus sesiones registradas",
-            acciones=[("Volver", self._volver, False),
-                      ("Actualizar", self.recargar, False)],
+            acciones=[("Actualizar", self.recargar, False)],
         )
 
         self.lista = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -56,8 +58,8 @@ class HistorialScreen(ctk.CTkFrame):
     def _cabecera(self):
         fila = ctk.CTkFrame(self.lista, fg_color="transparent")
         fila.pack(fill="x", pady=(0, 4))
-        for texto, ancho in [("Alumno", 250), ("Grado", 120), ("Sesiones", 90),
-                             ("Última", 130), ("Precisión", 230), ("", 110)]:
+        for texto, ancho in [("Alumno", 210), ("Grado", 100), ("Sesiones", 80),
+                             ("Última", 110), ("Precisión", 200), ("", 100)]:
             ctk.CTkLabel(fila, text=texto, width=ancho, anchor="w",
                          font=(theme.FUENTE, 11, "bold"),
                          text_color=theme.TEXTO_TENUE).pack(side="left", padx=4)
@@ -65,28 +67,28 @@ class HistorialScreen(ctk.CTkFrame):
     def _fila(self, atleta):
         caja = cp.tarjeta(self.lista)
 
-        ctk.CTkLabel(caja, text=atleta["nombre"], width=250, anchor="w",
+        ctk.CTkLabel(caja, text=atleta["nombre"], width=210, anchor="w",
                      font=(theme.FUENTE, 13, "bold"),
                      text_color=theme.TEXTO).pack(side="left", padx=4, pady=10)
-        ctk.CTkLabel(caja, text=atleta["grado_cinturon"] or "—", width=120, anchor="w",
+        ctk.CTkLabel(caja, text=atleta["grado_cinturon"] or "—", width=100, anchor="w",
                      font=(theme.FUENTE, 11.5),
                      text_color=theme.TEXTO_MUTED).pack(side="left", padx=4)
-        ctk.CTkLabel(caja, text=str(atleta["sesiones"]), width=90, anchor="w",
+        ctk.CTkLabel(caja, text=str(atleta["sesiones"]), width=80, anchor="w",
                      font=(theme.FUENTE, 12),
                      text_color=theme.TEXTO_MUTED).pack(side="left", padx=4)
-        ctk.CTkLabel(caja, text=atleta["ultima_fecha"] or "—", width=130, anchor="w",
+        ctk.CTkLabel(caja, text=atleta["ultima_fecha"] or "—", width=110, anchor="w",
                      font=(theme.FUENTE, 11.5),
                      text_color=theme.TEXTO_MUTED).pack(side="left", padx=4)
 
-        medida = ctk.CTkFrame(caja, fg_color="transparent", width=230)
+        medida = ctk.CTkFrame(caja, fg_color="transparent", width=200)
         medida.pack(side="left", padx=4)
         precision = atleta["precision"]
         ctk.CTkLabel(medida, text=cp.texto_precision(precision), width=60, anchor="w",
                      font=(theme.FUENTE, 13, "bold"),
                      text_color=cp.color_precision(precision)).pack(side="left")
-        cp.barra_progreso(medida, precision, ancho=150).pack(side="left", padx=(4, 0))
+        cp.barra_progreso(medida, precision, ancho=128).pack(side="left", padx=(4, 0))
 
-        ctk.CTkButton(caja, text="Ver perfil", width=110, fg_color="transparent",
+        ctk.CTkButton(caja, text="Ver perfil", width=100, fg_color="transparent",
                       text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
                       font=(theme.FUENTE, 11.5),
                       command=lambda a=atleta: self._abrir(a)).pack(side="left", padx=4)

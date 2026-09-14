@@ -229,3 +229,100 @@ def test_terminar_la_sesion_cierra_el_registro_y_libera_la_camara(app, db, entre
     assert fila["hora_fin"] is not None, "no se registró la hora de fin"
     assert camara_sintetica.liberada is True, "la cámara quedó ocupada"
     assert isinstance(app.pantalla_actual, PerfilScreen), "debe volver a la selección de perfiles"
+
+
+# --------------------------------------------------------------------------
+# Barra lateral: navegación permanente
+# --------------------------------------------------------------------------
+
+def test_el_acceso_no_muestra_barra_lateral(app):
+    """Antes de autenticarse no hay nada que navegar: la barra estorbaría."""
+    assert app.barra is None
+
+
+def test_tras_autenticarse_aparece_la_barra_con_la_seccion_de_entrenar_activa(
+        app, entrenador_registrado):
+    app.on_login_exitoso(entrenador_registrado)
+
+    assert app.barra is not None
+    assert app.barra.seccion_activa == "perfiles"
+
+
+@pytest.mark.parametrize("seccion, nombre_pantalla", [
+    ("historial", "HistorialScreen"),
+    ("tecnicas", "TecnicasScreen"),
+    ("umbrales", "UmbralesScreen"),
+    ("camara", "CamaraScreen"),
+    ("perfiles", "PerfilScreen"),
+])
+def test_cada_seccion_de_la_barra_abre_su_pantalla(app, entrenador_registrado,
+                                                   seccion, nombre_pantalla):
+    """
+    Se dispara el mismo manejador que el botón de la barra, no el constructor
+    de la pantalla: lo que se verifica es la navegación, no el widget.
+    """
+    app.on_login_exitoso(entrenador_registrado)
+
+    app._navegar(seccion)
+
+    assert type(app.pantalla_actual).__name__ == nombre_pantalla
+    assert app.barra.seccion_activa == seccion
+
+
+def test_la_barra_sobrevive_al_cambiar_de_seccion(app, entrenador_registrado):
+    """
+    Reutilizar la barra en vez de reconstruirla es lo que evita el parpadeo al
+    navegar. Si se recreara, cada cambio de sección la destruiría y volvería a
+    armarla completa.
+    """
+    app.on_login_exitoso(entrenador_registrado)
+    barra_inicial = app.barra
+
+    app._navegar("tecnicas")
+    app._navegar("historial")
+
+    assert app.barra is barra_inicial
+
+
+def test_el_detalle_de_un_alumno_conserva_marcada_la_seccion_de_historial(
+        app, db, entrenador_registrado):
+    """
+    Bajar al detalle no debe hacer perder de vista dónde se está: alumnos, un
+    alumno y una de sus sesiones son la misma sección del sistema.
+    """
+    atleta = db.crear_atleta("Diego Morales")
+    app.on_login_exitoso(entrenador_registrado)
+
+    app.on_abrir_alumno(atleta)
+
+    assert app.barra.seccion_activa == "historial"
+
+
+def test_cerrar_sesion_de_entrenador_retira_la_barra_y_vuelve_al_acceso(
+        app, entrenador_registrado):
+    app.on_login_exitoso(entrenador_registrado)
+
+    app._navegar("salir")
+
+    assert app.barra is None, "sin entrenador no debe quedar barra de navegación"
+    assert app.entrenador is None
+    assert isinstance(app.pantalla_actual, LoginScreen)
+
+
+def test_un_usuario_repetido_se_explica_en_pantalla_en_vez_de_reventar(app, db):
+    """
+    Regresión de un fallo real: registrar un usuario ya existente lanzaba
+    sqlite3.IntegrityError. La traza salía por la terminal, la ventana no
+    mostraba nada y el botón parecía no responder.
+    """
+    db.crear_entrenador("Sensei Uno", "sensei", None, "clave123")
+    login = app.pantalla_actual
+    login.nombre_var.set("Sensei Dos")
+    login.usuario_var.set("sensei")
+    login.password_var.set("otra_clave")
+
+    login._crear_cuenta(rol="sensei")
+
+    assert "ya está registrado" in login.error_var.get()
+    assert app.entrenador is None, "no debió avanzar con un usuario ocupado"
+    assert isinstance(app.pantalla_actual, LoginScreen)

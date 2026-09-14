@@ -9,28 +9,14 @@ class PerfilScreen(ctk.CTkFrame):
     a quién pertenece la sesión de medición. Ver Bitácora 2026-08-12).
     """
 
-    def __init__(self, master, db, entrenador):
+    def __init__(self, master, db, entrenador, app=None):
         super().__init__(master, fg_color=theme.FONDO)
         self.db = db
-        self.master_app = master
+        # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
+        # resuelve la navegación. Desde que existe la barra lateral son objetos
+        # distintos: el contenedor es el área de contenido, no la ventana.
+        self.master_app = app if app is not None else master
         self.entrenador = entrenador
-
-        # Barra superior: todo lo que no es "medir a un alumno ahora mismo".
-        # La configuración y la consulta viven aquí y no en la pantalla en vivo
-        # porque recalibrar o navegar reportes a mitad de una medición
-        # interrumpiría la sesión que se está registrando.
-        barra = ctk.CTkFrame(self, fg_color="transparent")
-        barra.pack(fill="x", padx=20, pady=14)
-        for etiqueta, comando, ancho in [
-            ("Calibrar umbrales", self._abrir_umbrales, 160),
-            ("Técnicas", self._abrir_tecnicas, 110),
-            ("Cámara", self._abrir_camara, 100),
-            ("Alumnos y progreso", self._abrir_historial, 170),
-        ]:
-            ctk.CTkButton(barra, text=etiqueta, fg_color="transparent", border_width=1,
-                          border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
-                          hover_color=theme.CARD_HOVER, width=ancho,
-                          command=comando).pack(side="right", padx=(8, 0))
 
         contenedor = ctk.CTkFrame(self, fg_color="transparent")
         contenedor.place(relx=0.5, rely=0.5, anchor="center")
@@ -91,17 +77,9 @@ class PerfilScreen(ctk.CTkFrame):
     def _elegir(self, atleta):
         self.master_app.on_perfil_elegido(atleta)
 
-    def _abrir_umbrales(self):
-        self.master_app.on_abrir_umbrales()
 
-    def _abrir_camara(self):
-        self.master_app.on_abrir_camara()
 
-    def _abrir_historial(self):
-        self.master_app.on_abrir_historial()
 
-    def _abrir_tecnicas(self):
-        self.master_app.on_abrir_tecnicas()
 
     def _abrir_form_nuevo(self):
         if self.form_nuevo is not None:
