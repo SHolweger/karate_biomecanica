@@ -15,19 +15,22 @@ class PerfilScreen(ctk.CTkFrame):
         self.master_app = master
         self.entrenador = entrenador
 
-        # Barra superior: acceso a la calibración de umbrales (RF-08). Vive
-        # aquí y no en la pantalla en vivo porque recalibrar en medio de una
-        # medición cambiaría el criterio a mitad de la evaluación.
+        # Barra superior: todo lo que no es "medir a un alumno ahora mismo".
+        # La configuración y la consulta viven aquí y no en la pantalla en vivo
+        # porque recalibrar o navegar reportes a mitad de una medición
+        # interrumpiría la sesión que se está registrando.
         barra = ctk.CTkFrame(self, fg_color="transparent")
         barra.pack(fill="x", padx=20, pady=14)
-        ctk.CTkButton(barra, text="Calibrar umbrales", fg_color="transparent", border_width=1,
-                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
-                      hover_color=theme.CARD_HOVER, width=160,
-                      command=self._abrir_umbrales).pack(side="right")
-        ctk.CTkButton(barra, text="Cámara", fg_color="transparent", border_width=1,
-                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
-                      hover_color=theme.CARD_HOVER, width=110,
-                      command=self._abrir_camara).pack(side="right", padx=(0, 8))
+        for etiqueta, comando, ancho in [
+            ("Calibrar umbrales", self._abrir_umbrales, 160),
+            ("Técnicas", self._abrir_tecnicas, 110),
+            ("Cámara", self._abrir_camara, 100),
+            ("Alumnos y progreso", self._abrir_historial, 170),
+        ]:
+            ctk.CTkButton(barra, text=etiqueta, fg_color="transparent", border_width=1,
+                          border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
+                          hover_color=theme.CARD_HOVER, width=ancho,
+                          command=comando).pack(side="right", padx=(8, 0))
 
         contenedor = ctk.CTkFrame(self, fg_color="transparent")
         contenedor.place(relx=0.5, rely=0.5, anchor="center")
@@ -93,6 +96,12 @@ class PerfilScreen(ctk.CTkFrame):
 
     def _abrir_camara(self):
         self.master_app.on_abrir_camara()
+
+    def _abrir_historial(self):
+        self.master_app.on_abrir_historial()
+
+    def _abrir_tecnicas(self):
+        self.master_app.on_abrir_tecnicas()
 
     def _abrir_form_nuevo(self):
         if self.form_nuevo is not None:

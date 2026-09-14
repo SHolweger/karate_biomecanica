@@ -315,6 +315,149 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
 
+    # ---------------- Consultas agregadas para los reportes ----------------
+    #
+    # Viven aquí y no en la capa de presentación por una razón concreta: son la
+    # respuesta a preguntas del dojo ("¿cómo viene este alumno?", "¿qué técnica
+    # se le dificulta?"), no detalles de cómo se dibuja una pantalla. Calcularlas
+    # en SQL además evita traer a memoria miles de mediciones para promediarlas
+    # en Python.
+    #
+    # Regla común a todas: solo cuentan las evaluaciones CERRADAS. Un diagnóstico
+    # con `correcto` nulo es un estado transitorio ("EN TRANSICION", "MAE GERI:
+    # CARGA") o una articulación no visible; incluirlos hundiría el porcentaje
+    # de un alumno por el simple hecho de haberse movido frente a la cámara.
+
+    def resumen_atletas(self):
+        """
+        Un renglón por atleta con lo que el sensei necesita ver de un vistazo:
+        cuántas sesiones lleva, cuándo entrenó por última vez, cuántas técnicas
+        se le evaluaron y qué porcentaje resultó correcto.
+
+        Incluye a los atletas que aún no tienen mediciones, con precisión None:
+        un alumno recién inscrito debe aparecer en la lista, no desaparecer.
+        """
+        filas = self.conn.execute("""
+            SELECT a.id_atleta,
+                   a.nombre,
+                   a.grado_cinturon,
+                   COUNT(DISTINCT s.id_sesion)                      AS sesiones,
+                   MAX(s.fecha)                                     AS ultima_fecha,
+                   COUNT(t.id_medicion)                             AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM atleta a
+            LEFT JOIN sesion s ON s.id_atleta = a.id_atleta
+            LEFT JOIN tecnica_evaluada t
+                   ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
+            GROUP BY a.id_atleta
+            ORDER BY a.nombre
+        """).fetchall()
+        return [self._con_precision(dict(f)) for f in filas]
+
+    def listar_sesiones(self, id_atleta):
+        """Sesiones de un atleta, de la más reciente a la más antigua."""
+        filas = self.conn.execute("""
+            SELECT s.id_sesion,
+                   s.fecha,
+                   s.hora_inicio,
+                   s.hora_fin,
+                   e.nombre                                         AS entrenador,
+                   COUNT(t.id_medicion)                             AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM sesion s
+            LEFT JOIN entrenador e ON e.id_entrenador = s.id_entrenador
+            LEFT JOIN tecnica_evaluada t
+                   ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
+            WHERE s.id_atleta = ?
+            GROUP BY s.id_sesion
+            ORDER BY s.id_sesion DESC
+        """, (id_atleta,)).fetchall()
+        return [self._con_precision(dict(f)) for f in filas]
+
+    def resumen_por_tecnica(self, id_atleta, id_sesion=None):
+        """
+        Desempeño por técnica, de la más floja a la más sólida — que es el
+        orden en que un instructor quiere leerlo: primero lo que hay que
+        corregir. Con `id_sesion` se acota a una sola sesión.
+        """
+        condicion = "s.id_atleta = ?"
+        parametros = [id_atleta]
+        if id_sesion is not None:
+            condicion += " AND s.id_sesion = ?"
+            parametros.append(id_sesion)
+
+        filas = self.conn.execute(f"""
+            SELECT t.nombre_tecnica,
+                   COUNT(*)                                         AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos,
+                   AVG(t.angulo_promedio)                           AS angulo_medio
+            FROM tecnica_evaluada t
+            JOIN sesion s ON s.id_sesion = t.id_sesion
+            WHERE {condicion} AND t.correcto IS NOT NULL
+            GROUP BY t.nombre_tecnica
+        """, parametros).fetchall()
+
+        resumen = [self._con_precision(dict(f)) for f in filas]
+        return sorted(resumen, key=lambda r: r["precision"])
+
+    def detalle_sesion(self, id_sesion):
+        """
+        Cabecera de una sesión: atleta, entrenador, fecha y su precisión global.
+        Devuelve None si la sesión no existe.
+        """
+        fila = self.conn.execute("""
+            SELECT s.id_sesion, s.fecha, s.hora_inicio, s.hora_fin,
+                   a.id_atleta, a.nombre AS atleta, a.grado_cinturon,
+                   e.nombre AS entrenador,
+                   COUNT(t.id_medicion)                             AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM sesion s
+            JOIN atleta a ON a.id_atleta = s.id_atleta
+            LEFT JOIN entrenador e ON e.id_entrenador = s.id_entrenador
+            LEFT JOIN tecnica_evaluada t
+                   ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
+            WHERE s.id_sesion = ?
+            GROUP BY s.id_sesion
+        """, (id_sesion,)).fetchone()
+
+        return None if fila is None or fila["id_sesion"] is None else self._con_precision(dict(fila))
+
+    def errores_frecuentes(self, id_sesion, limite=6):
+        """
+        Los diagnósticos incorrectos más repetidos de una sesión.
+
+        Es lo que convierte un porcentaje en una corrección accionable: saber
+        que el alumno acertó el 60 % no dice qué practicar; saber que falló
+        catorce veces por hiperextender el codo, sí.
+        """
+        filas = self.conn.execute("""
+            SELECT t.nombre_tecnica, t.diagnostico,
+                   COUNT(*)               AS veces,
+                   AVG(t.angulo_promedio) AS angulo_medio
+            FROM tecnica_evaluada t
+            WHERE t.id_sesion = ? AND t.correcto = 0
+            GROUP BY t.nombre_tecnica, t.diagnostico
+            ORDER BY veces DESC
+            LIMIT ?
+        """, (id_sesion, limite)).fetchall()
+        return [dict(f) for f in filas]
+
+    @staticmethod
+    def _con_precision(fila):
+        """
+        Agrega el porcentaje de acierto a partir de `evaluaciones` y `aciertos`.
+
+        Sin evaluaciones cerradas la precisión es None, no 0: un alumno que
+        todavía no ha sido medido no tiene un 0 % de acierto, tiene un dato
+        inexistente, y mostrarlo como cero sería una afirmación falsa.
+        """
+        total = fila.get("evaluaciones") or 0
+        aciertos = fila.get("aciertos") or 0
+        fila["evaluaciones"] = total
+        fila["aciertos"] = aciertos
+        fila["precision"] = None if total == 0 else aciertos / total * 100
+        return fila
+
     # ---------------- Configuración del equipo ----------------
 
     def leer_config(self, clave, por_defecto=None):

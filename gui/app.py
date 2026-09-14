@@ -18,6 +18,10 @@ from gui.perfil_screen import PerfilScreen
 from gui.live_screen import LiveScreen
 from gui.umbrales_screen import UmbralesScreen
 from gui.camara_screen import CamaraScreen
+from gui.historial_screen import HistorialScreen
+from gui.alumno_screen import AlumnoScreen
+from gui.reporte_screen import ReporteScreen
+from gui.tecnicas_screen import TecnicasScreen
 
 
 class App(ctk.CTk):
@@ -86,6 +90,23 @@ class App(ctk.CTk):
         interrumpiría la sesión que se está registrando.
         """
         self._mostrar(CamaraScreen(self, self.db))
+
+    # ---- Historial y reportes (RF-07) ----
+    # La navegación es jerárquica: alumnos -> un alumno -> una de sus sesiones.
+    # Cada pantalla vuelve a la anterior, de modo que el instructor puede bajar
+    # al detalle y regresar sin perder el contexto.
+
+    def on_abrir_historial(self):
+        self._mostrar(HistorialScreen(self, self.db, self.entrenador))
+
+    def on_abrir_alumno(self, id_atleta):
+        self._mostrar(AlumnoScreen(self, self.db, id_atleta, self.entrenador))
+
+    def on_abrir_reporte(self, id_sesion):
+        self._mostrar(ReporteScreen(self, self.db, id_sesion, self.entrenador))
+
+    def on_abrir_tecnicas(self):
+        self._mostrar(TecnicasScreen(self, self.db, self.entrenador))
 
     def on_volver_a_perfiles(self):
         self._mostrar(PerfilScreen(self, self.db, self.entrenador))
