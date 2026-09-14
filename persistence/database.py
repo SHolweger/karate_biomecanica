@@ -1,6 +1,6 @@
 import sqlite3
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Database:
@@ -32,7 +32,17 @@ class Database:
                 nombre            TEXT NOT NULL,
                 fecha_nacimiento  TEXT,
                 grado_cinturon    TEXT,
-                fecha_registro    TEXT NOT NULL
+                fecha_registro    TEXT NOT NULL,
+                -- Ficha del alumno tal como la lleva el sensei. La edad se guarda
+                -- como el numero que el instructor conoce y no como fecha de
+                -- nacimiento, que en el dojo rara vez esta a mano; `fecha_registro`
+                -- deja constancia de cuando se anoto, que es lo que la vuelve
+                -- interpretable mas adelante.
+                edad              INTEGER,
+                peso_kg           REAL,
+                color_cinta       TEXT,
+                tiempo_entrenando TEXT,
+                notas             TEXT
             );
 
             CREATE TABLE IF NOT EXISTS sesion (
@@ -95,20 +105,33 @@ class Database:
         self._migrar_columnas()
         self.conn.commit()
 
-    # Columnas que se agregaron a 'tecnica_evaluada' despues de que ya existian
-    # bases de datos con informacion real. El CREATE TABLE de arriba solo aplica
-    # a bases nuevas, y SQLite no soporta "ADD COLUMN IF NOT EXISTS".
+    # Columnas que se agregaron despues de que ya existian bases de datos con
+    # informacion real. El CREATE TABLE de arriba solo aplica a bases nuevas, y
+    # SQLite no soporta "ADD COLUMN IF NOT EXISTS".
+    #
+    # Migrar en vez de recrear la tabla es lo que permite que el dojo actualice
+    # el sistema sin perder el historial de entrenamiento ya registrado.
     COLUMNAS_MIGRADAS = {
-        "correcto": "INTEGER",    # 13-ago-2026
-        "id_umbral": "INTEGER",   # 26-ago-2026
+        "tecnica_evaluada": {
+            "correcto": "INTEGER",          # 13-ago-2026
+            "id_umbral": "INTEGER",         # 26-ago-2026
+        },
+        "atleta": {
+            "edad": "INTEGER",              # 14-sep-2026, ficha del alumno
+            "peso_kg": "REAL",
+            "color_cinta": "TEXT",
+            "tiempo_entrenando": "TEXT",
+            "notas": "TEXT",
+        },
     }
 
     def _migrar_columnas(self):
         """Agrega las columnas que falten, sin tocar los datos existentes."""
-        columnas = {fila["name"] for fila in self.conn.execute("PRAGMA table_info(tecnica_evaluada)")}
-        for nombre, tipo in self.COLUMNAS_MIGRADAS.items():
-            if nombre not in columnas:
-                self.conn.execute(f"ALTER TABLE tecnica_evaluada ADD COLUMN {nombre} {tipo}")
+        for tabla, columnas_esperadas in self.COLUMNAS_MIGRADAS.items():
+            presentes = {fila["name"] for fila in self.conn.execute(f"PRAGMA table_info({tabla})")}
+            for nombre, tipo in columnas_esperadas.items():
+                if nombre not in presentes:
+                    self.conn.execute(f"ALTER TABLE {tabla} ADD COLUMN {nombre} {tipo}")
 
     @staticmethod
     def _hash_password(password):
@@ -146,14 +169,32 @@ class Database:
         filas = self.conn.execute("SELECT * FROM atleta ORDER BY nombre").fetchall()
         return [dict(f) for f in filas]
 
-    def crear_atleta(self, nombre, fecha_nacimiento=None, grado_cinturon=None):
+    def crear_atleta(self, nombre, fecha_nacimiento=None, grado_cinturon=None,
+                     edad=None, peso_kg=None, color_cinta=None,
+                     tiempo_entrenando=None, notas=None):
+        """
+        Inscribe a un alumno. Solo el nombre es obligatorio.
+
+        Todo lo demas es opcional a proposito: en el dojo un alumno se apunta el
+        primer dia y los datos se completan despues. Exigir peso o grado para
+        poder medir a alguien pondria un tramite delante del entrenamiento.
+        """
         cursor = self.conn.execute(
-            "INSERT INTO atleta (nombre, fecha_nacimiento, grado_cinturon, fecha_registro) "
-            "VALUES (?, ?, ?, ?)",
-            (nombre, fecha_nacimiento, grado_cinturon, datetime.now().isoformat()),
+            "INSERT INTO atleta (nombre, fecha_nacimiento, grado_cinturon, fecha_registro, "
+            "edad, peso_kg, color_cinta, tiempo_entrenando, notas) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (nombre, fecha_nacimiento, grado_cinturon, datetime.now().isoformat(),
+             edad, peso_kg, color_cinta, tiempo_entrenando, notas),
         )
         self.conn.commit()
         return cursor.lastrowid
+
+    def obtener_atleta(self, id_atleta):
+        """Ficha completa de un alumno, o None si no existe."""
+        fila = self.conn.execute(
+            "SELECT * FROM atleta WHERE id_atleta = ?", (id_atleta,)
+        ).fetchone()
+        return None if fila is None else dict(fila)
 
     # ---------------- Sesiones de entrenamiento ----------------
 
@@ -441,6 +482,90 @@ class Database:
             LIMIT ?
         """, (id_sesion, limite)).fetchall()
         return [dict(f) for f in filas]
+
+    # ---------------- Consultas del panel de inicio ----------------
+
+    # Ventana de actividad del dojo. Siete dias y no "la semana calendario"
+    # porque un lunes por la manana la semana calendario esta casi vacia y el
+    # panel diria que el dojo no entrena, cuando lo que pasa es que el corte
+    # acaba de ocurrir.
+    DIAS_ACTIVIDAD = 7
+
+    def metricas_dojo(self, dias=DIAS_ACTIVIDAD):
+        """
+        Las cifras de cabecera del panel: cuanto se entreno en la ventana
+        reciente y con que precision.
+
+        `alumnos_activos` cuenta a quienes efectivamente entrenaron en esos
+        dias, no a los inscritos: son preguntas distintas y confundirlas haria
+        que el numero nunca bajara aunque el dojo se vaciara.
+        """
+        corte = self._fecha_corte(dias)
+        fila = self.conn.execute("""
+            SELECT COUNT(DISTINCT s.id_sesion)                      AS sesiones,
+                   COUNT(DISTINCT s.id_atleta)                      AS alumnos_activos,
+                   COUNT(t.id_medicion)                             AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM sesion s
+            LEFT JOIN tecnica_evaluada t
+                   ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
+            WHERE s.fecha >= ?
+        """, (corte,)).fetchone()
+
+        metricas = self._con_precision(dict(fila))
+        metricas["dias"] = dias
+        metricas["alumnos_inscritos"] = self.conn.execute(
+            "SELECT COUNT(*) AS n FROM atleta").fetchone()["n"]
+        return metricas
+
+    def sesiones_recientes(self, limite=5):
+        """Ultimas sesiones del dojo completo, sin importar de que alumno."""
+        filas = self.conn.execute("""
+            SELECT s.id_sesion, s.fecha, s.hora_inicio, s.hora_fin,
+                   a.id_atleta, a.nombre AS atleta, a.grado_cinturon, a.color_cinta,
+                   COUNT(t.id_medicion)                             AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM sesion s
+            JOIN atleta a ON a.id_atleta = s.id_atleta
+            LEFT JOIN tecnica_evaluada t
+                   ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
+            GROUP BY s.id_sesion
+            ORDER BY s.id_sesion DESC
+            LIMIT ?
+        """, (limite,)).fetchall()
+        return [self._con_precision(dict(f)) for f in filas]
+
+    def tecnicas_mas_practicadas(self, limite=6, dias=None):
+        """
+        Que se esta trabajando en el dojo, por volumen de evaluaciones.
+
+        Sin `dias` abarca todo el historial. El orden es por cantidad y no por
+        precision a proposito: responde "que se practica", no "que sale bien".
+        """
+        condicion = "t.correcto IS NOT NULL"
+        parametros = []
+        if dias is not None:
+            condicion += " AND s.fecha >= ?"
+            parametros.append(self._fecha_corte(dias))
+        parametros.append(limite)
+
+        filas = self.conn.execute(f"""
+            SELECT t.nombre_tecnica,
+                   COUNT(*)                                         AS evaluaciones,
+                   SUM(CASE WHEN t.correcto = 1 THEN 1 ELSE 0 END)  AS aciertos
+            FROM tecnica_evaluada t
+            JOIN sesion s ON s.id_sesion = t.id_sesion
+            WHERE {condicion}
+            GROUP BY t.nombre_tecnica
+            ORDER BY evaluaciones DESC
+            LIMIT ?
+        """, parametros).fetchall()
+        return [self._con_precision(dict(f)) for f in filas]
+
+    @staticmethod
+    def _fecha_corte(dias):
+        """Fecha ISO de hace `dias`, para comparar con `sesion.fecha`."""
+        return (datetime.now() - timedelta(days=dias)).date().isoformat()
 
     @staticmethod
     def _con_precision(fila):
