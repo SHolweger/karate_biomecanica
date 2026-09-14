@@ -3,6 +3,30 @@ from biomechanics.filters import MovingAverageFilter
 from expert_system.knowledge_base import KarateRules
 from expert_system.kick_state_machine import MaeGeriStateMachine
 
+# ---------------------------------------------------------------------------
+# CORTES DEL CLASIFICADOR DE POSTURAS
+#
+# Son distintos de los umbrales de evaluación y por eso viven aquí y no en la
+# base de datos. Los umbrales de `umbral_referencia` responden "¿está bien
+# ejecutada esta postura?"; estos cortes responden antes "¿qué postura es?".
+# Confundirlos sería un error de diseño: un entrenador que endurece el criterio
+# de calidad de un Zenkutsu no debería, con ello, hacer que el sistema deje de
+# reconocer la postura.
+#
+# Se mantienen deliberadamente más amplios que los umbrales de evaluación: el
+# clasificador debe reconocer también las ejecuciones incorrectas, porque una
+# postura mal hecha que no se identifica tampoco se puede corregir.
+# ---------------------------------------------------------------------------
+RODILLA_EXTENDIDA = 160.0      # por encima: pierna esencialmente recta
+RODILLA_FLEXIONADA = 130.0     # por debajo: flexión marcada
+ZENKUTSU_TRASERA_MINIMA = 150.0   # la pierna de atrás del Zenkutsu va tensa y larga
+
+# Kokutsu: pierna frontal casi extendida y trasera flexionada, que es la
+# distribución de peso inversa a la del Zenkutsu (corregido el 14-sep-2026;
+# antes exigía la frontal flexionada y la postura nunca se reconocía).
+KOKUTSU_FRONTAL_MINIMA = 140.0
+KOKUTSU_TRASERA_MAXIMA = 135.0
+
 #Brazos
 class TechniqueAnalyzer:
     def __init__(self, umbral_visibilidad=0.65, ventana_filtro=5, reglas=None):
@@ -153,32 +177,40 @@ class TechniqueAnalyzer:
             # EL CLASIFICADOR (¿En qué postura está el usuario?)
             # ---------------------------------------------------------
             
-            # CASO 1: Si ambas rodillas están casi estiradas (> 160°), asume postura natural (Heiko Dachi / Hachiji Dachi)
-            if angulo_izq > 160 and angulo_der > 160:
+            # CASO 1: ambas rodillas esencialmente rectas -> postura natural
+            # (Heiko Dachi / Hachiji Dachi).
+            if angulo_izq > RODILLA_EXTENDIDA and angulo_der > RODILLA_EXTENDIDA:
                 es_correcto, msg, color = self.reglas.evaluate_heiko_dachi(angulo_frontal) # Puedes pasarle cualquiera de los dos, o crear una regla específica para las rodillas en Heiko
                 postura_detectada = "POSTURA NATURAL"
                 tecnica = "heiko_dachi"
 
-            # CASO 2: Si AMBAS rodillas están moderadamente flexionadas por igual (130-160),
-            # es Kiba Dachi (postura de jinete). Es simétrica, no depende de qué pierna
-            # esté "adelante" según el eje Z (por eso usa izq/der directo, no frontal/trasero).
-            elif 130 <= angulo_izq <= 160 and 130 <= angulo_der <= 160:
+            # CASO 2: AMBAS rodillas flexionadas por igual -> Kiba Dachi (postura
+            # de jinete). Es simétrica y lateral: no depende de qué pierna esté
+            # "adelante" según el eje Z, por eso usa izq/der y no frontal/trasera.
+            elif (RODILLA_FLEXIONADA <= angulo_izq <= RODILLA_EXTENDIDA
+                  and RODILLA_FLEXIONADA <= angulo_der <= RODILLA_EXTENDIDA):
                 es_correcto, msg, color = self.reglas.evaluate_kiba_dachi(angulo_izq, angulo_der)
                 postura_detectada = "KIBA DACHI"
                 tecnica = "kiba_dachi"
 
-            # CASO 3: Si la pierna frontal está flexionada (< 130) y la trasera estirada (> 150), es un Zenkutsu
-            elif angulo_frontal < 130 and angulo_trasero > 150:
+            # CASO 3: peso ADELANTE — rodilla frontal flexionada y trasera
+            # extendida y tensa -> Zenkutsu Dachi (postura adelantada).
+            elif angulo_frontal < RODILLA_FLEXIONADA and angulo_trasero > ZENKUTSU_TRASERA_MINIMA:
                 es_correcto, msg, color = self.reglas.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"ZENKUTSU ({guardia})"
                 tecnica = "zenkutsu_dachi"
 
-            # CASO 4: Pierna frontal flexionada (< 130) y trasera no llega a estirarse del todo
-            # (<= 150) -> se acerca más a un Kokutsu Dachi que a una transición real.
-            elif angulo_frontal < 130 and angulo_trasero <= 150:
-                 es_correcto, msg, color = self.reglas.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
-                 postura_detectada = f"KOKUTSU ({guardia})"
-                 tecnica = "kokutsu_dachi"
+            # CASO 4: peso ATRÁS — rodilla frontal casi extendida y trasera
+            # flexionada -> Kokutsu Dachi (postura atrasada). Es la distribución
+            # inversa del caso anterior, y es exactamente lo que la versión previa
+            # tenía al revés: exigía la frontal flexionada, de modo que un Kokutsu
+            # bien ejecutado (frontal ~160°, trasera ~105°) no coincidía con
+            # ninguna rama y terminaba reportado como "EN TRANSICION".
+            elif (angulo_frontal >= KOKUTSU_FRONTAL_MINIMA
+                  and angulo_trasero <= KOKUTSU_TRASERA_MAXIMA):
+                es_correcto, msg, color = self.reglas.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
+                postura_detectada = f"KOKUTSU ({guardia})"
+                tecnica = "kokutsu_dachi"
 
             # CASO 5: Transición (el usuario se está moviendo entre posturas) — no es una
             # evaluación (nada que calificar de correcto/incorrecto), por eso es_correcto=None.

@@ -24,6 +24,10 @@ class PerfilScreen(ctk.CTkFrame):
                       border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
                       hover_color=theme.CARD_HOVER, width=160,
                       command=self._abrir_umbrales).pack(side="right")
+        ctk.CTkButton(barra, text="Cámara", fg_color="transparent", border_width=1,
+                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
+                      hover_color=theme.CARD_HOVER, width=110,
+                      command=self._abrir_camara).pack(side="right", padx=(0, 8))
 
         contenedor = ctk.CTkFrame(self, fg_color="transparent")
         contenedor.place(relx=0.5, rely=0.5, anchor="center")
@@ -86,6 +90,9 @@ class PerfilScreen(ctk.CTkFrame):
 
     def _abrir_umbrales(self):
         self.master_app.on_abrir_umbrales()
+
+    def _abrir_camara(self):
+        self.master_app.on_abrir_camara()
 
     def _abrir_form_nuevo(self):
         if self.form_nuevo is not None:

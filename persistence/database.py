@@ -82,6 +82,15 @@ class Database:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_umbral_vigente
                 ON umbral_referencia (nombre_tecnica, articulacion)
                 WHERE vigente = 1;
+
+            -- Preferencias del equipo donde corre el sistema (fuente de video,
+            -- por ejemplo). Van en la base y no en un archivo de configuracion
+            -- aparte porque el sistema ya es local por diseno (RNF-02) y asi
+            -- todo el estado del dojo vive en un solo archivo respaldable.
+            CREATE TABLE IF NOT EXISTS configuracion (
+                clave  TEXT PRIMARY KEY,
+                valor  TEXT
+            );
         """)
         self._migrar_columnas()
         self.conn.commit()
@@ -223,6 +232,43 @@ class Database:
         self.conn.commit()
         return nuevos
 
+    def corregir_umbrales_de_literatura(self, correcciones):
+        """
+        Aplica una corrección bibliográfica a umbrales que nadie recalibró.
+
+        `sembrar_umbrales` es idempotente y no toca lo ya existente, que es lo
+        correcto para no pisar el trabajo del entrenador — pero significa que
+        corregir un valor equivocado en el código no llega a las bases que ya
+        estaban sembradas. Este método cubre ese caso.
+
+        Solo se corrige un umbral cuya fuente vigente siga siendo 'literatura':
+        si un instructor ya lo ajustó con su criterio ('modelado_experto'), su
+        decisión manda sobre la del libro y no se toca. La corrección crea una
+        versión nueva, de modo que las mediciones anteriores conservan el umbral
+        con el que fueron evaluadas.
+
+        Formato de 'correcciones': {(tecnica, articulacion): (min, max)}.
+        Devuelve la lista de claves efectivamente corregidas.
+        """
+        corregidos = []
+        for (tecnica, articulacion), (v_min, v_max) in correcciones.items():
+            fila = self.conn.execute(
+                "SELECT * FROM umbral_referencia "
+                "WHERE nombre_tecnica = ? AND articulacion = ? AND vigente = 1",
+                (tecnica, articulacion),
+            ).fetchone()
+
+            if fila is None or fila["fuente"] != "literatura":
+                continue
+            if (fila["valor_min"], fila["valor_max"]) == (v_min, v_max):
+                continue  # ya está corregido; no se versiona por gusto
+
+            self.actualizar_umbral(tecnica, articulacion, v_min, v_max,
+                                   id_entrenador=None, fuente="literatura")
+            corregidos.append((tecnica, articulacion))
+
+        return corregidos
+
     def cargar_umbrales_vigentes(self):
         """
         Devuelve los umbrales en curso, indexados por (tecnica, articulacion).
@@ -268,6 +314,26 @@ class Database:
         )
         self.conn.commit()
         return cursor.lastrowid
+
+    # ---------------- Configuración del equipo ----------------
+
+    def leer_config(self, clave, por_defecto=None):
+        """Valor guardado para 'clave', o 'por_defecto' si nunca se configuró."""
+        fila = self.conn.execute(
+            "SELECT valor FROM configuracion WHERE clave = ?", (clave,)
+        ).fetchone()
+        return por_defecto if fila is None else fila["valor"]
+
+    def guardar_config(self, clave, valor):
+        """Escribe o reemplaza una preferencia. El valor se guarda como texto."""
+        self.conn.execute(
+            "INSERT INTO configuracion (clave, valor) VALUES (?, ?) "
+            "ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor",
+            (clave, None if valor is None else str(valor)),
+        )
+        self.conn.commit()
+
+    # ---------------- Umbrales: historial ----------------
 
     def historial_umbral(self, nombre_tecnica, articulacion):
         """Todas las versiones de un umbral, de la más reciente a la más antigua."""

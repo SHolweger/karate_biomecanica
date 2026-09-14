@@ -22,10 +22,32 @@ UMBRALES_LITERATURA = {
     ("kiba_dachi",     "rodilla"):           (130.0, 150.0, "grados"),
     ("zenkutsu_dachi", "rodilla_frontal"):   ( 90.0, 115.0, "grados"),
     ("zenkutsu_dachi", "rodilla_trasera"):   (165.0, 180.0, "grados"),
-    ("kokutsu_dachi",  "rodilla_frontal"):   (100.0, 120.0, "grados"),
-    ("kokutsu_dachi",  "rodilla_trasera"):   ( 90.0, 110.0, "grados"),
+    # KOKUTSU DACHI — corregido el 14-sep-2026.
+    # El modelo anterior (frontal 100-120, trasera 90-110) describía ambas
+    # rodillas profundamente flexionadas, que no es un Kokutsu: en la postura
+    # atrasada el peso va sobre la pierna de atrás, de modo que la rodilla
+    # TRASERA se flexiona y la FRONTAL queda casi extendida. Con los valores
+    # viejos, una ejecución correcta caía en "EN TRANSICION" y nunca se
+    # reconocía (ver la prueba de regresión en tests/integration/test_analyzer.py).
+    # Los rangos de abajo son provisionales, a confirmar con el cuerpo técnico.
+    ("kokutsu_dachi",  "rodilla_frontal"):   (145.0, 175.0, "grados"),
+    ("kokutsu_dachi",  "rodilla_trasera"):   ( 90.0, 120.0, "grados"),
     ("mae_geri",       "rodilla_kime"):      (160.0, 180.0, "grados"),
     ("mae_geri",       "velocidad_angular"): (400.0,  None, "grados/segundo"),
+}
+
+# Correcciones bibliográficas posteriores a la primera siembra. Una base de
+# datos ya sembrada no recibe los valores nuevos de UMBRALES_LITERATURA, porque
+# la siembra es idempotente a propósito (no debe pisar lo que un entrenador
+# recalibró). Estas entradas se aplican al arrancar SOLO sobre umbrales cuya
+# fuente vigente siga siendo 'literatura'; si un instructor ya los ajustó, su
+# criterio manda. Ver Database.corregir_umbrales_de_literatura.
+CORRECCIONES_LITERATURA = {
+    # 14-sep-2026: el modelo original describía ambas rodillas flexionadas, que
+    # no es un Kokutsu Dachi. El peso va atrás: trasera flexionada, frontal casi
+    # extendida.
+    ("kokutsu_dachi", "rodilla_frontal"): (145.0, 175.0),
+    ("kokutsu_dachi", "rodilla_trasera"): (90.0, 120.0),
 }
 
 # Articulación que define a cada técnica. Se usa para saber qué versión de umbral
@@ -140,8 +162,12 @@ class KarateRules:
 
     def evaluate_kokutsu_dachi(self, front_knee_angle, back_knee_angle):
         """
-        Evalúa postura atrasada.
-        Rodilla delantera ligeramente flexionada, rodilla trasera flexionada.
+        Evalúa la postura atrasada (Kokutsu Dachi).
+
+        El peso descansa sobre la pierna trasera: esa rodilla se flexiona
+        profundamente mientras la delantera permanece casi extendida. Es la
+        distribución INVERSA a la del Zenkutsu Dachi, y es lo que distingue
+        ambas posturas cuando se las mide por ángulos articulares.
         """
         if (self._dentro(front_knee_angle, "kokutsu_dachi", "rodilla_frontal")
                 and self._dentro(back_knee_angle, "kokutsu_dachi", "rodilla_trasera")):

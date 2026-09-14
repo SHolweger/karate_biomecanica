@@ -151,3 +151,61 @@ def test_un_umbral_sin_maximo_no_limita_por_arriba():
     assert reglas.rango("mae_geri", "velocidad_angular") == (400.0, None)
     correcto, mensaje, _ = reglas.evaluate_mae_geri(170, 5000)
     assert correcto, mensaje
+
+
+# --------------------------------------------------------------------------
+# Correcciones bibliográficas sobre bases ya sembradas
+# --------------------------------------------------------------------------
+
+@pytest.mark.integracion
+def test_una_correccion_de_literatura_alcanza_a_una_base_ya_sembrada(db_sembrada):
+    """
+    La siembra es idempotente para no pisar el criterio del entrenador, pero eso
+    significa que corregir un valor equivocado en el código no llegaría solo a
+    las bases que ya existen. Esta es la vía que sí llega.
+    """
+    from expert_system.knowledge_base import CORRECCIONES_LITERATURA
+
+    clave = ("kokutsu_dachi", "rodilla_frontal")
+    db_sembrada.actualizar_umbral(*clave, 100.0, 120.0, id_entrenador=None, fuente="literatura")
+    assert db_sembrada.cargar_umbrales_vigentes()[clave]["valor_min"] == 100.0
+
+    corregidos = db_sembrada.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
+
+    assert clave in corregidos
+    vigente = db_sembrada.cargar_umbrales_vigentes()[clave]
+    assert vigente["valor_min"] == 145.0, "el valor bibliografico corregido no se aplico"
+    assert vigente["fuente"] == "literatura"
+
+
+@pytest.mark.integracion
+def test_una_correccion_no_pisa_lo_que_el_entrenador_recalibro(db_sembrada):
+    """
+    Si un instructor ya ajustó el umbral con su propio criterio, su decisión
+    manda sobre la del libro: la corrección bibliográfica lo deja intacto.
+    """
+    from expert_system.knowledge_base import CORRECCIONES_LITERATURA
+
+    clave = ("kokutsu_dachi", "rodilla_frontal")
+    db_sembrada.actualizar_umbral(*clave, 150.0, 168.0, id_entrenador=None,
+                                  fuente="modelado_experto")
+
+    corregidos = db_sembrada.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
+
+    assert clave not in corregidos
+    vigente = db_sembrada.cargar_umbrales_vigentes()[clave]
+    assert (vigente["valor_min"], vigente["valor_max"]) == (150.0, 168.0)
+    assert vigente["fuente"] == "modelado_experto"
+
+
+@pytest.mark.integracion
+def test_aplicar_la_correccion_dos_veces_no_crea_versiones_repetidas(db_sembrada):
+    """Idempotencia: arrancar el sistema cien veces no llena el historial."""
+    from expert_system.knowledge_base import CORRECCIONES_LITERATURA
+
+    db_sembrada.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
+    versiones = len(db_sembrada.historial_umbral("kokutsu_dachi", "rodilla_frontal"))
+
+    db_sembrada.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
+
+    assert len(db_sembrada.historial_umbral("kokutsu_dachi", "rodilla_frontal")) == versiones

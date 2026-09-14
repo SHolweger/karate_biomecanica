@@ -11,6 +11,7 @@ from expert_system.analyzer import TechniqueAnalyzer
 from expert_system.knowledge_base import KarateRules
 from persistence.medicion_logger import MedicionLogger
 from gui import theme
+from gui.camara_screen import fuente_configurada
 
 
 class LiveScreen(ctk.CTkFrame):
@@ -22,9 +23,10 @@ class LiveScreen(ctk.CTkFrame):
     usa `self.after(...)` porque Tkinter necesita su propio ciclo de eventos
     y un bucle bloqueante congelaría toda la ventana.
 
-    El parámetro `cam` es opcional (por defecto usa la cámara real, índice 2,
-    igual que main.py) para poder inyectar una cámara sintética en pruebas
-    sin hardware — ver test_gui_live_screen.py.
+    El parámetro `cam` es opcional: por defecto abre la fuente de video que el
+    entrenador dejó configurada en la pantalla de cámara (RF-01). Poder
+    inyectarla es lo que permite ejercitar el pipeline completo con una cámara
+    sintética, sin hardware — ver tests/e2e/.
     """
 
     def __init__(self, master, db, entrenador, atleta, cam=None):
@@ -34,7 +36,7 @@ class LiveScreen(ctk.CTkFrame):
         self.entrenador = entrenador
         self.atleta = atleta
 
-        self.cam = cam if cam is not None else Camera(source=2)
+        self.cam = cam if cam is not None else Camera(fuente_configurada(db))
         self.tracker = PoseTracker(model_path='pose_landmarker_full.task')
         self.renderer = SkeletonRenderer()
         # Umbrales vigentes desde la base de datos (RF-08), no constantes de codigo.

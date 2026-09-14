@@ -11,12 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 
 from persistence.database import Database
-from expert_system.knowledge_base import UMBRALES_LITERATURA
+from expert_system.knowledge_base import CORRECCIONES_LITERATURA, UMBRALES_LITERATURA
 from gui import theme
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
 from gui.live_screen import LiveScreen
 from gui.umbrales_screen import UmbralesScreen
+from gui.camara_screen import CamaraScreen
 
 
 class App(ctk.CTk):
@@ -40,6 +41,9 @@ class App(ctk.CTk):
         # Siembra idempotente de los umbrales biomecanicos (RF-08): si el
         # entrenador ya recalibro alguno, su version vigente no se toca.
         self.db.sembrar_umbrales(UMBRALES_LITERATURA)
+        # Corrige valores bibliográficos equivocados en bases ya sembradas, sin
+        # tocar los que un entrenador haya recalibrado con su propio criterio.
+        self.db.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
         self.entrenador = None
         self.atleta = None
         self.pantalla_actual = None
@@ -74,6 +78,14 @@ class App(ctk.CTk):
         la que queda firmando cada versión de umbral que se guarde.
         """
         self._mostrar(UmbralesScreen(self, self.db, self.entrenador))
+
+    def on_abrir_camara(self):
+        """
+        Configuración de la fuente de video (RF-01). Vive fuera de la pantalla
+        en vivo a propósito: cambiar de cámara a mitad de una medición
+        interrumpiría la sesión que se está registrando.
+        """
+        self._mostrar(CamaraScreen(self, self.db))
 
     def on_volver_a_perfiles(self):
         self._mostrar(PerfilScreen(self, self.db, self.entrenador))

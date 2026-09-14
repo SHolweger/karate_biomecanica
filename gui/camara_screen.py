@@ -1,0 +1,252 @@
+import customtkinter as ctk
+
+from gui import theme
+from vision.camera import CamaraNoDisponible, Camera, describir, es_url, listar_camaras
+
+# Clave con la que se recuerda la fuente elegida en la tabla `configuracion`.
+CLAVE_FUENTE = "fuente_video"
+
+
+class CamaraScreen(ctk.CTkFrame):
+    """
+    Selección de la fuente de video (RF-01).
+
+    Resuelve un riesgo concreto de la puesta en marcha: hasta ahora el índice de
+    cámara estaba escrito en el código y correspondía al equipo de desarrollo.
+    En cualquier otra máquina —la del aula donde se defienda el proyecto, o la
+    del dojo— ese índice no existe, y el sistema fallaba sin decir por qué.
+
+    Ofrece las dos vías que un dojo necesita: los dispositivos que el sistema
+    operativo ya expone (webcam integrada, cámara USB, OBS o Camo, que macOS
+    presenta como cámaras normales) y una cámara IP por red local, que es como
+    se conecta un teléfono sin cables ni aplicaciones propietarias.
+
+    La elección se guarda en la base de datos y se reutiliza en el siguiente
+    arranque: configurar la cámara es una tarea de instalación, no algo que el
+    entrenador deba repetir cada sesión.
+    """
+
+    def __init__(self, master, db, al_terminar=None):
+        super().__init__(master, fg_color=theme.FONDO)
+        self.master_app = master
+        self.db = db
+        self.al_terminar = al_terminar
+
+        self.disponibles = []
+        self.seleccion = ctk.StringVar(value=str(db.leer_config(CLAVE_FUENTE, "")))
+        self.url_var = ctk.StringVar()
+        self.error_var = ctk.StringVar(value="")
+        self.estado_var = ctk.StringVar(value="")
+
+        self._construir_encabezado()
+
+        self.lista = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.lista.pack(expand=True, fill="both", padx=28, pady=(0, 6))
+
+        self._construir_pie()
+        self.buscar_camaras()
+
+    # ---------------- armado ----------------
+
+    def _construir_encabezado(self):
+        barra = ctk.CTkFrame(self, fg_color="transparent")
+        barra.pack(fill="x", padx=28, pady=(20, 4))
+
+        titulos = ctk.CTkFrame(barra, fg_color="transparent")
+        titulos.pack(side="left", anchor="w")
+        ctk.CTkLabel(titulos, text="Cámara y fuente de video", font=(theme.FUENTE, 20, "bold"),
+                     text_color=theme.TEXTO).pack(anchor="w")
+        ctk.CTkLabel(titulos, text="De dónde toma el sistema el video que analiza",
+                     font=(theme.FUENTE, 12), text_color=theme.TEXTO_MUTED).pack(anchor="w")
+
+        ctk.CTkButton(barra, text="Volver", fg_color="transparent", border_width=1,
+                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO,
+                      hover_color=theme.CARD_HOVER, width=110,
+                      command=self._volver).pack(side="right")
+        ctk.CTkButton(barra, text="Buscar cámaras", fg_color="transparent", border_width=1,
+                      border_color=theme.BORDE_CLARO, text_color=theme.TEXTO_MUTED,
+                      hover_color=theme.CARD_HOVER, width=150,
+                      command=self.buscar_camaras).pack(side="right", padx=(0, 8))
+
+    def _construir_pie(self):
+        pie = ctk.CTkFrame(self, fg_color="transparent")
+        pie.pack(fill="x", padx=28, pady=(0, 18))
+
+        ctk.CTkLabel(pie, textvariable=self.error_var, text_color=theme.ACENTO_ROJO,
+                     font=(theme.FUENTE, 11.5), justify="left", wraplength=560).pack(side="left")
+        ctk.CTkLabel(pie, textvariable=self.estado_var, text_color=theme.ACENTO_VERDE,
+                     font=(theme.FUENTE, 11.5)).pack(side="left", padx=(10, 0))
+
+        ctk.CTkButton(pie, text="Usar esta cámara", fg_color=theme.ACENTO_ROJO,
+                      hover_color=theme.ACENTO_ROJO_HOVER, width=170,
+                      command=self.guardar_seleccion).pack(side="right")
+        ctk.CTkButton(pie, text="Probar", fg_color="transparent", width=110,
+                      border_width=1, border_color=theme.BORDE_CLARO,
+                      text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
+                      command=self.probar_seleccion).pack(side="right", padx=(0, 8))
+
+    def _tarjeta(self, valor, titulo, detalle):
+        fila = ctk.CTkFrame(self.lista, fg_color=theme.CARD, border_color=theme.BORDE,
+                            border_width=1, corner_radius=10)
+        fila.pack(fill="x", pady=3)
+        ctk.CTkRadioButton(fila, text="", variable=self.seleccion, value=valor,
+                           width=24, radiobutton_width=18, radiobutton_height=18,
+                           fg_color=theme.ACENTO_ROJO,
+                           border_color=theme.BORDE_CLARO).pack(side="left", padx=(14, 6), pady=12)
+        textos = ctk.CTkFrame(fila, fg_color="transparent")
+        textos.pack(side="left", anchor="w")
+        ctk.CTkLabel(textos, text=titulo, font=(theme.FUENTE, 13, "bold"),
+                     text_color=theme.TEXTO, anchor="w").pack(anchor="w")
+        ctk.CTkLabel(textos, text=detalle, font=(theme.FUENTE, 11.5),
+                     text_color=theme.TEXTO_MUTED, anchor="w").pack(anchor="w")
+
+    # ---------------- datos ----------------
+
+    def buscar_camaras(self):
+        """
+        Sondea los dispositivos del sistema y redibuja la lista.
+
+        La búsqueda abre y cierra cada índice, así que tarda un momento y no se
+        hace sola en cada navegación: se dispara al entrar y con el botón.
+        """
+        for w in self.lista.winfo_children():
+            w.destroy()
+
+        self.estado_var.set("")
+        self.error_var.set("")
+        self.disponibles = listar_camaras()
+
+        if self.disponibles:
+            for cam in self.disponibles:
+                indice = cam["indice"]
+                etiqueta = "Cámara integrada" if indice == 0 else f"Cámara {indice}"
+                detalle = f"Índice {indice} · {cam['ancho']}×{cam['alto']} px"
+                if indice != 0:
+                    detalle += " · puede ser USB, OBS o Camo"
+                self._tarjeta(str(indice), etiqueta, detalle)
+        else:
+            ctk.CTkLabel(self.lista,
+                         text="No se detectó ninguna cámara conectada al equipo.",
+                         font=(theme.FUENTE, 12.5), text_color=theme.TEXTO_MUTED).pack(pady=16)
+
+        self._tarjeta_ip()
+
+        # Si lo guardado ya no existe (la cámara se desconectó), se avisa en vez
+        # de dejar seleccionada en silencio una fuente que va a fallar.
+        guardada = self.seleccion.get()
+        if guardada and not es_url(guardada):
+            if guardada not in [str(c["indice"]) for c in self.disponibles]:
+                self.error_var.set(
+                    f"La cámara configurada (índice {guardada}) no está disponible ahora. "
+                    f"Elige otra o vuelve a conectarla.")
+
+    def _tarjeta_ip(self):
+        """Bloque de cámara IP: un teléfono en la red local del dojo."""
+        caja = ctk.CTkFrame(self.lista, fg_color=theme.CARD, border_color=theme.BORDE,
+                            border_width=1, corner_radius=10)
+        caja.pack(fill="x", pady=(10, 3))
+
+        cabecera = ctk.CTkFrame(caja, fg_color="transparent")
+        cabecera.pack(fill="x", padx=14, pady=(12, 2))
+        ctk.CTkRadioButton(cabecera, text="", variable=self.seleccion, value="__ip__",
+                           width=24, radiobutton_width=18, radiobutton_height=18,
+                           fg_color=theme.ACENTO_ROJO,
+                           border_color=theme.BORDE_CLARO).pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(cabecera, text="Celular o cámara IP", font=(theme.FUENTE, 13, "bold"),
+                     text_color=theme.TEXTO).pack(side="left")
+
+        ctk.CTkLabel(caja, text="El teléfono corre una app de cámara IP y entrega el video por "
+                               "la red local del dojo. No requiere cable ni depender de macOS.",
+                     font=(theme.FUENTE, 11.5), text_color=theme.TEXTO_MUTED,
+                     wraplength=620, justify="left").pack(anchor="w", padx=(44, 14), pady=(0, 8))
+
+        # Si lo guardado era una URL, se precarga para poder corregirla.
+        guardada = self.seleccion.get()
+        if es_url(guardada):
+            self.url_var.set(guardada)
+            self.seleccion.set("__ip__")
+
+        # CustomTkinter desactiva su placeholder_text cuando el campo tiene un
+        # textvariable asignado (mismo caso documentado en login_screen.py), así
+        # que el ejemplo va en una etiqueta visible: sin él, el entrenador no
+        # tiene forma de saber qué formato espera el campo.
+        ctk.CTkLabel(caja, text="Dirección del flujo de video", font=(theme.FUENTE, 11),
+                     text_color=theme.TEXTO_MUTED).pack(anchor="w", padx=(44, 14), pady=(0, 2))
+        ctk.CTkEntry(caja, textvariable=self.url_var, width=420).pack(anchor="w", padx=(44, 14))
+        ctk.CTkLabel(caja, text="Ejemplo:  http://192.168.1.50:8080/video",
+                     font=(theme.FUENTE_MONO, 11), text_color=theme.TEXTO_TENUE).pack(
+            anchor="w", padx=(44, 14), pady=(4, 14))
+
+    # ---------------- acciones ----------------
+
+    def fuente_elegida(self):
+        """La fuente que representa la selección actual, o None si está incompleta."""
+        valor = self.seleccion.get()
+        if valor == "__ip__":
+            url = self.url_var.get().strip()
+            return url or None
+        return valor or None
+
+    def probar_seleccion(self):
+        """
+        Abre la fuente y lee un fotograma real antes de confirmarla.
+
+        Es la diferencia entre descubrir que la cámara no sirve ahora o
+        descubrirlo frente al alumno con la sesión ya iniciada.
+        """
+        fuente = self.fuente_elegida()
+        if fuente is None:
+            self.estado_var.set("")
+            self.error_var.set("Elige una cámara o escribe la dirección de la cámara IP.")
+            return False
+
+        try:
+            camara = Camera(fuente)
+        except CamaraNoDisponible as error:
+            self.estado_var.set("")
+            self.error_var.set(str(error))
+            return False
+
+        try:
+            frame = camara.get_frame()
+        finally:
+            camara.release()
+
+        if frame is None:
+            self.estado_var.set("")
+            self.error_var.set(
+                f"La {describir(fuente).lower()} se abrió pero no entregó imagen. "
+                f"Puede estar en uso por otra aplicación.")
+            return False
+
+        alto, ancho = frame.shape[:2]
+        self.error_var.set("")
+        self.estado_var.set(f"Imagen recibida: {ancho}×{alto} px.")
+        return True
+
+    def guardar_seleccion(self):
+        """Verifica la fuente y, si entrega imagen, la deja configurada."""
+        if not self.probar_seleccion():
+            return False
+
+        self.db.guardar_config(CLAVE_FUENTE, self.fuente_elegida())
+        self.estado_var.set("Cámara configurada. Se usará en la próxima sesión de análisis.")
+        return True
+
+    def _volver(self):
+        if self.al_terminar is not None:
+            self.al_terminar()
+        else:
+            self.master_app.on_volver_a_perfiles()
+
+
+def fuente_configurada(db, por_defecto=0):
+    """
+    Fuente de video guardada, lista para pasarle a `Camera`.
+
+    Vive aquí y no en `Camera` porque la cámara no debe conocer la base de
+    datos: es la capa de presentación la que sabe dónde se guardó la
+    preferencia del equipo.
+    """
+    valor = db.leer_config(CLAVE_FUENTE)
+    return por_defecto if valor in (None, "") else valor

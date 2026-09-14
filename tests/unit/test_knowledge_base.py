@@ -141,14 +141,23 @@ def test_zenkutsu_dachi_distingue_pierna_delantera_de_trasera(frontal, trasero, 
 
 
 @pytest.mark.parametrize("frontal, trasero, esperado", [
-    (110, 100, True),
-    (100, 90, True),     # fronteras inferiores
-    (120, 110, True),    # fronteras superiores
-    (130, 100, False),   # delantera demasiado extendida
-    (110, 130, False),   # trasera sin flexionar: sería Zenkutsu, no Kokutsu
+    (160, 105, True),
+    (145, 90, True),     # fronteras inferiores
+    (175, 120, True),    # fronteras superiores
+    (130, 105, False),   # delantera demasiado flexionada: el peso no está atrás
+    (160, 140, False),   # trasera sin flexionar: no hay carga en la pierna de atrás
+    (110, 100, False),   # ambas profundamente flexionadas: no es un Kokutsu
 ])
 def test_kokutsu_dachi_carga_el_peso_en_la_pierna_trasera(frontal, trasero, esperado, reglas):
-    """Postura atrasada: la trasera (90-110) va más flexionada que la delantera (100-120)."""
+    """
+    Postura atrasada: el peso descansa sobre la pierna de atrás, de modo que la
+    rodilla TRASERA se flexiona (90-120°) y la DELANTERA queda casi extendida
+    (145-175°). Es la distribución inversa a la del Zenkutsu Dachi.
+
+    El último caso documenta la corrección del 14-sep-2026: el modelo anterior
+    daba por correcta una ejecución con ambas rodillas profundamente
+    flexionadas, que no es un Kokutsu sino otra postura.
+    """
     assert reglas.evaluate_kokutsu_dachi(frontal, trasero)[0] is esperado
 
 
@@ -158,7 +167,7 @@ def test_zenkutsu_y_kokutsu_no_aprueban_la_misma_ejecucion(reglas):
     un Zenkutsu y un Kokutsu correctos, o el clasificador estaría premiando dos
     posturas incompatibles con la misma evidencia.
     """
-    for frontal in range(85, 130, 5):
+    for frontal in range(85, 180, 5):
         for trasero in range(85, 185, 5):
             zen = reglas.evaluate_zenkutsu_dachi(frontal, trasero)[0]
             kok = reglas.evaluate_kokutsu_dachi(frontal, trasero)[0]

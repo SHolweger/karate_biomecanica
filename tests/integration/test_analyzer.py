@@ -125,8 +125,8 @@ def test_el_suavizado_amortigua_un_salto_de_jitter(analizador):
     precondiciones="Instancia de `TechniqueAnalyzer(umbral_visibilidad=0.65, "
                    "ventana_filtro=1)`; pose sintética de 33 landmarks con visibilidad 1.0",
     datos_entrada="(izq=175, der=175) → Postura natural; (140, 140) → Kiba Dachi; "
-                  "(100, 170) → Zenkutsu; (110, 100) → Kokutsu. Profundidad "
-                  "z_tobillo_izq=−0.2, z_tobillo_der=0.2",
+                  "(100, 170) → Zenkutsu (peso adelante); (165, 105) → Kokutsu (peso "
+                  "atrás). Profundidad z_tobillo_izq=−0.2, z_tobillo_der=0.2",
     pasos=[
         Paso("Generar la pose sintética con `pose_sintetica(...)`",
              "33 landmarks con los ángulos de rodilla solicitados (±0.1°)"),
@@ -143,7 +143,7 @@ def test_el_suavizado_amortigua_un_salto_de_jitter(analizador):
     ("posicion natural",   175, 175, "POSTURA NATURAL"),
     ("postura de jinete",  140, 140, "KIBA DACHI"),
     ("postura adelantada", 100, 170, "ZENKUTSU"),
-    ("postura atrasada",   110, 100, "KOKUTSU"),
+    ("postura atrasada",   165, 105, "KOKUTSU"),
 ])
 def test_identifica_la_postura_antes_de_evaluarla(analizador, nombre, izq, der, postura_esperada):
     """
@@ -288,3 +288,80 @@ def test_las_lineas_de_texto_no_se_encimam_en_pantalla(analizador):
     alturas = [d["y_offset"] for d in analizador.analyze_tsuki(landmarks, ANCHO, ALTO)]
 
     assert len(set(alturas)) == len(alturas), f"diagnosticos superpuestos en {alturas}"
+
+
+@ficha(
+    id_caso="TC-AUTO-025",
+    nombre="Un Kokutsu Dachi correctamente ejecutado se reconoce como tal y no como una "
+           "transición entre posturas",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es una prueba de regresión de un defecto real: el clasificador "
+                         "exigía la rodilla frontal flexionada para reconocer un Kokutsu, "
+                         "cuando en esa postura el peso va atrás y la frontal queda casi "
+                         "extendida. Toda ejecución correcta caía en la rama por defecto y se "
+                         "reportaba como \"EN TRANSICION\", de modo que una de las posturas "
+                         "del alcance no se evaluaba nunca y nada lo delataba",
+    componente="expert_system/analyzer.py (clasificador de posturas)",
+    requisitos=["RF-01", "RF-05"],
+    precondiciones="Instancia de `TechniqueAnalyzer(ventana_filtro=1)`; poses sintéticas de "
+                   "33 landmarks con visibilidad 1.0",
+    datos_entrada="Cinco ejecuciones con la pierna frontal extendida y la trasera flexionada: "
+                  "(170, 100), (165, 105), (160, 110), (155, 115) y (150, 120)",
+    pasos=[
+        Paso("Generar la pose sintética con la pierna izquierda adelante "
+             "(z_tobillo_izq < z_tobillo_der)",
+             "33 landmarks con los ángulos de rodilla solicitados"),
+        Paso("Invocar `analyzer.analyze_stance(landmarks, 1000, 1000)`",
+             "assert \"KOKUTSU\" in mensaje en las cinco ejecuciones"),
+        Paso("Comprobar que no se reportó como movimiento",
+             "assert \"TRANSICION\" not in mensaje y assert \"MOVIENDOSE\" not in mensaje"),
+    ],
+    resultado_esperado="PASSED. Con el clasificador anterior las cinco ejecuciones fallaban, "
+                       "por lo que esta prueba impide que la corrección se revierta",
+)
+@pytest.mark.parametrize("frontal, trasera", [
+    (170, 100),
+    (165, 105),
+    (160, 110),
+    (155, 115),
+    (150, 120),
+])
+@pytest.mark.integracion
+def test_un_kokutsu_real_no_se_confunde_con_una_transicion(analizador, frontal, trasera):
+    """
+    Prueba de regresión del defecto corregido el 14-sep-2026.
+
+    En el Kokutsu Dachi el 70 % del peso descansa sobre la pierna trasera: esa
+    rodilla se flexiona profundamente y la delantera permanece casi extendida.
+    El clasificador anterior pedía justo lo contrario, de modo que ninguna de
+    estas cinco ejecuciones —todas Kokutsu válidos— coincidía con alguna rama.
+    """
+    landmarks = pose_sintetica(angulo_rodilla_izq=frontal, angulo_rodilla_der=trasera,
+                               z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    diagnostico = [d for d in analizador.analyze_stance(landmarks, ANCHO, ALTO)
+                   if d["categoria"] == "postura"][0]
+    mensaje = diagnostico["mensaje"]
+
+    assert "KOKUTSU" in mensaje, f"frontal={frontal}, trasera={trasera} -> {mensaje}"
+    assert "TRANSICION" not in mensaje and "MOVIENDOSE" not in mensaje, mensaje
+
+
+@pytest.mark.integracion
+def test_zenkutsu_y_kokutsu_no_se_confunden_entre_si(analizador):
+    """
+    Las dos posturas se distinguen por dónde va el peso, no por cuánto se
+    flexiona: son imágenes espejo una de la otra en los ángulos de rodilla.
+    """
+    adelante = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=170,
+                              z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+    atras = pose_sintetica(angulo_rodilla_izq=165, angulo_rodilla_der=105,
+                           z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    def postura(landmarks):
+        return [d for d in analizador.analyze_stance(landmarks, ANCHO, ALTO)
+                if d["categoria"] == "postura"][0]["mensaje"]
+
+    assert "ZENKUTSU" in postura(adelante)
+    assert "KOKUTSU" in postura(atras)

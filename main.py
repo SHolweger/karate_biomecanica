@@ -2,11 +2,11 @@ import cv2
 import time
 
 # Importamos nuestros módulos (Nuestra Arquitectura Modular)
-from vision.camera import Camera
+from vision.camera import Camera, CamaraNoDisponible, describir, listar_camaras
 from vision.tracker import PoseTracker
 from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
-from expert_system.knowledge_base import KarateRules, UMBRALES_LITERATURA
+from expert_system.knowledge_base import CORRECCIONES_LITERATURA, KarateRules, UMBRALES_LITERATURA
 from persistence.database import Database
 from persistence.cli_auth import login_o_registro, elegir_o_crear_perfil
 from persistence.medicion_logger import MedicionLogger
@@ -20,14 +20,33 @@ def main():
     # Los umbrales viven en la base de datos (RF-08). La siembra es idempotente:
     # si el entrenador ya recalibro alguno, no se sobrescribe.
     db.sembrar_umbrales(UMBRALES_LITERATURA)
+    db.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
     entrenador = login_o_registro(db)
     atleta = elegir_o_crear_perfil(db)
     id_sesion = db.iniciar_sesion(atleta["id_atleta"], entrenador["id_entrenador"])
     logger_mediciones = MedicionLogger(db, id_sesion)
     print(f"\nSesión iniciada: {entrenador['nombre']} entrenando a {atleta['nombre']}. 'q' para terminar.\n")
 
-    # 1. Inicialización de Objetos
-    cam = Camera(source=2)
+    # 1. Inicialización de Objetos.
+    # La fuente de video es la que quedó configurada desde la interfaz gráfica
+    # (RF-01). Si no abre, se informa qué cámaras sí están disponibles en vez
+    # de dejar la ventana en negro sin explicación.
+    fuente = db.leer_config("fuente_video", 0)
+    try:
+        cam = Camera(fuente)
+    except CamaraNoDisponible as error:
+        print(f"\n{error}")
+        disponibles = listar_camaras()
+        if disponibles:
+            print("Cámaras detectadas en este equipo:")
+            for c in disponibles:
+                print(f"  - índice {c['indice']}  ({c['ancho']}x{c['alto']} px)")
+            print("Configúrala desde la interfaz gráfica (python gui/app.py > Cámara).")
+        else:
+            print("No se detectó ninguna cámara conectada.")
+        db.close()
+        return
+    print(f"Fuente de video: {describir(fuente)}")
     tracker = PoseTracker(model_path='pose_landmarker_full.task')
     renderer = SkeletonRenderer()
     reglas = KarateRules(db.cargar_umbrales_vigentes())
