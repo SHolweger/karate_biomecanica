@@ -39,4 +39,4 @@ class MedicionLogger:
         self._ultimo_mensaje[categoria] = mensaje
         nombre_tecnica = NOMBRES_TECNICA.get(categoria, categoria)
         self.db.guardar_medicion(self.id_sesion, nombre_tecnica, d.get("angulo"), mensaje, timestamp_ms,
-                                  correcto=d.get("correcto"))
+                                  correcto=d.get("correcto"), id_umbral=d.get("id_umbral"))

@@ -1,4 +1,4 @@
-"""3.7.4 — Diagrama de despliegue físico (Edge Computing)."""
+"""3.8.4 — Diagrama de despliegue físico (Edge Computing)."""
 from _svg import (Lienzo, actor, TINTA, ACENTO, ACENTO_BG, GRIS, GRIS_BG, BANDA_BG, BLANCO)
 
 W, H = 1250, 830
@@ -105,5 +105,5 @@ c.texto(548, 770, "Desplegado y en uso", size=11.5)
 c.rect(730, 756, 24, 18, fill=GRIS_BG, stroke=GRIS, sw=1.6, dash="4 3")
 c.texto(762, 770, "Planificado (Sprint 4-5)", size=11.5, fill=GRIS)
 
-c.guardar("3.7.4_diagrama_despliegue.svg")
-print("3.7.4_diagrama_despliegue.svg")
+c.guardar("3.8.4_diagrama_despliegue.svg")
+print("3.8.4_diagrama_despliegue.svg")

@@ -11,10 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import customtkinter as ctk
 
 from persistence.database import Database
+from expert_system.knowledge_base import UMBRALES_LITERATURA
 from gui import theme
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
 from gui.live_screen import LiveScreen
+from gui.umbrales_screen import UmbralesScreen
 
 
 class App(ctk.CTk):
@@ -35,6 +37,9 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("dark")
 
         self.db = db if db is not None else Database()
+        # Siembra idempotente de los umbrales biomecanicos (RF-08): si el
+        # entrenador ya recalibro alguno, su version vigente no se toca.
+        self.db.sembrar_umbrales(UMBRALES_LITERATURA)
         self.entrenador = None
         self.atleta = None
         self.pantalla_actual = None
@@ -60,6 +65,17 @@ class App(ctk.CTk):
     def on_terminar_sesion(self):
         if isinstance(self.pantalla_actual, LiveScreen):
             self.pantalla_actual.cerrar()
+        self.on_volver_a_perfiles()
+
+    def on_abrir_umbrales(self):
+        """
+        Calibración de umbrales (RF-08). Solo se llega desde la selección de
+        perfiles, es decir con sesión de entrenador ya iniciada: es esa sesión
+        la que queda firmando cada versión de umbral que se guarde.
+        """
+        self._mostrar(UmbralesScreen(self, self.db, self.entrenador))
+
+    def on_volver_a_perfiles(self):
         self._mostrar(PerfilScreen(self, self.db, self.entrenador))
 
     def _al_cerrar(self):

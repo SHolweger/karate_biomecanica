@@ -23,20 +23,22 @@
   <text x="562" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_nacimiento : TEXT</text>
   <text x="562" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">grado_cinturon : TEXT</text>
   <text x="562" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_registro : TEXT</text>
-  <rect x="950" y="110" width="320" height="208" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.8" opacity="1" stroke-dasharray="6 4"/>
-  <rect x="950" y="110" width="320" height="32" rx="4" fill="#8896ab" stroke="#8896ab" stroke-width="1.8" opacity="1"/>
-  <rect x="950" y="134" width="320" height="8" rx="0" fill="#8896ab" stroke="none" stroke-width="0" opacity="1"/>
+  <rect x="950" y="110" width="320" height="250" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="950" y="110" width="320" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="950" y="134" width="320" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
   <text x="1110.0" y="131" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">UMBRAL_REFERENCIA</text>
   <text x="960" y="158" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">PK</text>
-  <text x="992" y="158" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">id_umbral : INTEGER</text>
+  <text x="992" y="158" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_umbral : INTEGER</text>
   <text x="960" y="179" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="bold" fill="#2563eb" text-anchor="start">FK</text>
-  <text x="992" y="179" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">id_entrenador : INTEGER</text>
-  <text x="992" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">nombre_tecnica : TEXT</text>
-  <text x="992" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">articulacion : TEXT</text>
-  <text x="992" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">valor_min : REAL</text>
-  <text x="992" y="263" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">valor_max : REAL</text>
-  <text x="992" y="284" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">fuente : TEXT</text>
-  <text x="992" y="305" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#5c6b80" text-anchor="start">fecha_modificacion : TEXT</text>
+  <text x="992" y="179" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">id_entrenador : INTEGER</text>
+  <text x="992" y="200" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">nombre_tecnica : TEXT</text>
+  <text x="992" y="221" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">articulacion : TEXT</text>
+  <text x="992" y="242" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">valor_min : REAL</text>
+  <text x="992" y="263" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">valor_max : REAL</text>
+  <text x="992" y="284" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">unidad : TEXT</text>
+  <text x="992" y="305" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fuente : TEXT</text>
+  <text x="992" y="326" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">vigente : INTEGER</text>
+  <text x="992" y="347" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha_modificacion : TEXT</text>
   <rect x="400" y="420" width="290" height="166" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
   <rect x="400" y="420" width="290" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
   <rect x="400" y="444" width="290" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
@@ -50,7 +52,7 @@
   <text x="442" y="531" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">fecha : TEXT</text>
   <text x="442" y="552" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">hora_inicio : TEXT</text>
   <text x="442" y="573" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">hora_fin : TEXT</text>
-  <rect x="385" y="700" width="320" height="229" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
+  <rect x="385" y="700" width="320" height="208" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
   <rect x="385" y="700" width="320" height="32" rx="4" fill="#1b2a4a" stroke="#1b2a4a" stroke-width="1.8" opacity="1"/>
   <rect x="385" y="724" width="320" height="8" rx="0" fill="#1b2a4a" stroke="none" stroke-width="0" opacity="1"/>
   <text x="545.0" y="721" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">TECNICA_EVALUADA</text>
@@ -63,9 +65,8 @@
   <text x="427" y="811" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">nombre_tecnica : TEXT</text>
   <text x="427" y="832" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">timestamp_ms : INTEGER</text>
   <text x="427" y="853" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">angulo_promedio : REAL</text>
-  <text x="427" y="874" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">velocidad_pico : REAL</text>
-  <text x="427" y="895" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">diagnostico : TEXT</text>
-  <text x="427" y="916" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">correcto : INTEGER</text>
+  <text x="427" y="874" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">diagnostico : TEXT</text>
+  <text x="427" y="895" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">correcto : INTEGER</text>
   <polyline points="350,230 375,230 375,480 400,480" fill="none" stroke="#1b2a4a" stroke-width="1.5" stroke-linejoin="round"/>
   <line x1="363" y1="222" x2="363" y2="238" stroke="#1b2a4a" stroke-width="1.8"/>
   <line x1="385" y1="480" x2="400" y2="471" stroke="#1b2a4a" stroke-width="1.5"/>
@@ -90,20 +91,20 @@
   <text x="555" y="640" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start" font-style="italic">contiene</text>
   <text x="526" y="588" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">1</text>
   <text x="526" y="694" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">N</text>
-  <polyline points="1115,300 1115,810 705,810" fill="none" stroke="#8896ab" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 4"/>
-  <line x1="1123" y1="313" x2="1107" y2="313" stroke="#8896ab" stroke-width="1.8"/>
-  <line x1="720" y1="810" x2="705" y2="819" stroke="#8896ab" stroke-width="1.5"/>
-  <line x1="720" y1="810" x2="705" y2="810" stroke="#8896ab" stroke-width="1.5"/>
-  <line x1="720" y1="810" x2="705" y2="801" stroke="#8896ab" stroke-width="1.5"/>
-  <text x="900" y="800" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">evaluada contra</text>
-  <text x="1095" y="322" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#8896ab" text-anchor="start">1</text>
-  <text x="718" y="830" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#8896ab" text-anchor="start">N</text>
-  <polyline points="210,110 210,62 1000,62 1000,110" fill="none" stroke="#8896ab" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="6 4"/>
-  <line x1="202" y1="97" x2="218" y2="97" stroke="#8896ab" stroke-width="1.8"/>
-  <line x1="1000" y1="95" x2="1009" y2="110" stroke="#8896ab" stroke-width="1.5"/>
-  <line x1="1000" y1="95" x2="1000" y2="110" stroke="#8896ab" stroke-width="1.5"/>
-  <line x1="1000" y1="95" x2="991" y2="110" stroke="#8896ab" stroke-width="1.5"/>
-  <text x="610" y="52" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#8896ab" text-anchor="middle" font-style="italic">calibra / modifica   (RF-08 — solo entrenadores autorizados)</text>
+  <polyline points="1115,360 1115,810 705,810" fill="none" stroke="#1b2a4a" stroke-width="1.5" stroke-linejoin="round"/>
+  <line x1="1123" y1="373" x2="1107" y2="373" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="720" y1="810" x2="705" y2="819" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="720" y1="810" x2="705" y2="810" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="720" y1="810" x2="705" y2="801" stroke="#1b2a4a" stroke-width="1.5"/>
+  <text x="900" y="800" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="start" font-style="italic">evaluada contra</text>
+  <text x="1095" y="382" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">1</text>
+  <text x="718" y="830" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="bold" fill="#2563eb" text-anchor="start">N</text>
+  <polyline points="210,110 210,62 1000,62 1000,110" fill="none" stroke="#1b2a4a" stroke-width="1.5" stroke-linejoin="round"/>
+  <line x1="202" y1="97" x2="218" y2="97" stroke="#1b2a4a" stroke-width="1.8"/>
+  <line x1="1000" y1="95" x2="1009" y2="110" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="1000" y1="95" x2="1000" y2="110" stroke="#1b2a4a" stroke-width="1.5"/>
+  <line x1="1000" y1="95" x2="991" y2="110" stroke="#1b2a4a" stroke-width="1.5"/>
+  <text x="610" y="52" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle" font-style="italic">calibra / modifica   (RF-08 — solo entrenadores autorizados)</text>
   <rect x="70" y="700" width="265" height="150" rx="6" fill="#fffdf2" stroke="#c9a227" stroke-width="1.4" opacity="1"/>
   <polyline points="315,700 335,700 335,720" fill="none" stroke="#c9a227" stroke-width="1.4" stroke-linejoin="round"/>
   <text x="84" y="724" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#7a6412" text-anchor="start">Nota — UMBRAL_REFERENCIA.fuente</text>
@@ -113,13 +114,13 @@
   <text x="84" y="786" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">  • 'modelado_experto' → umbral promediado</text>
   <text x="84" y="800" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">     de ejecuciones de cinturones negros.</text>
   <text x="84" y="814" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">Permite reemplazar umbrales sin cambiar el</text>
-  <text x="84" y="828" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">modelo de datos (ver 'Estrategia de recolección</text>
-  <text x="84" y="842" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">inicial de datos', Capítulo 3).</text>
-  <rect x="950" y="862" width="320" height="90" rx="6" fill="#fbfcfe" stroke="#1b2a4a" stroke-width="1.2" opacity="1"/>
-  <text x="965" y="884" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#1b2a4a" text-anchor="start">Leyenda</text>
-  <rect x="968" y="894" width="22" height="13" rx="4" fill="#ffffff" stroke="#1b2a4a" stroke-width="1.6" opacity="1"/>
-  <text x="1000" y="905" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#1b2a4a" text-anchor="start">Tabla implementada y en uso</text>
-  <rect x="968" y="918" width="22" height="13" rx="4" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.6" opacity="1" stroke-dasharray="4 3"/>
-  <text x="1000" y="929" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="start">Tabla propuesta (cierra RF-08)</text>
-  <text x="390" y="950" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">Columnas propuestas en TECNICA_EVALUADA:  id_umbral (FK)  y  velocidad_pico.</text>
+  <text x="84" y="828" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">modelo de datos (ver 3.7, 'Estrategia de</text>
+  <text x="84" y="842" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#5a4a10" text-anchor="start">parametrización de la base de conocimientos').</text>
+  <rect x="950" y="852" width="320" height="104" rx="6" fill="#fbfcfe" stroke="#1b2a4a" stroke-width="1.2" opacity="1"/>
+  <text x="965" y="874" font-family="Arial, Helvetica, sans-serif" font-size="11.5" font-weight="bold" fill="#1b2a4a" text-anchor="start">Versionado de umbrales</text>
+  <text x="965" y="894" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#4d5866" text-anchor="start">Recalibrar no sobrescribe la fila: marca la</text>
+  <text x="965" y="908" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#4d5866" text-anchor="start">anterior como no vigente e inserta una version</text>
+  <text x="965" y="922" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#4d5866" text-anchor="start">nueva. Un indice parcial unico garantiza un</text>
+  <text x="965" y="936" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#4d5866" text-anchor="start">solo umbral vigente por tecnica y articulacion.</text>
+  <text x="390" y="950" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">id_umbral liga cada medicion con la version de umbral que la juzgo.</text>
 </svg>

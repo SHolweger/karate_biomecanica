@@ -8,6 +8,7 @@ from vision.camera import Camera
 from vision.tracker import PoseTracker
 from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
+from expert_system.knowledge_base import KarateRules
 from persistence.medicion_logger import MedicionLogger
 from gui import theme
 
@@ -36,7 +37,9 @@ class LiveScreen(ctk.CTkFrame):
         self.cam = cam if cam is not None else Camera(source=2)
         self.tracker = PoseTracker(model_path='pose_landmarker_full.task')
         self.renderer = SkeletonRenderer()
-        self.analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65)
+        # Umbrales vigentes desde la base de datos (RF-08), no constantes de codigo.
+        self.analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65,
+                                          reglas=KarateRules(db.cargar_umbrales_vigentes()))
 
         self.id_sesion = db.iniciar_sesion(atleta["id_atleta"], entrenador["id_entrenador"])
         self.logger_mediciones = MedicionLogger(db, self.id_sesion)

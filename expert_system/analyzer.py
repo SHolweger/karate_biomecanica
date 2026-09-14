@@ -5,8 +5,11 @@ from expert_system.kick_state_machine import MaeGeriStateMachine
 
 #Brazos
 class TechniqueAnalyzer:
-    def __init__(self, umbral_visibilidad=0.65, ventana_filtro=5):
+    def __init__(self, umbral_visibilidad=0.65, ventana_filtro=5, reglas=None):
         self.umbral = umbral_visibilidad
+        # Base de conocimientos con los umbrales vigentes. Sin argumento usa los
+        # valores de literatura, para poder analizar sin base de datos.
+        self.reglas = reglas or KarateRules()
         # ANTI-JITTER: un filtro con memoria por cada articulación medida.
         # Suaviza el ángulo ANTES de que el clasificador y las reglas lo evalúen.
         self.filtros = {
@@ -23,8 +26,8 @@ class TechniqueAnalyzer:
         # puede ser la que patea, no depende de la guardia/eje Z (ver diseño en
         # kick_state_machine.py).
         self.maquinas_patada = {
-            "izq": MaeGeriStateMachine(ventana_filtro),
-            "der": MaeGeriStateMachine(ventana_filtro),
+            "izq": MaeGeriStateMachine(ventana_filtro, self.reglas),
+            "der": MaeGeriStateMachine(ventana_filtro, self.reglas),
         }
 
     def analyze_tsuki(self, landmarks, w, h):
@@ -49,12 +52,12 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
             angulo_izq = self.filtros["codo_izq"].update(angulo_crudo)
-            es_correcto, msg, color = KarateRules.evaluate_tsuki(angulo_izq)
+            es_correcto, msg, color = self.reglas.evaluate_tsuki(angulo_izq)
 
             resultados.append({
                 "angulo": angulo_izq, "pos_angulo": (codo_izq[0] + 20, codo_izq[1]),
                 "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50, "categoria": "codo_izq",
-                "correcto": es_correcto
+                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki")
             })
         else:
             # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
@@ -80,12 +83,12 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
             angulo_der = self.filtros["codo_der"].update(angulo_crudo)
-            es_correcto, msg, color = KarateRules.evaluate_tsuki(angulo_der)
+            es_correcto, msg, color = self.reglas.evaluate_tsuki(angulo_der)
 
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (codo_der[0] - 60, codo_der[1]), # -60 para que no tape el codo
                 "mensaje": f"DER - {msg}", "color": color, "y_offset": 90, "categoria": "codo_der",
-                "correcto": es_correcto
+                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki")
                 # Más abajo para no chocar con el texto izq
             })
         else:
@@ -152,26 +155,30 @@ class TechniqueAnalyzer:
             
             # CASO 1: Si ambas rodillas están casi estiradas (> 160°), asume postura natural (Heiko Dachi / Hachiji Dachi)
             if angulo_izq > 160 and angulo_der > 160:
-                es_correcto, msg, color = KarateRules.evaluate_heiko_dachi(angulo_frontal) # Puedes pasarle cualquiera de los dos, o crear una regla específica para las rodillas en Heiko
+                es_correcto, msg, color = self.reglas.evaluate_heiko_dachi(angulo_frontal) # Puedes pasarle cualquiera de los dos, o crear una regla específica para las rodillas en Heiko
                 postura_detectada = "POSTURA NATURAL"
+                tecnica = "heiko_dachi"
 
             # CASO 2: Si AMBAS rodillas están moderadamente flexionadas por igual (130-160),
             # es Kiba Dachi (postura de jinete). Es simétrica, no depende de qué pierna
             # esté "adelante" según el eje Z (por eso usa izq/der directo, no frontal/trasero).
             elif 130 <= angulo_izq <= 160 and 130 <= angulo_der <= 160:
-                es_correcto, msg, color = KarateRules.evaluate_kiba_dachi(angulo_izq, angulo_der)
+                es_correcto, msg, color = self.reglas.evaluate_kiba_dachi(angulo_izq, angulo_der)
                 postura_detectada = "KIBA DACHI"
+                tecnica = "kiba_dachi"
 
             # CASO 3: Si la pierna frontal está flexionada (< 130) y la trasera estirada (> 150), es un Zenkutsu
             elif angulo_frontal < 130 and angulo_trasero > 150:
-                es_correcto, msg, color = KarateRules.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
+                es_correcto, msg, color = self.reglas.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"ZENKUTSU ({guardia})"
+                tecnica = "zenkutsu_dachi"
 
             # CASO 4: Pierna frontal flexionada (< 130) y trasera no llega a estirarse del todo
             # (<= 150) -> se acerca más a un Kokutsu Dachi que a una transición real.
             elif angulo_frontal < 130 and angulo_trasero <= 150:
-                 es_correcto, msg, color = KarateRules.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
+                 es_correcto, msg, color = self.reglas.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
                  postura_detectada = f"KOKUTSU ({guardia})"
+                 tecnica = "kokutsu_dachi"
 
             # CASO 5: Transición (el usuario se está moviendo entre posturas) — no es una
             # evaluación (nada que calificar de correcto/incorrecto), por eso es_correcto=None.
@@ -180,13 +187,15 @@ class TechniqueAnalyzer:
                 msg = "EN TRANSICION..."
                 color = (0, 165, 255) # Naranja
                 postura_detectada = "MOVIENDOSE"
+                tecnica = None  # una transicion no se juzga contra ningun umbral
 
 
             # Agregamos los resultados visuales
             resultados.append({
                 "angulo": angulo_izq, "pos_angulo": (rodilla_izq[0] + 20, rodilla_izq[1]),
                 "mensaje": f"{postura_detectada}: {msg}", "color": color, "y_offset": 130,
-                "categoria": "postura", "correcto": es_correcto
+                "categoria": "postura", "correcto": es_correcto,
+                "id_umbral": self.reglas.id_umbral_principal(tecnica) if tecnica else None
             })
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (rodilla_der[0] - 60, rodilla_der[1]),
@@ -246,6 +255,7 @@ class TechniqueAnalyzer:
                     "y_offset": y_offset,
                     "categoria": f"mae_geri_{lado}",
                     "correcto": res.get("correcto"),
+                    "id_umbral": res.get("id_umbral"),
                 })
 
         return resultados

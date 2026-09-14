@@ -6,6 +6,7 @@ from vision.camera import Camera
 from vision.tracker import PoseTracker
 from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
+from expert_system.knowledge_base import KarateRules, UMBRALES_LITERATURA
 from persistence.database import Database
 from persistence.cli_auth import login_o_registro, elegir_o_crear_perfil
 from persistence.medicion_logger import MedicionLogger
@@ -16,6 +17,9 @@ def main():
     # 0. Acceso: entrenador (RF-08) y perfil de atleta (estilo Netflix), antes
     # de tocar la cámara — no tiene sentido inicializar MediaPipe si el login falla.
     db = Database()
+    # Los umbrales viven en la base de datos (RF-08). La siembra es idempotente:
+    # si el entrenador ya recalibro alguno, no se sobrescribe.
+    db.sembrar_umbrales(UMBRALES_LITERATURA)
     entrenador = login_o_registro(db)
     atleta = elegir_o_crear_perfil(db)
     id_sesion = db.iniciar_sesion(atleta["id_atleta"], entrenador["id_entrenador"])
@@ -26,7 +30,8 @@ def main():
     cam = Camera(source=2)
     tracker = PoseTracker(model_path='pose_landmarker_full.task')
     renderer = SkeletonRenderer()
-    analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65)
+    reglas = KarateRules(db.cargar_umbrales_vigentes())
+    analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65, reglas=reglas)
 
     start_time = time.time()
     
