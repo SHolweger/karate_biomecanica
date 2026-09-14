@@ -199,9 +199,27 @@ class App(ctk.CTk):
             "perfiles")
 
     def _al_cerrar(self):
+        """
+        Cierre ordenado: libera la cámara, cierra la base y detiene el ciclo de
+        eventos ANTES de destruir la ventana.
+
+        El `quit()` no es decorativo. CustomTkinter mantiene un vigilante de
+        escala de pantalla (ScalingTracker) que se reprograma solo con `after`;
+        si la ventana se destruye con el ciclo de eventos todavía corriendo, esa
+        llamada pendiente se dispara contra una ventana que ya no existe y
+        termina en:
+
+            _tkinter.TclError: can't invoke "winfo" command:
+            application has been destroyed
+
+        No rompe nada —ocurre al salir— pero deja una traza en la terminal que
+        parece un fallo del sistema. Detener el ciclo primero impide que esa
+        llamada llegue a ejecutarse.
+        """
         if isinstance(self.pantalla_actual, LiveScreen):
             self.pantalla_actual.cerrar()
         self.db.close()
+        self.quit()
         self.destroy()
 
 
