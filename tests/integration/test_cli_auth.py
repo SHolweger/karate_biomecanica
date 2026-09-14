@@ -12,6 +12,7 @@ import builtins
 import pytest
 
 from persistence import cli_auth
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -59,6 +60,35 @@ def test_login_exitoso_de_un_entrenador_existente(db, teclado):
     assert entrenador["usuario"] == "sensei"
 
 
+@ficha(
+    id_caso="TC-AUTO-016",
+    nombre="Una contraseña equivocada permite reintentar el acceso sin abortar el "
+           "programa",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="es el camino de recuperación del acceso por consola; si el "
+                         "bucle aborta, el entrenador queda fuera del sistema tras un "
+                         "error de tecleo",
+    componente="persistence/cli_auth.py (login_o_registro)",
+    requisitos="RF-08",
+    precondiciones="Base temporal con el entrenador `sensei` / `clave123` registrado; "
+                   "`input()` y `getpass()` sustituidos por un guion de respuestas "
+                   "(monkeypatch)",
+    datos_entrada="Guion de teclado: (\"sensei\", \"mala\", \"r\") para el primer intento "
+                  "fallido y el reintento, luego (\"sensei\", \"clave123\")",
+    pasos=[
+        Paso("Cargar el guion de respuestas en el doble de teclado",
+             "`input()` y `getpass()` devuelven los valores previstos en orden"),
+        Paso("Invocar `cli_auth.login_o_registro(db)`",
+             "El primer intento es rechazado y el bucle vuelve a pedir las credenciales"),
+        Paso("Responder \"r\" (reintentar) y entregar la contraseña correcta",
+             "La función retorna en vez de terminar el proceso"),
+        Paso("Verificar la identidad autenticada",
+             "assert entrenador[\"usuario\"] == \"sensei\""),
+    ],
+    resultado_esperado="PASSED. El guion se consume por completo: si el programa pidiera "
+                       "más datos de los previstos, el doble de teclado falla la prueba",
+)
 def test_reintento_tras_una_contrasena_equivocada(db, teclado):
     """
     Camino de recuperación: credencial mala -> el usuario elige reintentar ->

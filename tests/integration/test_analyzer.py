@@ -11,6 +11,7 @@ import pytest
 
 from expert_system.analyzer import TechniqueAnalyzer
 from helpers.fakes import pose_sintetica
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -111,6 +112,33 @@ def test_el_suavizado_amortigua_un_salto_de_jitter(analizador):
 # Clasificador de posturas
 # --------------------------------------------------------------------------
 
+@ficha(
+    id_caso="TC-AUTO-006",
+    nombre="El analizador identifica la postura ejecutada antes de evaluarla, a partir "
+           "de los ángulos de ambas rodillas",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="si clasifica mal la postura, aplica la regla equivocada y todo "
+                         "el diagnóstico es inválido",
+    componente="expert_system/analyzer.py (TechniqueAnalyzer)",
+    requisitos=["RF-01", "RF-05"],
+    precondiciones="Instancia de `TechniqueAnalyzer(umbral_visibilidad=0.65, "
+                   "ventana_filtro=1)`; pose sintética de 33 landmarks con visibilidad 1.0",
+    datos_entrada="(izq=175, der=175) → Postura natural; (140, 140) → Kiba Dachi; "
+                  "(100, 170) → Zenkutsu; (110, 100) → Kokutsu. Profundidad "
+                  "z_tobillo_izq=−0.2, z_tobillo_der=0.2",
+    pasos=[
+        Paso("Generar la pose sintética con `pose_sintetica(...)`",
+             "33 landmarks con los ángulos de rodilla solicitados (±0.1°)"),
+        Paso("Invocar `analyzer.analyze_stance(landmarks, 1000, 1000)`",
+             "Lista de diagnósticos con la categoría `postura`"),
+        Paso("Extraer el diagnóstico de la categoría `postura`",
+             "El diccionario contiene la clave `mensaje`"),
+        Paso("Validar la postura detectada",
+             "assert \"KIBA DACHI\" in mensaje (y análogos por cada postura)"),
+    ],
+    resultado_esperado="PASSED en las cuatro posturas parametrizadas",
+)
 @pytest.mark.parametrize("nombre, izq, der, postura_esperada", [
     ("posicion natural",   175, 175, "POSTURA NATURAL"),
     ("postura de jinete",  140, 140, "KIBA DACHI"),

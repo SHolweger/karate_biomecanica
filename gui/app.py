@@ -16,6 +16,7 @@ from gui import theme
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
 from gui.live_screen import LiveScreen
+from gui.umbrales_screen import UmbralesScreen
 
 
 class App(ctk.CTk):
@@ -64,6 +65,17 @@ class App(ctk.CTk):
     def on_terminar_sesion(self):
         if isinstance(self.pantalla_actual, LiveScreen):
             self.pantalla_actual.cerrar()
+        self.on_volver_a_perfiles()
+
+    def on_abrir_umbrales(self):
+        """
+        Calibración de umbrales (RF-08). Solo se llega desde la selección de
+        perfiles, es decir con sesión de entrenador ya iniciada: es esa sesión
+        la que queda firmando cada versión de umbral que se guarde.
+        """
+        self._mostrar(UmbralesScreen(self, self.db, self.entrenador))
+
+    def on_volver_a_perfiles(self):
         self._mostrar(PerfilScreen(self, self.db, self.entrenador))
 
     def _al_cerrar(self):

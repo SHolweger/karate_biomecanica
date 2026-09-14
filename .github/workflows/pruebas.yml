@@ -40,8 +40,14 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Ejecutar la suite con medición de cobertura
+        # --exigir-fichas convierte en error que un módulo de pruebas nuevo llegue
+        # sin su ficha formal, o que la serie TC-AUTO-### quede con huecos.
+        # --reporte-formal produce la evidencia de ejecución y el documento de
+        # casos con el formato del informe, que se publican como artefactos.
         run: |
-          pytest --cov --cov-report=term-missing --cov-report=xml --junitxml=reporte-pruebas.xml
+          pytest --cov --cov-report=term-missing --cov-report=xml \
+                 --junitxml=reporte-pruebas.xml \
+                 --exigir-fichas --reporte-formal
 
       - name: Publicar el reporte de ejecución
         if: always()
@@ -51,4 +57,6 @@ jobs:
           path: |
             reporte-pruebas.xml
             coverage.xml
+            evidencias/evidencia_ejecucion_*.md
+            docs/casos_prueba_automatizados.generado.md
           if-no-files-found: warn

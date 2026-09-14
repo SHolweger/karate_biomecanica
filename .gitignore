@@ -15,5 +15,6 @@ htmlcov/
 *.md
 !README.md
 !docs/*.md
+!evidencias/*.md
 !tests/*.md
 !.github/*.md

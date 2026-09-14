@@ -18,7 +18,7 @@ uc_perf   = caso_uso(c, XA, 222, ["Gestionar perfiles", "de deportistas"], rx=RA
 uc_ini    = caso_uso(c, XA, 304, ["Iniciar sesión", "de evaluación"], rx=RA, tag="RF-07")
 uc_ana    = caso_uso(c, XA, 430, ["Analizar técnica", "en tiempo real"], rx=RA, ry=40, tag="RF-01 / RF-05")
 uc_hist   = caso_uso(c, XA, 585, ["Consultar historial y", "generar reporte de progreso"], rx=RA, tag="RF-07")
-uc_umb    = caso_uso(c, XA, 682, ["Editar umbrales", "biomecánicos"], rx=RA, tag="RF-08", planificado=True)
+uc_umb    = caso_uso(c, XA, 682, ["Editar umbrales", "biomecánicos"], rx=RA, tag="RF-08")
 
 # ---- casos incluidos ----
 uc_pose   = caso_uso(c, XB, 300, ["Estimar pose:", "33 landmarks"], rx=RB, tag="RF-03")
@@ -53,8 +53,8 @@ for (cx, cy, rx, ry), plan in [(uc_pose, False), (uc_jit, False), (uc_reglas, Fa
 # no cruzar texto. Solo se dibujan los dos casos que realmente exigen credenciales.
 c.conector([(XA - RA, 304), (252, 304), (252, 148), (XA - RA + 4, 145)], tipo="dep", color=ACENTO)
 c.texto(256, 245, "«include»", size=10, fill=ACENTO, italic=True)
-c.conector([(XA - RA + 30, 682), (228, 682), (228, 132), (XA - RA + 6, 130)], tipo="dep", color=GRIS)
-c.texto(232, 480, "«include»", size=10, fill=GRIS, italic=True)
+c.conector([(XA - RA + 30, 682), (228, 682), (228, 132), (XA - RA + 6, 130)], tipo="dep", color=ACENTO)
+c.texto(232, 480, "«include»", size=10, fill=ACENTO, italic=True)
 
 # «extend»: la retroalimentación en pantalla extiende el análisis
 uc_feed = caso_uso(c, XB, 175, ["Visualizar diagnóstico", "y esqueleto en pantalla"], rx=RB, tag="RF-06")

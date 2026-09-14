@@ -10,6 +10,7 @@ correcto y uno de 175.1 es una hiperextensión peligrosa para la articulación.
 import pytest
 
 from expert_system.knowledge_base import KarateRules
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
 
@@ -63,6 +64,31 @@ def test_tsuki_flexionado_no_alcanza_el_kime(angulo, reglas):
     assert color == AMARILLO
 
 
+@ficha(
+    id_caso="TC-AUTO-004",
+    nombre="Clasificación del golpe recto en las fronteras exactas de 160° y 175°",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="un falso positivo aprueba una hiperextensión, que es riesgo "
+                         "de lesión articular",
+    componente="expert_system/knowledge_base.py (KarateRules.evaluate_tsuki)",
+    requisitos="RF-05",
+    precondiciones="Instancia de `KarateRules()` cargada con los umbrales de literatura",
+    datos_entrada="`elbow_angle` = 159.9 (fuera), 160.0 (frontera inferior), "
+                  "175.0 (frontera superior), 175.1 (fuera)",
+    pasos=[
+        Paso("Invocar `reglas.evaluate_tsuki(angulo)` con cada valor límite",
+             "Devuelve la tupla `(correcto, mensaje, color)`"),
+        Paso("Verificar el veredicto en la frontera inferior",
+             "assert evaluate_tsuki(160.0)[0] is True y evaluate_tsuki(159.9)[0] is False"),
+        Paso("Verificar el veredicto en la frontera superior",
+             "assert evaluate_tsuki(175.0)[0] is True y evaluate_tsuki(175.1)[0] is False"),
+        Paso("Verificar el mensaje y el color de cada categoría",
+             "\"HIPEREXTENDIDO\" en rojo (0,0,255); \"FLEXIONADO\" en amarillo (0,255,255)"),
+    ],
+    resultado_esperado="PASSED en los cuatro valores límite y en los 11 casos de rango "
+                       "asociados",
+)
 @pytest.mark.parametrize("angulo, esperado", [
     (159.9, False), (160.0, True),    # frontera inferior
     (175.0, True), (175.1, False),    # frontera superior
@@ -175,6 +201,32 @@ def test_mae_geri_rechaza_extension_lenta(velocidad, reglas):
     assert color == AMARILLO
 
 
+@ficha(
+    id_caso="TC-AUTO-005",
+    nombre="La patada frontal exige simultáneamente extensión (Kime ≥ 160°) y "
+           "explosividad (≥ 400 °/s)",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es la regla con dos condiciones acopladas, la más propensa a "
+                         "error lógico",
+    componente="expert_system/knowledge_base.py (KarateRules.evaluate_mae_geri)",
+    requisitos="RF-05",
+    precondiciones="Instancia de `KarateRules()` cargada con los umbrales de literatura",
+    datos_entrada="(kime=159.9, vel=400), (160.0, 400.0), (170, 399.9), (170, 400)",
+    pasos=[
+        Paso("Invocar `evaluate_mae_geri(kime_angle, velocidad_pico)`",
+             "Devuelve `(correcto, mensaje, color)`"),
+        Paso("Comprobar la frontera de extensión",
+             "assert evaluate_mae_geri(160.0, 400.0)[0] is True y (159.9, 400)[0] is False"),
+        Paso("Comprobar la frontera de velocidad",
+             "assert evaluate_mae_geri(170, 400)[0] is True y (170, 399.9)[0] is False"),
+        Paso("Verificar la precedencia del diagnóstico",
+             "Con Kime incompleto el mensaje reporta \"KIME INCOMPLETO\" aun con "
+             "velocidad alta, no \"EXPLOSIVIDAD\""),
+    ],
+    resultado_esperado="PASSED en los cuatro valores límite y en los 7 casos de rango "
+                       "asociados",
+)
 @pytest.mark.parametrize("kime, velocidad, esperado", [
     (159.9, 400, False), (160.0, 400.0, True),   # frontera de extensión
     (170, 399.9, False), (170, 400, True),       # frontera de velocidad

@@ -27,34 +27,15 @@ from gui.app import App
 from gui.live_screen import LiveScreen
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = [pytest.mark.e2e, pytest.mark.lenta]
 
 MODELO_POSE = "pose_landmarker_full.task"
 
 
-@pytest.fixture(autouse=True)
-def requiere_entorno_grafico():
-    """Sin servidor de ventanas (CI headless) Tkinter no puede crear la aplicación."""
-    if os.name != "nt" and not os.environ.get("DISPLAY"):
-        pytest.skip("sin entorno gráfico disponible (DISPLAY no definido)")
-
-
-@pytest.fixture
-def app(db):
-    """Aplicación real con la base de datos temporal, con la ventana oculta."""
-    aplicacion = App(db=db)
-    aplicacion.withdraw()
-    yield aplicacion
-    if isinstance(aplicacion.pantalla_actual, LiveScreen):
-        aplicacion.pantalla_actual.cerrar()
-    aplicacion.destroy()
-
-
-@pytest.fixture
-def entrenador_registrado(db):
-    db.crear_entrenador("Sensei Ejemplo", "sensei", "sensei@dojo.gt", "clave123", rol="principal")
-    return db.autenticar_entrenador("sensei", "clave123")
+# Las fixtures `app`, `entrenador_registrado` y el guardia de entorno gráfico
+# viven en tests/e2e/conftest.py: las comparten todos los módulos de interfaz.
 
 
 def test_el_primer_arranque_pide_crear_la_cuenta_inicial(app):
@@ -125,6 +106,36 @@ def test_login_con_credenciales_incorrectas_muestra_error(db, entrenador_registr
         app.destroy()
 
 
+@ficha(
+    id_caso="TC-AUTO-013",
+    nombre="Al elegir un perfil de atleta se abre la pantalla de análisis en vivo y queda "
+           "registrada una sesión abierta",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es el flujo principal de uso del sistema",
+    componente="gui/ (App, LoginScreen, PerfilScreen, LiveScreen)",
+    requisitos=["RF-06", "RNF-04"],
+    precondiciones="CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico "
+                   "disponible; archivo `pose_landmarker_full.task` presente; entrenador "
+                   "registrado en la base temporal",
+    datos_entrada="Entrenador usuario=\"sensei\", password=\"clave123\"; atleta "
+                  "\"Diego Morales\", grado \"5o kyu\"; cámara sustituida por "
+                  "`CamaraSintetica` (frames 640×480 generados en memoria)",
+    pasos=[
+        Paso("Crear la aplicación `App(db)` con la ventana oculta (`withdraw()`)",
+             "La pantalla inicial es `LoginScreen`"),
+        Paso("Disparar `app.on_login_exitoso(entrenador)`",
+             "assert isinstance(app.pantalla_actual, PerfilScreen)"),
+        Paso("Navegar a `LiveScreen` inyectando la cámara sintética",
+             "assert isinstance(app.pantalla_actual, LiveScreen)"),
+        Paso("Consultar la sesión creada en la base de datos",
+             "assert fila[\"hora_fin\"] is None (sesión abierta mientras se entrena)"),
+    ],
+    resultado_esperado="PASSED. En entornos sin interfaz gráfica (CI headless) el caso se "
+                       "marca SKIPPED de forma controlada, no FAILED",
+    evidencia="Reporte de consola de pytest; captura de pantalla manual de la ventana en "
+              "ejecución local para el expediente.",
+)
 @pytest.mark.skipif(not os.path.exists(MODELO_POSE),
                     reason=f"falta el modelo de pose {MODELO_POSE}")
 def test_elegir_un_perfil_abre_la_sesion_de_analisis(app, db, entrenador_registrado, camara_sintetica):
@@ -163,6 +174,34 @@ def test_el_video_se_embebe_en_la_ventana(app, db, entrenador_registrado, camara
     assert live.video_label.image is not None, "el frame no llegó a la ventana"
 
 
+@ficha(
+    id_caso="TC-AUTO-014",
+    nombre="Terminar la sesión cierra el registro en la base de datos, libera la cámara y "
+           "regresa a la selección de perfiles",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="si la cámara no se libera, la siguiente sesión no puede abrirla",
+    componente="gui/ (App.on_terminar_sesion, LiveScreen)",
+    requisitos=["RF-06", "RF-07"],
+    precondiciones="Las mismas de TC-AUTO-013, con una `LiveScreen` activa",
+    datos_entrada="Instancia de `CamaraSintetica` con bandera `liberada`; atleta "
+                  "\"Diego Morales\"",
+    pasos=[
+        Paso("Abrir `LiveScreen` con la cámara sintética y guardar el `id_sesion`",
+             "Sesión abierta en la base de datos"),
+        Paso("Disparar `app.on_terminar_sesion()` (el mismo manejador del botón "
+             "\"Terminar sesión\")",
+             "El método se ejecuta sin excepción"),
+        Paso("Verificar el cierre del registro",
+             "assert fila[\"hora_fin\"] is not None"),
+        Paso("Verificar la liberación del hardware y la navegación",
+             "assert camara.liberada is True y assert isinstance(app.pantalla_actual, "
+             "PerfilScreen)"),
+    ],
+    resultado_esperado="PASSED. En CI headless se marca SKIPPED de forma controlada",
+    evidencia="Reporte de consola de pytest y captura de pantalla manual de la ejecución "
+              "local.",
+)
 @pytest.mark.skipif(not os.path.exists(MODELO_POSE),
                     reason=f"falta el modelo de pose {MODELO_POSE}")
 def test_terminar_la_sesion_cierra_el_registro_y_libera_la_camara(app, db, entrenador_registrado,

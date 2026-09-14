@@ -15,6 +15,7 @@ import pytest
 matplotlib = pytest.importorskip("matplotlib", reason="matplotlib no está instalado")
 
 from persistence.reportes import _porcentaje_correcto, generar_reporte_progreso
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -74,6 +75,34 @@ def test_no_genera_grafica_si_la_sesion_no_dejo_evaluaciones(sesion_de_prueba, t
     assert list(carpeta.iterdir()) == [], "no debe dejar archivos vacíos en evidencias/"
 
 
+@ficha(
+    id_caso="TC-AUTO-012",
+    nombre="El historial de dos sesiones produce un archivo PNG de progreso válido y no "
+           "vacío",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="es el entregable que el sensei entrega al alumno",
+    componente="persistence/reportes.py (generar_reporte_progreso)",
+    requisitos="RF-07",
+    precondiciones="Base temporal con un entrenador, un atleta y dos sesiones cerradas "
+                   "con mediciones evaluadas; matplotlib instalado",
+    datos_entrada="Sesión 1: 2 de 3 correctas (Tsuki y postura). Sesión 2: 2 de 2 "
+                  "correctas (Tsuki y Mae Geri). Carpeta de salida: directorio temporal",
+    pasos=[
+        Paso("Poblar la base con dos sesiones de mediciones evaluadas",
+             "Las filas quedan asociadas al mismo `id_atleta`"),
+        Paso("Invocar `generar_reporte_progreso(db, id_atleta, nombre, carpeta)`",
+             "Devuelve una ruta de archivo, no `None`"),
+        Paso("Verificar la existencia y el formato del archivo",
+             "assert os.path.exists(ruta) y assert ruta.endswith(\".png\")"),
+        Paso("Verificar que el gráfico no está vacío",
+             "assert os.path.getsize(ruta) > 5000"),
+    ],
+    resultado_esperado="PASSED. Caso negativo asociado: sin mediciones evaluadas devuelve "
+                       "None y no deja archivos basura",
+    evidencia="Reporte de consola, XML de pytest y el propio PNG generado en el "
+              "directorio temporal de la corrida.",
+)
 @pytest.mark.lenta
 def test_genera_un_png_con_el_historial_de_dos_sesiones(db, tmp_path):
     """

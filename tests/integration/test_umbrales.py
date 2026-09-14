@@ -11,6 +11,7 @@ import pytest
 from persistence.medicion_logger import MedicionLogger
 from expert_system.knowledge_base import KarateRules, UMBRALES_LITERATURA
 from expert_system.kick_state_machine import MaeGeriStateMachine
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 
 @pytest.fixture
@@ -42,6 +43,34 @@ def test_las_reglas_usan_los_umbrales_de_la_base(db_sembrada):
     assert "FLEXIONADO" in mensaje, mensaje
 
 
+@ficha(
+    id_caso="TC-AUTO-018",
+    nombre="Recalibrar un umbral crea una versión nueva y conserva la anterior en el "
+           "historial",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="si la recalibración sobrescribiera el umbral, las mediciones "
+                         "antiguas quedarían juzgadas por un criterio que ya no existe y "
+                         "el reporte de progreso dejaría de ser trazable",
+    componente="persistence/database.py (actualizar_umbral, historial_umbral)",
+    requisitos="RF-08",
+    precondiciones="Base temporal con los umbrales de literatura ya sembrados "
+                   "(fixture `db_sembrada`)",
+    datos_entrada="Umbral `kokutsu_dachi` / `rodilla_frontal` recalibrado a 95-125 con "
+                  "fuente `modelado_experto`",
+    pasos=[
+        Paso("Leer el umbral vigente antes de recalibrar",
+             "Se obtiene su `id_umbral` original"),
+        Paso("Invocar `actualizar_umbral(...)` con los valores nuevos",
+             "assert id_nuevo != original[\"id_umbral\"] (fila nueva, no sobrescritura)"),
+        Paso("Consultar `historial_umbral(tecnica, articulacion)`",
+             "assert len(historial) == 2"),
+        Paso("Verificar cuál versión quedó vigente",
+             "Exactamente una fila del historial tiene `vigente` verdadero y es la nueva"),
+    ],
+    resultado_esperado="PASSED. Es la garantía de trazabilidad que sostiene el requisito "
+                       "de umbrales parametrizados",
+)
 @pytest.mark.integracion
 def test_recalibrar_crea_version_nueva_sin_borrar_la_anterior(db_sembrada):
     original = db_sembrada.cargar_umbrales_vigentes()[("kokutsu_dachi", "rodilla_frontal")]

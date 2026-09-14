@@ -10,6 +10,7 @@ import statistics
 import pytest
 
 from biomechanics.filters import MovingAverageFilter
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
 
@@ -69,6 +70,33 @@ def test_reset_borra_el_historial():
         "tras reset, la primera medicion no debe mezclarse con valores previos"
 
 
+@ficha(
+    id_caso="TC-AUTO-003",
+    nombre="El filtro de media móvil reduce al menos a la mitad la dispersión del "
+           "ruido de MediaPipe",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="sin el filtro el diagnóstico parpadea, pero el sistema sigue "
+                         "operando",
+    componente="biomechanics/filters.py (MovingAverageFilter)",
+    requisitos="RNF-03",
+    precondiciones="Ninguna",
+    datos_entrada="Serie de 10 mediciones ruidosas alrededor de 170°: "
+                  "[168, 174, 169, 173, 167, 175, 170, 172, 168, 174]; ventana = 5",
+    pasos=[
+        Paso("Instanciar `MovingAverageFilter(window=5)`", "Buffer circular vacío"),
+        Paso("Alimentar las 10 mediciones y recolectar las salidas",
+             "Se obtiene una serie suavizada de igual longitud"),
+        Paso("Calcular la desviación estándar de entrada y de salida",
+             "Ambas métricas disponibles"),
+        Paso("Comparar la dispersión",
+             "assert pstdev(salida) < pstdev(entrada) / 2"),
+    ],
+    resultado_esperado="PASSED. Un fallo indica que el suavizado dejó de ser efectivo "
+                       "(ventana mal configurada o buffer sin maxlen)",
+    evidencia="Reporte de consola de pytest; evidencia visual complementaria en "
+              "`evidencias/antijitter_*.png` y `evidencias/antijitter_*.csv`.",
+)
 def test_reduce_la_dispersion_del_ruido():
     """
     Prueba de la propiedad que justifica el módulo: alimentado con una señal

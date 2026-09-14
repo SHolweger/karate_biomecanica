@@ -23,10 +23,10 @@
   <text x="400" y="576" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Consultar historial y</text>
   <text x="400" y="592" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">generar reporte de progreso</text>
   <text x="400" y="609" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-07</text>
-  <ellipse cx="400" cy="682" rx="120" ry="34" fill="#f7f9fc" stroke="#8896ab" stroke-width="1.7" stroke-dasharray="6 4"/>
+  <ellipse cx="400" cy="682" rx="120" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
   <text x="400" y="673" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Editar umbrales</text>
   <text x="400" y="689" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">biomecánicos</text>
-  <text x="400" y="706" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#8896ab" text-anchor="middle">RF-08</text>
+  <text x="400" y="706" font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="bold" fill="#2563eb" text-anchor="middle">RF-08</text>
   <ellipse cx="750" cy="300" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
   <text x="750" y="291" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Estimar pose:</text>
   <text x="750" y="307" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">33 landmarks</text>
@@ -104,10 +104,10 @@
   <line x1="273.5147270568132" y1="151.00491892592007" x2="284" y2="145" stroke="#2563eb" stroke-width="1.6"/>
   <line x1="272.58131996988254" y1="141.0485766653272" x2="284" y2="145" stroke="#2563eb" stroke-width="1.6"/>
   <text x="256" y="245" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">«include»</text>
-  <polyline points="310,682 228,682 228,132 286,130" fill="none" stroke="#8896ab" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
-  <line x1="275.17884538630943" y1="135.3761150310055" x2="286" y2="130" stroke="#8896ab" stroke-width="1.6"/>
-  <line x1="274.83422262791163" y1="125.38205503746963" x2="286" y2="130" stroke="#8896ab" stroke-width="1.6"/>
-  <text x="232" y="480" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#8896ab" text-anchor="start" font-style="italic">«include»</text>
+  <polyline points="310,682 228,682 228,132 286,130" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-linejoin="round" stroke-dasharray="6 4"/>
+  <line x1="275.17884538630943" y1="135.3761150310055" x2="286" y2="130" stroke="#2563eb" stroke-width="1.6"/>
+  <line x1="274.83422262791163" y1="125.38205503746963" x2="286" y2="130" stroke="#2563eb" stroke-width="1.6"/>
+  <text x="232" y="480" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="normal" fill="#2563eb" text-anchor="start" font-style="italic">«include»</text>
   <ellipse cx="750" cy="175" rx="112" ry="34" fill="#eef4ff" stroke="#2563eb" stroke-width="1.7"/>
   <text x="750" y="166" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">Visualizar diagnóstico</text>
   <text x="750" y="182" font-family="Arial, Helvetica, sans-serif" font-size="12.5" font-weight="normal" fill="#1b2a4a" text-anchor="middle">y esqueleto en pantalla</text>

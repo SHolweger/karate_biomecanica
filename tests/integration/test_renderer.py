@@ -16,6 +16,7 @@ pytest.importorskip("cv2", reason="OpenCV no está instalado")
 
 from biomechanics.renderer import SkeletonRenderer
 from helpers.fakes import pose_sintetica
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.integracion
 
@@ -33,6 +34,32 @@ def frame_negro():
     return np.zeros((ALTO, ANCHO, 3), dtype=np.uint8)
 
 
+@ficha(
+    id_caso="TC-AUTO-017",
+    nombre="Sin persona detectada, el fotograma se devuelve intacto y no se dibuja ningún "
+           "esqueleto",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="dibujar sobre un fotograma sin pose detectada mostraría un "
+                         "esqueleto fantasma al alumno; una excepción aquí congela el "
+                         "video en plena clase",
+    componente="biomechanics/renderer.py (SkeletonRenderer.draw)",
+    requisitos="RF-06",
+    precondiciones="OpenCV y NumPy instalados; `SkeletonRenderer()` recién construido",
+    datos_entrada="Lienzo negro de 640×480×3 (`np.zeros`, dtype uint8) y lista de poses "
+                  "igual a `None`",
+    pasos=[
+        Paso("Construir el lienzo en negro",
+             "Cualquier píxel distinto de cero será algo que se dibujó"),
+        Paso("Invocar `renderer.draw(frame, None)`", "Retorna sin lanzar excepción"),
+        Paso("Verificar que no se copió ni sustituyó el fotograma",
+             "assert resultado is frame_negro"),
+        Paso("Verificar que no se pintó nada", "assert resultado.sum() == 0"),
+    ],
+    resultado_esperado="PASSED. Caso complementario: "
+                       "test_dibuja_el_esqueleto_cuando_hay_pose comprueba el camino "
+                       "positivo",
+)
 def test_sin_persona_detectada_el_video_se_devuelve_intacto(renderer, frame_negro):
     """Si MediaPipe no ve a nadie, no debe pintarse ningún esqueleto."""
     resultado = renderer.draw(frame_negro, None)

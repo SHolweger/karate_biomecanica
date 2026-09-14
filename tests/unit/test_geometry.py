@@ -12,6 +12,7 @@ import math
 import pytest
 
 from biomechanics.geometry import BiomechanicsMath
+from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
 
@@ -32,6 +33,32 @@ def test_calcula_el_angulo_interno_conocido(nombre, a, b, c, esperado):
         f"{nombre}: esperaba {esperado}, obtuve {obtenido}"
 
 
+@ficha(
+    id_caso="TC-AUTO-001",
+    nombre="Reconstrucción exacta del ángulo interno de una articulación en todo el "
+           "rango de movimiento humano",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="todo diagnóstico del sistema experto depende de este cálculo",
+    componente="biomechanics/geometry.py (BiomechanicsMath)",
+    requisitos="RF-05",
+    precondiciones="Ninguna. `BiomechanicsMath` es una clase de utilidad sin estado ni "
+                   "dependencias externas",
+    datos_entrada="Nueve ángulos conocidos del rango articular: "
+                  "[0, 15, 30, 45, 60, 90, 120, 150, 179], con puntos generados por "
+                  "trigonometría a radio 100 px",
+    pasos=[
+        Paso("Construir los tres puntos A, B, C a partir de un ángulo conocido θ",
+             "Coordenadas válidas en el plano de la imagen"),
+        Paso("Invocar `BiomechanicsMath.calculate_angle(A, B, C)`",
+             "Devuelve un valor de tipo `float`"),
+        Paso("Comparar el resultado contra θ",
+             "assert obtenido == pytest.approx(θ, abs=0.01)"),
+        Paso("Repetir para los nueve ángulos del rango",
+             "Los nueve casos parametrizados finalizan en PASSED"),
+    ],
+    resultado_esperado="PASSED sin excepciones ni tiempos de espera agotados",
+)
 @pytest.mark.parametrize("grados_reales", [0, 15, 30, 45, 60, 90, 120, 150, 179])
 def test_reconstruye_cualquier_angulo_del_rango_articular(grados_reales):
     """
@@ -47,6 +74,31 @@ def test_reconstruye_cualquier_angulo_del_rango_articular(grados_reales):
     assert BiomechanicsMath.calculate_angle(a, vertice, c) == pytest.approx(grados_reales, abs=TOLERANCIA)
 
 
+@ficha(
+    id_caso="TC-AUTO-002",
+    nombre="El ángulo devuelto nunca excede 180° aunque los segmentos crucen la "
+           "discontinuidad de atan2",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="un ángulo de 340° no entra en ningún umbral y el sistema "
+                         "dejaría de evaluar la técnica",
+    componente="biomechanics/geometry.py (BiomechanicsMath)",
+    requisitos="RF-05",
+    precondiciones="Ninguna",
+    datos_entrada="Pares de orientaciones opuestas al corte ±180°: (170°, −170°), "
+                  "(150°, −150°), (−179°, 179°)",
+    pasos=[
+        Paso("Colocar los segmentos proximal y distal a lados opuestos de ±180°",
+             "Configuración geométrica que produce un ángulo reflejo interno"),
+        Paso("Invocar `calculate_angle`",
+             "Se ejecuta la rama de normalización `360 − ángulo`"),
+        Paso("Verificar el ángulo interno equivalente",
+             "assert obtenido == pytest.approx(esperado, abs=0.01)"),
+        Paso("Verificar la invariante global de rango",
+             "assert 0.0 <= ángulo <= 180.0"),
+    ],
+    resultado_esperado="PASSED en los tres casos parametrizados",
+)
 @pytest.mark.parametrize("orientacion_a, orientacion_c, esperado", [
     (170, -170, 20),    # los dos segmentos caen a lados opuestos del corte de -180/180
     (150, -150, 60),
