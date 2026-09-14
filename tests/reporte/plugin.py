@@ -309,16 +309,34 @@ class ReporteFormal:
             f"evidencia_ejecucion_{marca_tiempo}.md"
         ruta_casos = raiz / config.getoption("--doc-casos")
 
-        for ruta, contenido in (
-            (ruta_evidencia, self._documento_evidencia(exitstatus)),
-            (ruta_casos, self._documento_casos()),
-        ):
+        escritos = [(ruta_evidencia, self._documento_evidencia(exitstatus))]
+
+        # El catálogo solo se reescribe cuando la corrida recolectó TODOS los
+        # módulos. En un entorno sin cámara ni interfaz gráfica —integración
+        # continua— los módulos de extremo a extremo se omiten, sus decoradores
+        # `@ficha(...)` nunca se ejecutan y el catálogo saldría incompleto.
+        #
+        # Como el archivo está versionado en el repositorio, dejar que una
+        # corrida parcial lo sobrescriba haría que el documento oscilara entre
+        # la versión completa y la recortada según dónde se ejecutó la suite por
+        # última vez, borrando casos documentados que sí existen. Una corrida
+        # parcial no tiene por qué poder eliminar evidencia.
+        if self.modulos_omitidos:
+            aviso = (f"catálogo de casos sin actualizar: {len(self.modulos_omitidos)} "
+                     f"módulo(s) omitido(s) en este entorno lo dejarían incompleto")
+        else:
+            escritos.append((ruta_casos, self._documento_casos()))
+            aviso = None
+
+        for ruta, contenido in escritos:
             ruta.parent.mkdir(parents=True, exist_ok=True)
             ruta.write_text(contenido, encoding="utf-8")
 
         terminalreporter.write_sep("-", "reportes con formato normalizado")
-        for ruta in (ruta_evidencia, ruta_casos):
+        for ruta, _ in escritos:
             terminalreporter.write_line(f"  {_ruta_legible(ruta, raiz)}")
+        if aviso:
+            terminalreporter.write_line(f"  {aviso}")
 
     # -- contenido de los documentos ---------------------------------------
     def _documento_evidencia(self, exitstatus) -> str:
@@ -427,13 +445,34 @@ class ReporteFormal:
         return "\n".join(lineas).rstrip() + "\n"
 
     def _documento_casos(self) -> str:
+        """
+        Catálogo de los casos documentados con `@ficha(...)`.
+
+        La cabecera NO lleva fecha de generación ni total de pruebas
+        recolectadas, aunque ambos datos serían informativos. El archivo está
+        versionado en el repositorio, de modo que cualquiera de los dos lo
+        reescribiría en cada corrida de la suite: la fecha porque cambia
+        siempre, y el total porque depende del entorno — en integración continua
+        se omiten los módulos que necesitan cámara y entorno gráfico, así que el
+        mismo código produce un número distinto ahí que en el equipo del
+        desarrollador.
+
+        Esa reescritura constante tiene dos costos reales. Ensucia cada
+        comparación de versiones con un cambio que no corresponde a ninguna
+        modificación del código, y deja el archivo modificado en la copia de
+        trabajo después de cada `pytest`, lo que impide aplicar parches sobre el
+        repositorio hasta descartarlo a mano.
+
+        Sin esas dos líneas el catálogo solo cambia cuando cambia una ficha, que
+        es cuando debe cambiar. La marca de tiempo de cada ejecución sigue
+        estando en el reporte de evidencia, que sí es un documento por corrida.
+        """
         casos = self._casos_ordenados()
         lineas = [
             "# Casos de prueba automatizados",
             "",
             f"**Sistema:** {NOMBRE_PROYECTO}",
-            f"**Generado:** {self.inicio:%Y-%m-%d %H:%M:%S}",
-            f"**Casos documentados:** {len(casos)} de {len(self.resultados)} pruebas recolectadas",
+            f"**Casos documentados:** {len(casos)}",
             "",
             AVISO_GENERADO,
             "",

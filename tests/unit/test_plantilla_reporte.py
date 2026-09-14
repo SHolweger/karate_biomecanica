@@ -358,3 +358,38 @@ def test_un_modulo_sin_ficha_sigue_siendo_incumplimiento_aunque_haya_omitidos():
     problemas, _ = auditor._auditar_formato()
 
     assert any("ningún caso documentado" in p for p in problemas)
+
+
+# ---------------- estabilidad del catálogo versionado ----------------
+
+@pytest.mark.unitaria
+def test_el_catalogo_no_lleva_fecha_ni_totales_que_cambien_en_cada_corrida():
+    """
+    El catálogo está versionado en el repositorio. Una marca de tiempo lo
+    reescribiría en cada `pytest`, y un total de pruebas recolectadas lo
+    reescribiría además según el entorno, porque en integración continua se
+    omiten los módulos que necesitan cámara.
+
+    Ese churn tiene dos costos reales: ensucia cada comparación de versiones con
+    un cambio que no corresponde a ninguna modificación del código, y deja el
+    archivo modificado en la copia de trabajo, lo que impide aplicar parches
+    hasta descartarlo a mano. (Ocurrió el 14-sep-2026 al intentar aplicar un
+    lote sobre un repositorio donde la suite acababa de correr.)
+    """
+    documento = _auditor([1, 2, 3])._documento_casos()
+
+    assert "**Generado:**" not in documento, "una fecha reescribe el archivo en cada corrida"
+    assert "recolectadas" not in documento, "el total depende del entorno de ejecución"
+    assert "**Casos documentados:** 3" in documento
+
+
+@pytest.mark.unitaria
+def test_dos_corridas_identicas_producen_exactamente_el_mismo_catalogo():
+    """
+    La comprobación de fondo: mismo contenido, byte por byte. Sin esto, la única
+    forma de notar el churn es verlo aparecer en `git status`.
+    """
+    primero = _auditor([1, 2, 3])._documento_casos()
+    segundo = _auditor([1, 2, 3])._documento_casos()
+
+    assert primero == segundo

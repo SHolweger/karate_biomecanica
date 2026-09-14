@@ -1,8 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Generado:** 2026-09-14 17:35:22
-**Casos documentados:** 25 de 384 pruebas recolectadas
+**Casos documentados:** 36
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -12,8 +11,9 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 12 | 36 |
-| API/Integración | 13 | 23 |
+| Unitaria | 15 | 39 |
+| API/Integración | 14 | 24 |
+| Interfaz (UI/E2E) | 7 | 7 |
 
 ---
 
@@ -377,6 +377,66 @@
 
 ---
 
+## TC-AUTO-013 — Al abrir el análisis en vivo con un alumno elegido queda registrada una sesión abierta a su nombre
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-013 |
+| **Nombre de la Prueba** | Al abrir el análisis en vivo con un alumno elegido queda registrada una sesión abierta a su nombre |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es el flujo principal de uso del sistema |
+| **Componente bajo prueba** | `gui/ (App, LoginScreen, InicioScreen, LiveScreen)` |
+| **Requisito asociado** | RF-06, RNF-04 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; archivo `pose_landmarker_full.task` presente; entrenador registrado en la base temporal |
+| **Datos de Entrada (Test Data)** | Entrenador usuario="sensei", password="clave123"; atleta "Diego Morales", grado "5o kyu"; cámara sustituida por `CamaraSintetica` (frames 640×480 generados en memoria) |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_flow.py::test_elegir_un_perfil_abre_la_sesion_de_analisis` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Crear la aplicación `App(db)` con la ventana oculta (`withdraw()`) | La pantalla inicial es `LoginScreen` |
+| 2 | Disparar `app.on_login_exitoso(entrenador)` | assert isinstance(app.pantalla_actual, InicioScreen) |
+| 3 | Navegar a `LiveScreen` inyectando la cámara sintética | assert isinstance(app.pantalla_actual, LiveScreen) |
+| 4 | Consultar la sesión creada en la base de datos | assert fila["hora_fin"] is None (sesión abierta mientras se entrena) |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. En entornos sin interfaz gráfica (CI headless) el caso se marca SKIPPED de forma controlada, no FAILED
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla manual de la ventana en ejecución local para el expediente.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-014 — Terminar la sesión cierra el registro en la base de datos, libera la cámara y regresa a la selección de perfiles
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-014 |
+| **Nombre de la Prueba** | Terminar la sesión cierra el registro en la base de datos, libera la cámara y regresa a la selección de perfiles |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — si la cámara no se libera, la siguiente sesión no puede abrirla |
+| **Componente bajo prueba** | `gui/ (App.on_terminar_sesion, LiveScreen)` |
+| **Requisito asociado** | RF-06, RF-07 |
+| **Precondiciones** | Las mismas de TC-AUTO-013, con una `LiveScreen` activa |
+| **Datos de Entrada (Test Data)** | Instancia de `CamaraSintetica` con bandera `liberada`; atleta "Diego Morales" |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_flow.py::test_terminar_la_sesion_cierra_el_registro_y_libera_la_camara` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Abrir `LiveScreen` con la cámara sintética y guardar el `id_sesion` | Sesión abierta en la base de datos |
+| 2 | Disparar `app.on_terminar_sesion()` (el mismo manejador del botón "Terminar sesión") | El método se ejecuta sin excepción |
+| 3 | Verificar el cierre del registro | assert fila["hora_fin"] is not None |
+| 4 | Verificar la liberación del hardware y la navegación | assert camara.liberada is True y assert isinstance(app.pantalla_actual, InicioScreen) |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. En CI headless se marca SKIPPED de forma controlada
+- **Evidencia de Ejecución:** Reporte de consola de pytest y captura de pantalla manual de la ejecución local.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## TC-AUTO-015 — El instrumento que mide la latencia del pipeline cronometra cada etapa por separado con un reloj determinista
 
 | Campo | Descripción / Detalle |
@@ -432,6 +492,36 @@
 
 **Criterios de Salida y Manejo de Errores**
 - **Resultado Esperado Global:** PASSED. El guion se consume por completo: si el programa pidiera más datos de los previstos, el doble de teclado falla la prueba
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-017 — Sin persona detectada, el fotograma se devuelve intacto y no se dibuja ningún esqueleto
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-017 |
+| **Nombre de la Prueba** | Sin persona detectada, el fotograma se devuelve intacto y no se dibuja ningún esqueleto |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — dibujar sobre un fotograma sin pose detectada mostraría un esqueleto fantasma al alumno; una excepción aquí congela el video en plena clase |
+| **Componente bajo prueba** | `biomechanics/renderer.py (SkeletonRenderer.draw)` |
+| **Requisito asociado** | RF-06 |
+| **Precondiciones** | OpenCV y NumPy instalados; `SkeletonRenderer()` recién construido |
+| **Datos de Entrada (Test Data)** | Lienzo negro de 640×480×3 (`np.zeros`, dtype uint8) y lista de poses igual a `None` |
+| **Archivo / Clase del Script** | `tests/integration/test_renderer.py::test_sin_persona_detectada_el_video_se_devuelve_intacto` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Construir el lienzo en negro | Cualquier píxel distinto de cero será algo que se dibujó |
+| 2 | Invocar `renderer.draw(frame, None)` | Retorna sin lanzar excepción |
+| 3 | Verificar que no se copió ni sustituyó el fotograma | assert resultado is frame_negro |
+| 4 | Verificar que no se pintó nada | assert resultado.sum() == 0 |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Caso complementario: test_dibuja_el_esqueleto_cuando_hay_pose comprueba el camino positivo
 - **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
 - **Resultado Obtenido en la última corrida:** PASSED
 
@@ -520,6 +610,66 @@
 **Criterios de Salida y Manejo de Errores**
 - **Resultado Esperado Global:** PASSED. Ningún rango inválido llega a `Database.actualizar_umbral`, de modo que no se crea una versión de umbral inservible
 - **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-021 — Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-021 |
+| **Nombre de la Prueba** | Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es la única vía por la que un instructor puede ajustar el criterio técnico del sistema; si la pantalla no escribe en la base de datos, el RF-08 queda sostenido solo por código que nadie del dojo puede ejecutar |
+| **Componente bajo prueba** | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; entrenador autenticado; umbrales de literatura ya sembrados por `App` al arrancar |
+| **Datos de Entrada (Test Data)** | Umbral `tsuki` / `codo`, vigente en 160–175°, editado a 170–175° desde el formulario; ángulo de prueba 165°, correcto con el criterio anterior |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_umbrales.py::test_recalibrar_cambia_el_criterio_del_sistema_experto` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Autenticarse y abrir la pantalla con `_abrir_umbrales()` (el manejador del botón real) | assert isinstance(app.pantalla_actual, UmbralesScreen) |
+| 2 | Escribir 170 en el campo del mínimo y disparar `_guardar_cambios()` | assert guardados == 1 (se escribe solo el umbral modificado) |
+| 3 | Releer los umbrales vigentes y construir `KarateRules` con ellos | assert reglas.evaluate_tsuki(165)[0] is False (165° ya no aprueba) |
+| 4 | Consultar `historial_umbral('tsuki', 'codo')` | assert len(historial) == 2 y la versión vigente quedó firmada por el entrenador que la guardó |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El criterio nuevo rige la siguiente sesión de análisis y la versión anterior permanece en el historial, de modo que las mediciones ya registradas siguen siendo interpretables
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla de la pantalla de calibración para el expediente.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-022 — La fuente de video elegida se verifica antes de guardarse y sobrevive al reinicio del sistema
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-022 |
+| **Nombre de la Prueba** | La fuente de video elegida se verifica antes de guardarse y sobrevive al reinicio del sistema |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — con el índice de cámara escrito en el código, el sistema fallaba en silencio en cualquier equipo distinto al de desarrollo: la ventana quedaba en negro sin informar la causa, que es el peor escenario posible durante una demostración en vivo |
+| **Componente bajo prueba** | `gui/camara_screen.py (CamaraScreen) + persistence/database.py (guardar_config)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; entrenador autenticado; dispositivos de captura sustituidos por dobles de prueba |
+| **Datos de Entrada (Test Data)** | Dos cámaras simuladas (índices 0 y 1); se selecciona el índice 1 |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_camara.py::test_la_fuente_elegida_se_verifica_y_persiste` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Autenticarse y abrir la pantalla con `_abrir_camara()` (el manejador del botón real) | assert isinstance(app.pantalla_actual, CamaraScreen) |
+| 2 | Seleccionar la cámara de índice 1 y disparar `guardar_seleccion()` | assert guardado is True (la fuente entregó un fotograma verificable) |
+| 3 | Consultar la preferencia almacenada en la base de datos | assert db.leer_config('fuente_video') == '1' |
+| 4 | Resolver la fuente como lo hace la pantalla de análisis al abrirse | assert fuente_configurada(db) == '1' |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. La fuente queda configurada solo después de comprobar que entrega imagen, y la pantalla de análisis la reutiliza sin que el entrenador vuelva a elegirla
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de la pantalla de cámara para el expediente.
 - **Resultado Obtenido en la última corrida:** PASSED
 
 ---
@@ -634,6 +784,36 @@
 **Criterios de Salida y Manejo de Errores**
 - **Resultado Esperado Global:** PASSED. Un alumno sin mediciones aparece con precisión None y no con 0 %, porque "sin datos" y "falla todo" son afirmaciones distintas
 - **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-027 — El reporte de progreso de un atleta se genera desde la interfaz y produce un archivo de imagen válido
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-027 |
+| **Nombre de la Prueba** | El reporte de progreso de un atleta se genera desde la interfaz y produce un archivo de imagen válido |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — el módulo de reportes funcionaba y estaba probado, pero no se invocaba desde ninguna pantalla ni desde la consola: era código inalcanzable para el usuario. El diagrama de casos de uso, en cambio, declaraba la función como implementada, de modo que el sistema prometía algo que nadie podía ejecutar |
+| **Componente bajo prueba** | `gui/alumno_screen.py (AlumnoScreen) + persistence/reportes.py` |
+| **Requisito asociado** | RF-07 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV, Pillow y Matplotlib instalados; entorno gráfico disponible; atleta con una sesión cerrada que dejó evaluaciones con veredicto |
+| **Datos de Entrada (Test Data)** | Atleta "Diego Morales" con una sesión de 3 evaluaciones cerradas (1 correcta, 2 incorrectas) y 1 estado transitorio |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_historial.py::test_el_reporte_de_progreso_se_genera_desde_la_pantalla` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Navegar alumnos → perfil del alumno con `on_abrir_alumno(id)` | assert isinstance(app.pantalla_actual, AlumnoScreen) |
+| 2 | Disparar `generar_reporte()` (el manejador del botón real) | assert ruta is not None — se produjo un archivo |
+| 3 | Verificar el archivo en disco | assert el archivo existe y su tamaño es mayor que cero |
+| 4 | Leer el mensaje mostrado al instructor | assert la ruta del reporte aparece en el texto de estado de la pantalla |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Si el atleta no tiene evaluaciones cerradas, no se genera un archivo vacío: se explica por qué todavía no hay nada que graficar
+- **Evidencia de Ejecución:** Reporte de consola de pytest y el PNG de progreso generado durante la corrida.
 - **Resultado Obtenido en la última corrida:** PASSED
 
 ---
@@ -755,6 +935,150 @@
 
 ---
 
+## TC-AUTO-032 — Elegir un perfil de sensei exige su contraseña y no da acceso con un solo clic
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-032 |
+| **Nombre de la Prueba** | Elegir un perfil de sensei exige su contraseña y no da acceso con un solo clic |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — la pantalla se parece a un selector de perfiles al estilo Netflix, donde elegir una tarjeta entra sin más; si aquí se comportara igual, sería una puerta trasera al inicio de sesión —cualquiera operaría como el sensei principal con un clic— y dejaría sin valor el hash SHA-256 del RNF-05, además de falsear la firma que queda en cada umbral recalibrado y en cada sesión registrada |
+| **Componente bajo prueba** | `gui/perfil_screen.py (PerfilScreen) + persistence/database.py (autenticar_entrenador)` |
+| **Requisito asociado** | RF-08, RNF-05 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; un sensei registrado con usuario «sensei» y contraseña «clave123» |
+| **Datos de Entrada (Test Data)** | Tarjeta del sensei registrado; primero una contraseña equivocada («incorrecta»), después la correcta («clave123») |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_inicio.py::test_cambiar_de_perfil_pide_la_contrasena_del_sensei` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Abrir la selección de perfiles con `on_cambiar_perfil()` | assert isinstance(app.pantalla_actual, PerfilScreen) y app.barra is None |
+| 2 | Pulsar la tarjeta del sensei sin escribir contraseña y disparar `_entrar()` | assert la aplicación sigue en PerfilScreen |
+| 3 | Escribir una contraseña equivocada y disparar `_entrar()` | assert 'Contraseña incorrecta' en el mensaje de error y no se entró |
+| 4 | Escribir la contraseña correcta y disparar `_entrar()` | assert isinstance(app.pantalla_actual, InicioScreen) y app.entrenador quedó fijado |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Cambiar de perfil pasa siempre por la verificación de credenciales, de modo que la firma de cada medición corresponde a quien realmente la tomó.
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla de la selección de perfiles.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-033 — El video se ajusta al espacio disponible conservando su proporción, en vez de imponer su resolución al resto de la pantalla
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-033 |
+| **Nombre de la Prueba** | El video se ajusta al espacio disponible conservando su proporción, en vez de imponer su resolución al resto de la pantalla |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — una cámara entrega 1280x720 y el fotograma se dibujaba a tamaño nativo, de modo que empujaba al panel derecho —donde viven las correcciones del sistema experto— hasta reducirlo a 193 px de los 320 que pide, recortando el texto de cada corrección; en un equipo con pantalla pequeña el panel quedaría fuera de cuadro y el RF-06 dejaría de cumplirse en la práctica |
+| **Componente bajo prueba** | `gui/live_screen.py (_escalar, _mostrar_frame)` |
+| **Requisito asociado** | RF-01, RF-06 |
+| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; cámara sustituida por `CamaraSintetica` |
+| **Datos de Entrada (Test Data)** | Huecos de 560x420 y 300x300 contra fotogramas de 1280x720 y 640x480 |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_vivo.py::test_el_video_se_ajusta_al_hueco_sin_deformarse` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Calcular el tamaño de un fotograma 1280x720 en un hueco de arranque | assert el resultado cabe en el hueco y conserva la proporción 16:9 |
+| 2 | Comprobar que un fotograma más alto que ancho también se limita por el alto | assert alto <= hueco disponible |
+| 3 | Verificar que la proporción original se conserva en ambos casos | assert ancho/alto se mantiene dentro de un 1 % del original |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El panel de correcciones conserva su ancho y los ángulos se ven sin deformar, que es condición para que lo mostrado corresponda a lo medido.
+- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla del análisis en vivo.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-034 — Todo veredicto que la base de conocimientos puede emitir tiene su corrección redactada para el alumno
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-034 |
+| **Nombre de la Prueba** | Todo veredicto que la base de conocimientos puede emitir tiene su corrección redactada para el alumno |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — el panel de correcciones es la forma en que el sistema cumple el RF-06; si se agrega una regla nueva y se olvida su traducción, la pantalla no falla —muestra el texto técnico— y el descuido pasa inadvertido hasta que un instructor lee «MAE GERI: KIME INCOMPLETO» en medio de una clase y tiene que interpretarlo él |
+| **Componente bajo prueba** | `gui/coaching.py (CORRECCIONES) + expert_system/knowledge_base.py` |
+| **Requisito asociado** | RF-05, RF-06 |
+| **Precondiciones** | Ninguna; se inspecciona el código fuente de la base de conocimientos |
+| **Datos de Entrada (Test Data)** | Los veredictos que `knowledge_base.py` devuelve en sus sentencias `return` |
+| **Archivo / Clase del Script** | `tests/unit/test_coaching.py::test_ningun_veredicto_del_motor_se_queda_sin_correccion` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Extraer de la base de conocimientos todos los veredictos que puede emitir | assert la lista no viene vacía (si lo estuviera, la prueba no probaría nada) |
+| 2 | Restarle los veredictos que la tabla de correcciones cubre | assert el conjunto resultante está vacío |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Cada veredicto llega al alumno como una instrucción y no como lenguaje de máquina.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-035 — Una cámara sin nombre se omite de la lista en vez de desplazar a las siguientes, de modo que ningún dispositivo quede etiquetado con el nombre de otro
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-035 |
+| **Nombre de la Prueba** | Una cámara sin nombre se omite de la lista en vez de desplazar a las siguientes, de modo que ningún dispositivo quede etiquetado con el nombre de otro |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — la posición en la lista ES el índice del dispositivo, así que un hueco correría a todas las cámaras posteriores y el entrenador elegiría la webcam integrada creyendo que elige la cámara del tatami; una etiqueta equivocada es peor que no tener etiqueta, porque induce a confiar en ella |
+| **Componente bajo prueba** | `vision/nombres_camara.py (analizar_salida_macos)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | Ninguna; la función es pura y no consulta el sistema operativo |
+| **Datos de Entrada (Test Data)** | Respuesta de `system_profiler` con dos entradas, la primera sin campo `_name` ni `spcamera_model-id` |
+| **Archivo / Clase del Script** | `tests/unit/test_nombres_camara.py::test_una_camara_sin_nombre_se_omite_en_vez_de_correr_las_demas` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Analizar la salida con la primera entrada incompleta | assert el resultado contiene solo el nombre de la segunda cámara |
+| 2 | Comprobar que no se insertó un marcador de posición | assert len(nombres) == 1, no 2 |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. La cámara sin nombre se muestra por su índice y las demás conservan el suyo.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-036 — La asimetría entre lados solo se reporta cuando hay repeticiones suficientes en ambos, de modo que un fallo aislado no se presente como señal de lesión
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-036 |
+| **Nombre de la Prueba** | La asimetría entre lados solo se reporta cuando hay repeticiones suficientes en ambos, de modo que un fallo aislado no se presente como señal de lesión |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — con tres repeticiones por lado un solo fallo mueve el porcentaje 33 puntos, de modo que casi cualquier sesión corta produciría una «asimetría marcada»; un instructor que recibe esa alerta cambia el entrenamiento de un alumno sano, y si la alerta salta siempre deja de creerle también cuando es real |
+| **Componente bajo prueba** | `expert_system/riesgos.py (evaluar_asimetria)` |
+| **Requisito asociado** | RF-05, RF-07 |
+| **Precondiciones** | Ninguna; la función es pura y no consulta la base de datos |
+| **Datos de Entrada (Test Data)** | Lado izquierdo con 3 evaluaciones al 33 % y derecho con 3 al 100 % (67 puntos de diferencia, por debajo del mínimo de repeticiones); después los mismos porcentajes con 12 evaluaciones por lado |
+| **Archivo / Clase del Script** | `tests/unit/test_riesgos.py::test_la_asimetria_exige_repeticiones_suficientes_en_ambos_lados` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Evaluar la asimetría con 3 repeticiones por lado | assert el resultado es None pese a los 67 puntos de diferencia |
+| 2 | Evaluar los mismos porcentajes con 12 repeticiones por lado | assert se reporta un hallazgo de nivel 'riesgo' |
+| 3 | Comprobar que el hallazgo nombra el lado rezagado | assert 'izquierdo' aparece en el título |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El sistema se pronuncia sobre asimetría solo cuando la muestra lo respalda, y nombra qué lado trabajar.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -771,16 +1095,27 @@
 | TC-AUTO-010 | `persistence/database.py (Database.crear_entrenador)` | RNF-05 | API/Integración |
 | TC-AUTO-011 | `persistence/medicion_logger.py (MedicionLogger)` | RF-07 | API/Integración |
 | TC-AUTO-012 | `persistence/reportes.py (generar_reporte_progreso)` | RF-07 | API/Integración |
+| TC-AUTO-013 | `gui/ (App, LoginScreen, InicioScreen, LiveScreen)` | RF-06, RNF-04 | Interfaz (UI/E2E) |
+| TC-AUTO-014 | `gui/ (App.on_terminar_sesion, LiveScreen)` | RF-06, RF-07 | Interfaz (UI/E2E) |
 | TC-AUTO-015 | `biomechanics/metrics.py (PerformanceMonitor)` | RNF-01, RF-01 | Unitaria |
 | TC-AUTO-016 | `persistence/cli_auth.py (login_o_registro)` | RF-08 | API/Integración |
+| TC-AUTO-017 | `biomechanics/renderer.py (SkeletonRenderer.draw)` | RF-06 | API/Integración |
 | TC-AUTO-018 | `persistence/database.py (actualizar_umbral, historial_umbral)` | RF-08 | API/Integración |
 | TC-AUTO-019 | `tests/reporte/plantilla.py (FichaCasoPrueba)` | RF-08 | Unitaria |
 | TC-AUTO-020 | `gui/validacion_umbrales.py (interpretar_rango)` | RF-08 | Unitaria |
+| TC-AUTO-021 | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` | RF-08 | Interfaz (UI/E2E) |
+| TC-AUTO-022 | `gui/camara_screen.py (CamaraScreen) + persistence/database.py (guardar_config)` | RF-01 | Interfaz (UI/E2E) |
 | TC-AUTO-023 | `vision/camera.py (normalizar)` | RF-01 | Unitaria |
 | TC-AUTO-024 | `persistence/database.py (guardar_config, leer_config)` | RF-01 | API/Integración |
 | TC-AUTO-025 | `expert_system/analyzer.py (clasificador de posturas)` | RF-01, RF-05 | API/Integración |
 | TC-AUTO-026 | `persistence/database.py (resumen_atletas)` | RF-07 | API/Integración |
+| TC-AUTO-027 | `gui/alumno_screen.py (AlumnoScreen) + persistence/reportes.py` | RF-07 | Interfaz (UI/E2E) |
 | TC-AUTO-028 | `main.py (main)` | RNF-04 | Unitaria |
 | TC-AUTO-029 | `persistence/database.py (metricas_dojo)` | RF-07 | API/Integración |
 | TC-AUTO-030 | `gui/panel_vivo.py (FeedCorrecciones)` | RF-05, RF-06 | Unitaria |
 | TC-AUTO-031 | `gui/registro_alumno.py (interpretar_formulario)` | RF-07 | Unitaria |
+| TC-AUTO-032 | `gui/perfil_screen.py (PerfilScreen) + persistence/database.py (autenticar_entrenador)` | RF-08, RNF-05 | Interfaz (UI/E2E) |
+| TC-AUTO-033 | `gui/live_screen.py (_escalar, _mostrar_frame)` | RF-01, RF-06 | Interfaz (UI/E2E) |
+| TC-AUTO-034 | `gui/coaching.py (CORRECCIONES) + expert_system/knowledge_base.py` | RF-05, RF-06 | Unitaria |
+| TC-AUTO-035 | `vision/nombres_camara.py (analizar_salida_macos)` | RF-01 | Unitaria |
+| TC-AUTO-036 | `expert_system/riesgos.py (evaluar_asimetria)` | RF-05, RF-07 | Unitaria |
