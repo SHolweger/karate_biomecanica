@@ -202,9 +202,12 @@ class App(ctk.CTk):
         Calibración de umbrales (RF-08). Requiere sesión de entrenador iniciada:
         es esa sesión la que queda firmando cada versión de umbral guardada.
         """
+        # Queda marcada la sección "Técnicas": la calibración salió de la barra
+        # porque recalibrar es algo que se hace SOBRE una técnica, y se llega
+        # desde la biblioteca, donde el criterio vigente está a la vista.
         self._mostrar_en_marco(
             lambda padre: UmbralesScreen(padre, self.db, self.entrenador, app=self),
-            "umbrales")
+            "tecnicas")
 
     def on_abrir_camara(self):
         """

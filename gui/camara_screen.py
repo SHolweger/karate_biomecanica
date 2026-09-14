@@ -26,6 +26,10 @@ class CamaraScreen(ctk.CTkFrame):
     entrenador deba repetir cada sesión.
     """
 
+    # Alto de la vista previa de cada cámara. Suficiente para reconocer la
+    # escena, pequeño para que la lista siga siendo una lista.
+    ALTO_MINIATURA = 54
+
     def __init__(self, master, db, al_terminar=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
         # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
@@ -36,6 +40,9 @@ class CamaraScreen(ctk.CTkFrame):
         self.al_terminar = al_terminar
 
         self.disponibles = []
+        # Las miniaturas se conservan porque Tk no retiene la referencia a una
+        # imagen: sin esto el recolector las borra y las tarjetas salen vacías.
+        self.miniaturas = []
         self.seleccion = ctk.StringVar(value=str(db.leer_config(CLAVE_FUENTE, "")))
         self.url_var = ctk.StringVar()
         self.error_var = ctk.StringVar(value="")
@@ -94,7 +101,7 @@ class CamaraScreen(ctk.CTkFrame):
                       text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
                       command=self.probar_seleccion).pack(side="right", padx=(0, 8))
 
-    def _tarjeta(self, valor, titulo, detalle):
+    def _tarjeta(self, valor, titulo, detalle, muestra=None):
         fila = ctk.CTkFrame(self.lista, fg_color=theme.CARD, border_color=theme.BORDE,
                             border_width=1, corner_radius=10)
         fila.pack(fill="x", pady=3)
@@ -102,6 +109,14 @@ class CamaraScreen(ctk.CTkFrame):
                            width=24, radiobutton_width=18, radiobutton_height=18,
                            fg_color=theme.ACENTO_ROJO,
                            border_color=theme.BORDE_CLARO).pack(side="left", padx=(14, 6), pady=12)
+
+        # La miniatura es lo único que identifica una cámara sin lugar a dudas.
+        # El nombre del sistema ayuda, pero dos webcams del mismo modelo se
+        # llaman igual; ver la imagen no admite confusión. Sale gratis: es el
+        # fotograma que la enumeración ya leyó para comprobar que funciona.
+        if muestra is not None:
+            self._miniatura(fila, muestra)
+
         textos = ctk.CTkFrame(fila, fg_color="transparent")
         textos.pack(side="left", anchor="w")
         ctk.CTkLabel(textos, text=titulo, font=(theme.FUENTE, 13, "bold"),
@@ -109,7 +124,50 @@ class CamaraScreen(ctk.CTkFrame):
         ctk.CTkLabel(textos, text=detalle, font=(theme.FUENTE, 11.5),
                      text_color=theme.TEXTO_MUTED, anchor="w").pack(anchor="w")
 
+    def _miniatura(self, padre, frame):
+        """Vista previa pequeña del fotograma que entregó esa cámara."""
+        try:
+            import cv2
+            from PIL import Image
+
+            alto, ancho = frame.shape[:2]
+            escala = self.ALTO_MINIATURA / alto
+            imagen = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            vista = ctk.CTkImage(light_image=imagen, dark_image=imagen,
+                                 size=(max(1, int(ancho * escala)), self.ALTO_MINIATURA))
+        except Exception:
+            # Una miniatura es una ayuda, no un requisito: si el fotograma viene
+            # en un formato inesperado, la lista debe seguir siendo utilizable.
+            return None
+
+        etiqueta = ctk.CTkLabel(padre, text="", image=vista)
+        etiqueta.image = vista       # evita que el recolector la borre
+        etiqueta.pack(side="left", padx=(4, 12), pady=8)
+        self.miniaturas.append(vista)
+        return etiqueta
+
     # ---------------- datos ----------------
+
+    @staticmethod
+    def _titulo_camara(cam):
+        """
+        El nombre que da el sistema operativo, si lo hay.
+
+        Antes la etiqueta era "Cámara integrada" para el índice 0 y "Cámara N"
+        para el resto — una suposición, no un dato: el índice 0 no siempre es la
+        integrada, y con tres dispositivos conectados los títulos no distinguían
+        ninguno. Cuando el sistema no da nombres se dice el índice y ya, sin
+        adivinar de qué dispositivo se trata.
+        """
+        nombre = cam.get("nombre")
+        return nombre if nombre else f"Cámara {cam['indice']}"
+
+    @staticmethod
+    def _detalle_camara(cam):
+        detalle = f"Índice {cam['indice']} · {cam['ancho']}×{cam['alto']} px"
+        if not cam.get("nombre"):
+            detalle += " · el sistema no reporta su nombre"
+        return detalle
 
     def buscar_camaras(self):
         """
@@ -120,6 +178,7 @@ class CamaraScreen(ctk.CTkFrame):
         """
         for w in self.lista.winfo_children():
             w.destroy()
+        self.miniaturas = []
 
         self.estado_var.set("")
         self.error_var.set("")
@@ -141,11 +200,8 @@ class CamaraScreen(ctk.CTkFrame):
         if self.disponibles:
             for cam in self.disponibles:
                 indice = cam["indice"]
-                etiqueta = "Cámara integrada" if indice == 0 else f"Cámara {indice}"
-                detalle = f"Índice {indice} · {cam['ancho']}×{cam['alto']} px"
-                if indice != 0:
-                    detalle += " · puede ser USB, OBS o Camo"
-                self._tarjeta(str(indice), etiqueta, detalle)
+                self._tarjeta(str(indice), self._titulo_camara(cam),
+                              self._detalle_camara(cam), muestra=cam.get("muestra"))
         else:
             ctk.CTkLabel(self.lista,
                          text="No se detectó ninguna cámara conectada al equipo.",

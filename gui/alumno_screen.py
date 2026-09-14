@@ -19,6 +19,9 @@ class AlumnoScreen(ctk.CTkFrame):
     bien.
     """
 
+    SESIONES_EN_GRAFICA = 8
+    ALTO_GRAFICA = 150
+
     def __init__(self, master, db, id_atleta, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
         # `master` es el contenedor donde se dibuja esta pantalla; `app` es quien
@@ -61,8 +64,75 @@ class AlumnoScreen(ctk.CTkFrame):
             return
 
         self._resumen()
+        self._evolucion()
         self._tecnicas()
         self._sesiones()
+
+    def _evolucion(self):
+        """
+        Precisión de las últimas sesiones, en orden cronológico.
+
+        Es la pregunta que ni el promedio global ni el desglose por técnica
+        responden: ¿está mejorando? Un alumno con 70 % de precisión que viene de
+        55 % y uno que viene de 85 % tienen el mismo número y situaciones
+        opuestas, y es la segunda la que obliga al instructor a intervenir.
+
+        Se dibuja con barras propias en vez de matplotlib: la gráfica de
+        `persistence/reportes.py` sigue existiendo para el expediente en PNG,
+        pero incrustar una imagen aquí obligaría a regenerarla en cada recarga y
+        desentonaría con el resto de la interfaz.
+        """
+        # De la más antigua a la más reciente: una evolución se lee hacia la
+        # derecha. `listar_sesiones` las devuelve al revés, para la tabla.
+        sesiones = [s for s in reversed(self.db.listar_sesiones(self.id_atleta))
+                    if s["precision"] is not None][-self.SESIONES_EN_GRAFICA:]
+
+        ctk.CTkLabel(self.cuerpo, text="Precisión por sesión",
+                     font=(theme.FUENTE, 15, "bold"),
+                     text_color=theme.TEXTO).pack(anchor="w", pady=(6, 2))
+
+        if len(sesiones) < 2:
+            cp.vacio(self.cuerpo, "Aún no hay suficientes sesiones para ver una evolución.",
+                     "Hacen falta al menos dos sesiones con evaluaciones cerradas.")
+            return
+
+        ctk.CTkLabel(self.cuerpo,
+                     text=f"Últimas {len(sesiones)} sesiones, de la más antigua a la más reciente",
+                     font=(theme.FUENTE, 11.5),
+                     text_color=theme.TEXTO_MUTED).pack(anchor="w", pady=(0, 8))
+
+        caja = cp.tarjeta(self.cuerpo, pady=(0, 14))
+        grafica = ctk.CTkFrame(caja, fg_color="transparent", height=self.ALTO_GRAFICA + 52)
+        grafica.pack(fill="x", padx=20, pady=16)
+        grafica.pack_propagate(False)
+
+        for posicion, sesion in enumerate(sesiones):
+            self._columna(grafica, sesion, ultima=posicion == len(sesiones) - 1)
+
+    def _columna(self, padre, sesion, ultima):
+        columna = ctk.CTkFrame(padre, fg_color="transparent")
+        columna.pack(side="left", expand=True, fill="both", padx=5)
+
+        precision = sesion["precision"]
+        ctk.CTkLabel(columna, text=cp.texto_precision(precision), font=(theme.FUENTE, 10.5),
+                     text_color=theme.TEXTO_MUTED).pack()
+
+        # La barra se mide contra el 100 % y no contra el máximo del alumno: la
+        # escala tiene que ser la misma entre alumnos para poder compararlos, y
+        # un eje que se reajusta solo haría que un 40 % se viera alto.
+        canal = ctk.CTkFrame(columna, fg_color="transparent", height=self.ALTO_GRAFICA)
+        canal.pack(fill="x")
+        canal.pack_propagate(False)
+        relleno = ctk.CTkFrame(canal, fg_color=cp.color_precision(precision), corner_radius=4)
+        relleno.place(relx=0, rely=1.0, anchor="sw", relwidth=1,
+                      relheight=max(precision, 1) / 100)
+        if not ultima:
+            # La sesión más reciente va a color pleno; las anteriores, atenuadas,
+            # para que el ojo caiga primero en dónde está hoy el alumno.
+            relleno.configure(fg_color=theme.BORDE_CLARO)
+
+        ctk.CTkLabel(columna, text=(sesion["fecha"] or "")[5:], font=(theme.FUENTE, 9.5),
+                     text_color=theme.TEXTO_TENUE).pack(pady=(6, 0))
 
     def _resumen(self):
         caja = cp.tarjeta(self.cuerpo, pady=(0, 14))

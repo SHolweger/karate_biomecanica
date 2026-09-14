@@ -180,3 +180,37 @@ def test_un_fotograma_grande_no_agranda_el_contenedor_del_video(app, vivo):
         "el contenedor creció con la imagen en vez de ajustarla"
     assert marco_video.winfo_reqwidth() < 1280, \
         "el video volvería a empujar al panel de correcciones fuera de sitio"
+
+
+def test_el_tamano_de_dibujado_no_altera_los_angulos_medidos(vivo):
+    """
+    Separación entre medir y mostrar.
+
+    El ángulo se calcula sobre los puntos que MediaPipe devuelve para el
+    fotograma original, antes de que la imagen se dibuje; el escalado solo
+    decide con cuántos píxeles de pantalla se pinta. Esta prueba lo fija: el
+    mismo fotograma analizado con el panel de un tamaño y de otro debe producir
+    exactamente los mismos grados.
+
+    Importa porque un ángulo que dependiera del tamaño de la ventana sería una
+    medición inservible: el diagnóstico cambiaría al mover el borde de la
+    aplicación.
+    """
+    import numpy as np
+
+    from helpers.fakes import pose_sintetica
+
+    landmarks = pose_sintetica(angulo_codo_izq=118.0, angulo_codo_der=171.0)
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    alto, ancho, _ = frame.shape
+
+    primera = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto)
+    angulos_primera = [d["angulo"] for d in primera]
+
+    # Se fuerza un hueco de dibujado radicalmente distinto y se vuelve a medir.
+    vivo.VIDEO_ARRANQUE = (120, 90)
+    vivo._mostrar_frame(frame)
+    segunda = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto)
+
+    assert [d["angulo"] for d in segunda] == angulos_primera, \
+        "el tamaño con el que se dibuja el video llegó a influir en la medición"

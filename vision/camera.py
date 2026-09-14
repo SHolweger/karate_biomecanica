@@ -19,6 +19,7 @@ import sys
 import cv2
 
 from vision.fuentes import CamaraNoDisponible, describir, es_url, normalizar
+from vision.nombres_camara import nombres_del_sistema
 
 # Cuántos índices se sondean al enumerar. Seis cubre con holgura un equipo con
 # webcam integrada, una o dos cámaras USB y un par de cámaras virtuales.
@@ -89,7 +90,10 @@ def listar_camaras(maximo=MAX_INDICES):
     los dispositivos se numeran de forma correlativa, así que dos huecos
     seguidos significan que ya no hay más.
 
-    Devuelve una lista de dicts con 'indice', 'ancho' y 'alto'.
+    Devuelve una lista de dicts con 'indice', 'ancho', 'alto', 'nombre' (el que
+    reporta el sistema operativo, o None) y 'muestra' (el fotograma leido para
+    verificarla, que la pantalla usa como miniatura: ver la imagen de cada
+    camara es la unica forma inequivoca de saber cual es cual).
     """
     encontradas = []
     fallos_seguidos = 0
@@ -110,10 +114,19 @@ def listar_camaras(maximo=MAX_INDICES):
                     continue
 
                 alto, ancho = frame.shape[:2]
-                encontradas.append({"indice": indice, "ancho": ancho, "alto": alto})
+                encontradas.append({"indice": indice, "ancho": ancho, "alto": alto,
+                                    "muestra": frame.copy()})
                 fallos_seguidos = 0
             finally:
                 captura.release()
+
+    # El nombre que da el sistema operativo ("FaceTime HD Camera", "C920") es lo
+    # que permite distinguir tres dispositivos que, por indice y resolucion,
+    # parecen intercambiables. Se pide una sola vez para todos los indices: en
+    # macOS cuesta una llamada a system_profiler, que tarda.
+    nombres = nombres_del_sistema([c["indice"] for c in encontradas])
+    for camara in encontradas:
+        camara["nombre"] = nombres.get(camara["indice"])
 
     return encontradas
 

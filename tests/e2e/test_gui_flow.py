@@ -254,7 +254,6 @@ def test_tras_autenticarse_aparece_la_barra_con_la_seccion_de_inicio_activa(
     ("vivo", "LiveScreen"),
     ("historial", "HistorialScreen"),
     ("tecnicas", "TecnicasScreen"),
-    ("umbrales", "UmbralesScreen"),
     ("camara", "CamaraScreen"),
 ])
 def test_cada_seccion_de_la_barra_abre_su_pantalla(app, entrenador_registrado,
@@ -269,6 +268,26 @@ def test_cada_seccion_de_la_barra_abre_su_pantalla(app, entrenador_registrado,
 
     assert type(app.pantalla_actual).__name__ == nombre_pantalla
     assert app.barra.seccion_activa == seccion
+
+
+def test_la_calibracion_se_alcanza_desde_tecnicas_y_no_desde_la_barra(app, entrenador_registrado):
+    """
+    Recalibrar es algo que se hace SOBRE una técnica, así que se llega desde la
+    biblioteca, donde el criterio vigente está a la vista. Como sección suelta
+    invitaba a abrir una tabla de diez umbrales sin recordar cuál se quería
+    tocar.
+    """
+    from gui.barra_lateral import SECCIONES
+
+    assert "umbrales" not in [clave for clave, _ in SECCIONES]
+
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("tecnicas")
+    app.pantalla_actual._abrir_umbrales()
+
+    assert type(app.pantalla_actual).__name__ == "UmbralesScreen"
+    assert app.barra.seccion_activa == "tecnicas", \
+        "la barra debe seguir señalando de dónde se vino"
 
 
 def test_la_barra_sobrevive_al_cambiar_de_seccion(app, entrenador_registrado):

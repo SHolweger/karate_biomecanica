@@ -9,6 +9,7 @@ from biomechanics.renderer import SkeletonRenderer
 from expert_system.analyzer import TechniqueAnalyzer
 from expert_system.knowledge_base import KarateRules
 from gui import theme
+from gui import coaching
 from gui.camara_screen import fuente_configurada
 from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_DATO, metricas_articulares,
                             veredicto_legible)
@@ -52,6 +53,9 @@ class LiveScreen(ctk.CTkFrame):
     # Tamaño con el que se dibuja el primer fotograma, antes de que Tk haya
     # asignado su espacio al contenedor del video.
     VIDEO_ARRANQUE = (560, 420)
+    # Con el hardware inercial montado, este interruptor pasa a True y el
+    # bloque de sensores arranca desplegado (RF-02, RF-04).
+    SENSORES_DISPONIBLES = False
 
     def __init__(self, master, db, entrenador, atleta=None, cam=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
@@ -189,32 +193,66 @@ class LiveScreen(ctk.CTkFrame):
             self.filas_metricas[fila["categoria"]] = valor
 
     def _panel_sensores(self, padre):
+        """
+        Estado del subsistema inercial, plegable.
+
+        Mientras no haya sensores montados el bloque arranca plegado: cuatro
+        puntos apagados ocupan un tercio de la columna para decir lo mismo que
+        una línea, y ese espacio le hace falta a las correcciones. Cuando el
+        hardware entre, la lista pasará a tener contenido vivo y convendrá
+        dejarla desplegada por defecto (ver `SENSORES_DISPONIBLES`).
+
+        Plegado no es lo mismo que oculto: la cabecera sigue diciendo que el
+        subsistema existe y está pendiente. Quitarlo dejaría creer que el
+        análisis en curso ya usa los sensores, cuando hoy es solo visión.
+        """
         caja = ctk.CTkFrame(padre, fg_color=theme.CARD, border_color=theme.BORDE,
                             border_width=1, corner_radius=10)
         caja.pack(fill="x", pady=(0, 10))
 
-        cabecera = ctk.CTkFrame(caja, fg_color="transparent")
-        cabecera.pack(fill="x", padx=16, pady=(14, 8))
-        ctk.CTkLabel(cabecera, text="Sensores IMU", font=(theme.FUENTE, 13, "bold"),
-                     text_color=theme.TEXTO).pack(side="left")
-        ctk.CTkLabel(cabecera, text="PENDIENTE", font=(theme.FUENTE, 9, "bold"),
-                     text_color=theme.ACENTO_AMARILLO).pack(side="right")
+        cabecera = ctk.CTkButton(
+            caja, text="", fg_color="transparent", hover_color=theme.CARD_HOVER,
+            height=38, corner_radius=8, command=self._alternar_sensores)
+        cabecera.pack(fill="x", padx=8, pady=(8, 0))
 
-        # Los cuatro puntos se listan aunque no haya hardware: dicen dónde irán
-        # los sensores cuando se monten. Omitir el panel dejaría creer que el
-        # análisis en curso ya los usa, cuando hoy es solo visión (RF-02, RF-04).
+        contenido = ctk.CTkFrame(cabecera, fg_color="transparent")
+        contenido.place(relx=0, rely=0.5, anchor="w", x=8)
+        self.flecha_sensores = ctk.CTkLabel(contenido, text="▸", font=(theme.FUENTE, 10),
+                                            text_color=theme.TEXTO_MUTED, width=14)
+        self.flecha_sensores.pack(side="left")
+        ctk.CTkLabel(contenido, text="Sensores IMU", font=(theme.FUENTE, 13, "bold"),
+                     text_color=theme.TEXTO).pack(side="left", padx=(2, 8))
+        ctk.CTkLabel(contenido, text="PENDIENTE", font=(theme.FUENTE, 9, "bold"),
+                     text_color=theme.ACENTO_AMARILLO).pack(side="left")
+
+        self.detalle_sensores = ctk.CTkFrame(caja, fg_color="transparent")
         for punto in PUNTOS_IMU:
-            fila = ctk.CTkFrame(caja, fg_color="transparent")
+            fila = ctk.CTkFrame(self.detalle_sensores, fg_color="transparent")
             fila.pack(fill="x", padx=16, pady=1)
             ctk.CTkLabel(fila, text="○", font=(theme.FUENTE, 11),
                          text_color=theme.TEXTO_TENUE).pack(side="left", padx=(0, 8))
             ctk.CTkLabel(fila, text=punto, font=(theme.FUENTE, 11),
                          text_color=theme.TEXTO_TENUE).pack(side="left")
-
-        ctk.CTkLabel(caja, text="Sin sensores conectados · medición por visión",
+        ctk.CTkLabel(self.detalle_sensores,
+                     text="Sin sensores conectados · medición por visión",
                      font=(theme.FUENTE, 10), text_color=theme.TEXTO_TENUE,
                      wraplength=self.ANCHO_TEXTO_PANEL, justify="left").pack(
-            anchor="w", padx=16, pady=(8, 14))
+            anchor="w", padx=16, pady=(8, 4))
+
+        self.sensores_desplegados = self.SENSORES_DISPONIBLES
+        self._pintar_sensores()
+
+    def _alternar_sensores(self):
+        self.sensores_desplegados = not self.sensores_desplegados
+        self._pintar_sensores()
+        return self.sensores_desplegados
+
+    def _pintar_sensores(self):
+        self.flecha_sensores.configure(text="▾" if self.sensores_desplegados else "▸")
+        if self.sensores_desplegados:
+            self.detalle_sensores.pack(fill="x", pady=(4, 10))
+        else:
+            self.detalle_sensores.pack_forget()
 
     def _panel_correcciones(self, padre):
         caja = ctk.CTkFrame(padre, fg_color=theme.CARD, border_color=theme.BORDE,
@@ -382,13 +420,25 @@ class LiveScreen(ctk.CTkFrame):
             marca.pack(side="left", padx=(8, 8), pady=8)
             marca.pack_propagate(False)
 
+            # El veredicto del motor se traduce a la frase que el sensei diría en
+            # el tatami. Lo que corrige a un alumno no es saber que su codo está
+            # a 178°, sino oír "no bloquees el codo al impacto". El texto técnico
+            # sigue siendo el que se guarda en la base: es la clave con la que se
+            # agrupan los errores frecuentes de la sesión.
+            instruccion, motivo = coaching.traducir(entrada["mensaje"])
+
             textos = ctk.CTkFrame(fila, fg_color="transparent")
             textos.pack(side="left", fill="x", expand=True, pady=6)
             ctk.CTkLabel(textos, text=entrada["tiempo"], font=(theme.FUENTE_MONO, 9.5),
                          text_color=theme.TEXTO_TENUE).pack(anchor="w")
-            ctk.CTkLabel(textos, text=entrada["mensaje"], font=(theme.FUENTE, 11),
+            ctk.CTkLabel(textos, text=instruccion, font=(theme.FUENTE, 11.5, "bold"),
                          text_color=theme.TEXTO, wraplength=self.ANCHO_TEXTO_PANEL,
                          justify="left").pack(anchor="w")
+            if motivo:
+                ctk.CTkLabel(textos, text=motivo, font=(theme.FUENTE, 10),
+                             text_color=theme.TEXTO_MUTED,
+                             wraplength=self.ANCHO_TEXTO_PANEL,
+                             justify="left").pack(anchor="w")
 
     # ---------------- cierre ----------------
 

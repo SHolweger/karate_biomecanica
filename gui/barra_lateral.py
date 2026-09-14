@@ -9,12 +9,16 @@ from gui import theme
 # "perfiles" ya no está aquí. Elegir sensei no es una sección del sistema sino
 # un cambio de quién lo opera, y vive en el pie de la barra junto a la identidad
 # activa, que es donde el usuario espera encontrarlo.
+#
+# "Calibración" tampoco está: recalibrar un umbral es algo que se hace sobre una
+# técnica concreta, y se llega desde la biblioteca de técnicas, donde el criterio
+# vigente está a la vista. Como sección suelta invitaba a abrir una tabla de diez
+# umbrales sin recordar cuál se quería tocar.
 SECCIONES = [
     ("inicio",    "Inicio"),
     ("vivo",      "Análisis en vivo"),
     ("historial", "Alumnos y progreso"),
     ("tecnicas",  "Técnicas"),
-    ("umbrales",  "Calibración"),
     ("camara",    "Cámara"),
 ]
 
@@ -44,6 +48,7 @@ class BarraLateral(ctk.CTkFrame):
         self.entrenador = entrenador
         self.seccion_activa = seccion_activa
         self.botones = {}
+        self.acentos = {}
         self.boton_cambiar = None
         # Estado del hardware inercial (RF-02, RF-04). Mientras no haya sensores
         # armados el sistema lo dice con todas sus letras en vez de callarlo.
@@ -77,15 +82,31 @@ class BarraLateral(ctk.CTkFrame):
 
         for clave, etiqueta in SECCIONES:
             activa = clave == self.seccion_activa
+
+            # Cada opción es una fila con una barra de acento a la izquierda. La
+            # barra marca la sección activa con una señal que no depende del
+            # color del texto ni del fondo, de modo que se distingue de un
+            # vistazo y también para quien no diferencia bien esos tonos.
+            fila = ctk.CTkFrame(caja, fg_color="transparent", height=38)
+            fila.pack(fill="x", pady=1)
+            fila.pack_propagate(False)
+
+            acento = ctk.CTkFrame(fila, width=3, corner_radius=2,
+                                  fg_color=theme.ACENTO_ROJO if activa else "transparent")
+            acento.pack(side="left", fill="y", pady=6)
+            acento.pack_propagate(False)
+
             boton = ctk.CTkButton(
-                caja, text=etiqueta, anchor="w", height=36, corner_radius=8,
+                fila, text=etiqueta, anchor="w", height=36, corner_radius=8,
                 font=(theme.FUENTE, 12.5, "bold" if activa else "normal"),
                 fg_color=theme.CARD_HOVER if activa else "transparent",
                 text_color=theme.TEXTO if activa else theme.TEXTO_MUTED,
                 hover_color=theme.CARD_HOVER,
                 command=lambda c=clave: self.al_navegar(c))
-            boton.pack(fill="x", pady=1)
+            boton.pack(side="left", fill="both", expand=True, padx=(7, 0))
+
             self.botones[clave] = boton
+            self.acentos[clave] = acento
 
     def _pie(self):
         """
@@ -146,3 +167,5 @@ class BarraLateral(ctk.CTkFrame):
                 fg_color=theme.CARD_HOVER if activa else "transparent",
                 text_color=theme.TEXTO if activa else theme.TEXTO_MUTED,
                 font=(theme.FUENTE, 12.5, "bold" if activa else "normal"))
+            self.acentos[clave].configure(
+                fg_color=theme.ACENTO_ROJO if activa else "transparent")
