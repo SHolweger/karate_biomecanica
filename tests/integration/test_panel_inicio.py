@@ -273,3 +273,73 @@ def test_las_tecnicas_practicadas_pueden_acotarse_a_la_ventana_reciente(db, id_e
 
     assert {t["nombre_tecnica"] for t in db.tecnicas_mas_practicadas()} == {"age_uke", "tsuki"}
     assert [t["nombre_tecnica"] for t in db.tecnicas_mas_practicadas(dias=7)] == ["tsuki"]
+
+
+# ---------------- señales de riesgo ----------------
+
+def test_el_desempeno_se_separa_por_lado_del_cuerpo(db, id_entrenador):
+    """
+    El analizador antepone «IZQ - » y «DER - » a cada diagnóstico de brazo. Ese
+    prefijo es lo que permite comparar lados sin agregar una columna: la
+    información ya estaba guardada, solo no se leía.
+    """
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, id_entrenador)
+
+    for i in range(10):
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "IZQ - TSUKI: EXCELENTE", i,
+                            correcto=i < 3)          # 30 % izquierdo
+    for i in range(10):
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "DER - TSUKI: EXCELENTE", i,
+                            correcto=True)           # 100 % derecho
+
+    por_lado = db.desempeno_por_lado(id_sesion)
+
+    assert por_lado["izquierdo"]["evaluaciones"] == 10
+    assert por_lado["izquierdo"]["precision"] == 30.0
+    assert por_lado["derecho"]["precision"] == 100.0
+
+
+def test_los_diagnosticos_sin_lado_no_se_atribuyen_a_ninguno(db, id_entrenador):
+    """
+    Las posturas se evalúan con las dos piernas a la vez y su diagnóstico no
+    lleva prefijo. Contarlas en un lado inventaría una asimetría inexistente.
+    """
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, id_entrenador)
+
+    for i in range(8):
+        db.guardar_medicion(id_sesion, "kokutsu_dachi", 160.0, "POSTURA: ESTABLE", i,
+                            correcto=True)
+
+    por_lado = db.desempeno_por_lado(id_sesion)
+
+    assert por_lado["izquierdo"]["evaluaciones"] == 0
+    assert por_lado["derecho"]["evaluaciones"] == 0
+    assert por_lado["izquierdo"]["precision"] is None
+
+
+def test_se_cuentan_los_diagnosticos_que_contienen_un_fragmento(db, id_entrenador):
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, id_entrenador)
+
+    for i in range(4):
+        db.guardar_medicion(id_sesion, "tsuki", 179.0,
+                            "DER - TSUKI: HIPEREXTENDIDO (Peligro)", i, correcto=False)
+    for i in range(16):
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "DER - TSUKI: EXCELENTE", i,
+                            correcto=True)
+    # Un estado transitorio no debe contar en el total: no es una ejecución.
+    db.guardar_medicion(id_sesion, "tsuki", None, "EN TRANSICION...", 99)
+
+    conteo = db.contar_diagnosticos(id_sesion, "HIPEREXTENDIDO")
+
+    assert conteo == {"veces": 4, "total": 20}
+
+
+def test_una_sesion_sin_mediciones_devuelve_ceros_y_no_none(db, id_entrenador):
+    """El análisis de riesgo espera números; un None ahí obligaría a comprobarlo en cada uso."""
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, id_entrenador)
+
+    assert db.contar_diagnosticos(id_sesion, "HIPEREXTENDIDO") == {"veces": 0, "total": 0}

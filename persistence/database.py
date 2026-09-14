@@ -576,6 +576,52 @@ class Database:
         """, parametros).fetchall()
         return [self._con_precision(dict(f)) for f in filas]
 
+    # ---------------- Señales de riesgo (prevención de lesiones) ----------------
+    #
+    # El analizador evalúa cada brazo por separado y antepone "IZQ - " o "DER - "
+    # al diagnóstico. Ese prefijo es lo que permite comparar lados sin agregar
+    # una columna nueva: la información ya estaba guardada, solo no se leía.
+
+    PREFIJOS_LADO = {"izquierdo": "IZQ - ", "derecho": "DER - "}
+
+    def desempeno_por_lado(self, id_sesion):
+        """
+        Aciertos y evaluaciones de cada lado del cuerpo en una sesión.
+
+        Una diferencia sostenida entre lados es un indicador de compensación:
+        el alumno está cargando un lado para suplir al otro, y eso precede a una
+        lesión por sobreuso. El promedio global la oculta por completo — un 50 %
+        parejo y un 80/20 dan el mismo número.
+        """
+        por_lado = {}
+        for lado, prefijo in self.PREFIJOS_LADO.items():
+            fila = self.conn.execute("""
+                SELECT COUNT(*)                                         AS evaluaciones,
+                       SUM(CASE WHEN correcto = 1 THEN 1 ELSE 0 END)    AS aciertos
+                FROM tecnica_evaluada
+                WHERE id_sesion = ? AND correcto IS NOT NULL AND diagnostico LIKE ?
+            """, (id_sesion, prefijo + "%")).fetchone()
+            por_lado[lado] = self._con_precision(dict(fila))
+        return por_lado
+
+    def contar_diagnosticos(self, id_sesion, fragmento):
+        """
+        Cuántas veces apareció un diagnóstico que contenga `fragmento` en la
+        sesión, y cuántas evaluaciones cerradas hubo en total.
+
+        Se usa para las señales de riesgo que dependen de un veredicto concreto
+        —la hiperextensión, por ejemplo—. Devuelve también el total porque una
+        cuenta suelta no dice nada: dos hiperextensiones en cuatro repeticiones
+        y dos en doscientas son situaciones opuestas.
+        """
+        fila = self.conn.execute("""
+            SELECT SUM(CASE WHEN diagnostico LIKE ? THEN 1 ELSE 0 END) AS veces,
+                   COUNT(*)                                            AS total
+            FROM tecnica_evaluada
+            WHERE id_sesion = ? AND correcto IS NOT NULL
+        """, (f"%{fragmento}%", id_sesion)).fetchone()
+        return {"veces": fila["veces"] or 0, "total": fila["total"] or 0}
+
     @staticmethod
     def _fecha_corte(dias):
         """Fecha ISO de hace `dias`, para comparar con `sesion.fecha`."""

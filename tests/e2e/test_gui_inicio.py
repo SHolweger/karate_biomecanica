@@ -242,3 +242,80 @@ def test_abrir_el_registro_dos_veces_no_duplica_la_ventana(app, entrenador_regis
 
     pantalla.cerrar_registro()
     assert pantalla.ventana_registro is None
+
+
+# ---------------- prevención de lesiones en el reporte ----------------
+
+def test_el_reporte_señala_la_asimetria_entre_lados(app, db, entrenador_registrado):
+    """
+    La sección de prevención se sostiene con visión: el analizador ya evalúa
+    cada brazo por separado, y una diferencia sostenida entre lados indica
+    compensación. El promedio global la oculta por completo.
+    """
+    from expert_system.riesgos import RIESGO
+
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, entrenador_registrado["id_entrenador"])
+    for i in range(12):
+        db.guardar_medicion(id_sesion, "tsuki", 140.0, "IZQ - TSUKI: FLEXIONADO", i,
+                            correcto=i < 3)
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "DER - TSUKI: EXCELENTE", i,
+                            correcto=True)
+    db.cerrar_sesion(id_sesion)
+
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(id_sesion)
+    pantalla = app.pantalla_actual
+
+    from expert_system import riesgos
+    hallazgos = riesgos.analizar(
+        db.contar_diagnosticos(id_sesion, riesgos.VEREDICTO_HIPEREXTENSION),
+        db.desempeno_por_lado(id_sesion))
+
+    assert type(pantalla).__name__ == "ReporteScreen"
+    assert any(h["nivel"] == RIESGO and "izquierdo" in h["titulo"] for h in hallazgos)
+
+
+def test_una_sesion_limpia_declara_que_no_hay_senales_de_riesgo(app, db, entrenador_registrado):
+    from expert_system import riesgos
+
+    id_atleta = db.crear_atleta("Ana Lucía Pérez")
+    id_sesion = db.iniciar_sesion(id_atleta, entrenador_registrado["id_entrenador"])
+    for i in range(10):
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "IZQ - TSUKI: EXCELENTE", i, correcto=True)
+        db.guardar_medicion(id_sesion, "tsuki", 170.0, "DER - TSUKI: EXCELENTE", i, correcto=True)
+    db.cerrar_sesion(id_sesion)
+
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(id_sesion)
+
+    hallazgos = riesgos.analizar(
+        db.contar_diagnosticos(id_sesion, riesgos.VEREDICTO_HIPEREXTENSION),
+        db.desempeno_por_lado(id_sesion))
+
+    assert len(hallazgos) == 1
+    assert hallazgos[0]["nivel"] == riesgos.PREVENCION
+
+
+def test_el_reporte_traduce_los_errores_a_instrucciones(app, db, entrenador_registrado):
+    """
+    Mismo criterio que el panel en vivo: el veredicto técnico queda como
+    registro y lo que se lee primero es qué hacer.
+    """
+    from gui.coaching import traducir
+
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, entrenador_registrado["id_entrenador"])
+    for i in range(5):
+        db.guardar_medicion(id_sesion, "tsuki", 179.0,
+                            "DER - TSUKI: HIPEREXTENDIDO (Peligro)", i, correcto=False)
+    db.cerrar_sesion(id_sesion)
+
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(id_sesion)
+
+    errores = db.errores_frecuentes(id_sesion)
+    instruccion, motivo = traducir(errores[0]["diagnostico"])
+
+    assert instruccion.startswith("No bloquees el codo")
+    assert motivo is not None
