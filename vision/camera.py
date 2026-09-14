@@ -12,6 +12,8 @@ La interpretación de una fuente (índice del sistema o dirección de cámara IP
 vive en `vision/fuentes.py`, que no importa OpenCV y por eso puede verificarse
 en el entorno de integración continua. Aquí queda solo lo que necesita hardware.
 """
+import contextlib
+
 import cv2
 
 from vision.fuentes import CamaraNoDisponible, describir, es_url, normalizar
@@ -24,6 +26,32 @@ __all__ = ["Camera", "CamaraNoDisponible", "describir", "es_url",
            "listar_camaras", "normalizar", "MAX_INDICES"]
 
 
+@contextlib.contextmanager
+def _sin_ruido_de_opencv():
+    """
+    Silencia lo que OpenCV escribe en la terminal mientras se sondean cámaras.
+
+    Preguntar por un índice que no existe hace que el backend imprima mensajes
+    como `OpenCV: out device of bound (0-1)` o avisos de AVFoundation en macOS.
+    No son errores del sistema —sondear índices inexistentes es precisamente
+    como se descubre cuáles hay— pero ensucian la salida y hacen creer al
+    usuario que algo se rompió.
+
+    Se restaura el nivel anterior al salir, para no ocultar errores reales
+    durante el análisis en vivo.
+    """
+    try:
+        nivel_previo = cv2.getLogLevel()
+        cv2.setLogLevel(0)          # 0 = SILENT
+    except AttributeError:
+        nivel_previo = None         # versiones de OpenCV sin control de bitácora
+    try:
+        yield
+    finally:
+        if nivel_previo is not None:
+            cv2.setLogLevel(nivel_previo)
+
+
 def listar_camaras(maximo=MAX_INDICES):
     """
     Sondea los índices del sistema y devuelve los que entregan imagen.
@@ -33,21 +61,38 @@ def listar_camaras(maximo=MAX_INDICES):
     aplicación lo tiene tomado, y una lista que ofrece cámaras muertas es peor
     que no ofrecer ninguna.
 
+    El sondeo se detiene tras dos índices consecutivos sin cámara. Abrir un
+    dispositivo tarda entre medio segundo y varios segundos según el sistema, y
+    recorrer siempre los seis índices dejaba la ventana congelada sin necesidad:
+    los dispositivos se numeran de forma correlativa, así que dos huecos
+    seguidos significan que ya no hay más.
+
     Devuelve una lista de dicts con 'indice', 'ancho' y 'alto'.
     """
     encontradas = []
-    for indice in range(maximo):
-        captura = cv2.VideoCapture(indice)
-        try:
-            if not captura.isOpened():
-                continue
-            leido, frame = captura.read()
-            if not leido or frame is None:
-                continue
-            alto, ancho = frame.shape[:2]
-            encontradas.append({"indice": indice, "ancho": ancho, "alto": alto})
-        finally:
-            captura.release()
+    fallos_seguidos = 0
+
+    with _sin_ruido_de_opencv():
+        for indice in range(maximo):
+            if fallos_seguidos >= 2:
+                break
+
+            captura = cv2.VideoCapture(indice)
+            try:
+                leido, frame = (False, None)
+                if captura.isOpened():
+                    leido, frame = captura.read()
+
+                if not leido or frame is None:
+                    fallos_seguidos += 1
+                    continue
+
+                alto, ancho = frame.shape[:2]
+                encontradas.append({"indice": indice, "ancho": ancho, "alto": alto})
+                fallos_seguidos = 0
+            finally:
+                captura.release()
+
     return encontradas
 
 

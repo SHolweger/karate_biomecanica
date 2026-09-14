@@ -40,6 +40,12 @@ class CamaraScreen(ctk.CTkFrame):
 
         self._construir_encabezado()
 
+        # La fuente guardada, tal como quedó en la base. Se conserva aparte de
+        # `self.seleccion` porque esa variable cambia mientras se arma la
+        # pantalla (el bloque de cámara IP la reemplaza por su valor interno) y
+        # comparar contra ella producía diagnósticos falsos.
+        self.fuente_guardada = self.seleccion.get()
+
         self.lista = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.lista.pack(expand=True, fill="both", padx=28, pady=(0, 6))
 
@@ -114,7 +120,20 @@ class CamaraScreen(ctk.CTkFrame):
 
         self.estado_var.set("")
         self.error_var.set("")
-        self.disponibles = listar_camaras()
+
+        # Abrir cada dispositivo toma su tiempo y bloquea el ciclo de eventos de
+        # Tkinter: sin este aviso la ventana parece congelada y el entrenador
+        # vuelve a pulsar el botón, encadenando búsquedas. `update_idletasks`
+        # fuerza a que el texto llegue a la pantalla ANTES de empezar a sondear.
+        buscando = ctk.CTkLabel(self.lista, text="Buscando cámaras conectadas…",
+                                font=(theme.FUENTE, 12.5), text_color=theme.TEXTO_MUTED)
+        buscando.pack(pady=16)
+        self.update_idletasks()
+
+        try:
+            self.disponibles = listar_camaras()
+        finally:
+            buscando.destroy()
 
         if self.disponibles:
             for cam in self.disponibles:
@@ -131,9 +150,13 @@ class CamaraScreen(ctk.CTkFrame):
 
         self._tarjeta_ip()
 
-        # Si lo guardado ya no existe (la cámara se desconectó), se avisa en vez
-        # de dejar seleccionada en silencio una fuente que va a fallar.
-        guardada = self.seleccion.get()
+        # Si el dispositivo guardado ya no existe (se desconectó la cámara USB),
+        # se avisa en vez de dejar seleccionada en silencio una fuente que va a
+        # fallar. Se compara contra `fuente_guardada` y no contra la selección
+        # actual: para entonces el bloque de cámara IP ya puede haber puesto su
+        # valor interno, y compararlo daba el aviso falso
+        # "La cámara configurada (índice __ip__) no está disponible".
+        guardada = self.fuente_guardada
         if guardada and not es_url(guardada):
             if guardada not in [str(c["indice"]) for c in self.disponibles]:
                 self.error_var.set(
@@ -161,9 +184,8 @@ class CamaraScreen(ctk.CTkFrame):
                      wraplength=620, justify="left").pack(anchor="w", padx=(44, 14), pady=(0, 8))
 
         # Si lo guardado era una URL, se precarga para poder corregirla.
-        guardada = self.seleccion.get()
-        if es_url(guardada):
-            self.url_var.set(guardada)
+        if es_url(self.fuente_guardada):
+            self.url_var.set(self.fuente_guardada)
             self.seleccion.set("__ip__")
 
         # CustomTkinter desactiva su placeholder_text cuando el campo tiene un

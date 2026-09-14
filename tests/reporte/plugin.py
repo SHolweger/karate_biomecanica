@@ -181,8 +181,24 @@ class ReporteFormal:
         self.casos: dict[str, CasoDocumentado] = {}
         self.modulos: dict[str, set[str]] = {}
         self.problemas_formato: list[str] = []
+        self.avisos_formato: list[str] = []
+        self.modulos_omitidos: list[str] = []
 
     # -- recolección --------------------------------------------------------
+    def pytest_collectreport(self, report):
+        """
+        Anota los módulos que ni siquiera llegaron a importarse.
+
+        Ocurre con las pruebas de interfaz en un entorno sin CustomTkinter ni
+        servidor de ventanas: `pytest.importorskip` las omite en bloque. Sus
+        fichas se declaran con un decorador que se ejecuta AL IMPORTAR, así que
+        un módulo omitido no registra ninguna, y la serie de identificadores
+        aparece incompleta aunque el repositorio esté correcto.
+        """
+        if report.outcome == "skipped":
+            nombre = getattr(report, "nodeid", "") or str(report)
+            if nombre:
+                self.modulos_omitidos.append(nombre)
     def pytest_collection_modifyitems(self, session, config, items):
         for item in items:
             modulo = item.location[0]
@@ -207,7 +223,7 @@ class ReporteFormal:
             caso.pruebas.append(resultado)
             self.modulos[modulo].add(ficha.id_caso)
 
-        self.problemas_formato = self._auditar_formato()
+        self.problemas_formato, self.avisos_formato = self._auditar_formato()
         if self.problemas_formato and config.getoption("--exigir-fichas"):
             detalle = "\n".join(f"  - {p}" for p in self.problemas_formato)
             raise pytest.UsageError(
@@ -216,15 +232,43 @@ class ReporteFormal:
                 "Documentá los casos faltantes con @ficha(...) o quitá --exigir-fichas."
             )
 
-    def _auditar_formato(self) -> list[str]:
-        problemas = verificar_correlativos(c.ficha for c in self.casos.values())
+    def _auditar_formato(self) -> tuple[list[str], list[str]]:
+        """
+        Separa los incumplimientos reales de los avisos que dependen del entorno.
+
+        La distinción no es cosmética: `--exigir-fichas` hace fallar la corrida
+        ante un problema, y la integración continua usa esa bandera. Tratar como
+        defecto algo que solo refleja una limitación del entorno vuelve la señal
+        inservible — una suite en rojo de forma permanente deja de avisar cuando
+        algo se rompe de verdad.
+
+        Un hueco en la serie de identificadores solo es evidencia de un caso
+        borrado cuando la corrida fue COMPLETA. Si hubo módulos omitidos —el
+        entorno de integración continua no tiene interfaz gráfica y omite las
+        pruebas E2E en bloque— sus fichas nunca se registran y el hueco es
+        esperado, no un error. Se informa igual, como aviso.
+
+        Devuelve (problemas, avisos).
+        """
+        huecos = verificar_correlativos(c.ficha for c in self.casos.values())
+        problemas, avisos = [], []
+
+        if self.modulos_omitidos and huecos:
+            avisos.extend(huecos)
+            avisos.append(
+                f"los huecos anteriores se explican por {len(self.modulos_omitidos)} "
+                f"módulo(s) omitido(s) en este entorno; no se cuentan como incumplimiento"
+            )
+        else:
+            problemas.extend(huecos)
+
         for modulo, ids in sorted(self.modulos.items()):
             if not ids:
                 problemas.append(
                     f"{modulo}: ningún caso documentado con la plantilla "
                     "(se espera al menos uno por módulo de pruebas)"
                 )
-        return problemas
+        return problemas, avisos
 
     # -- ejecución ----------------------------------------------------------
     def pytest_runtest_logreport(self, report):
@@ -248,10 +292,12 @@ class ReporteFormal:
     def pytest_terminal_summary(self, terminalreporter, exitstatus, config):
         # trylast: pytest-cov calcula el porcentaje total en su propio
         # pytest_terminal_summary, así que hay que correr después de él.
-        if self.problemas_formato:
+        if self.problemas_formato or self.avisos_formato:
             terminalreporter.write_sep("-", "formato documental", yellow=True)
             for problema in self.problemas_formato:
-                terminalreporter.write_line(f"  aviso: {problema}")
+                terminalreporter.write_line(f"  incumplimiento: {problema}")
+            for aviso in self.avisos_formato:
+                terminalreporter.write_line(f"  aviso: {aviso}")
 
         if not config.getoption("--reporte-formal"):
             return
@@ -372,9 +418,10 @@ class ReporteFormal:
                 )
             lineas.append("")
 
-        if self.problemas_formato:
+        if self.problemas_formato or self.avisos_formato:
             lineas += ["## 6. Observaciones sobre el formato documental", ""]
-            lineas += [f"- {p}" for p in self.problemas_formato]
+            lineas += [f"- **Incumplimiento:** {p}" for p in self.problemas_formato]
+            lineas += [f"- Aviso: {a}" for a in self.avisos_formato]
             lineas.append("")
 
         return "\n".join(lineas).rstrip() + "\n"

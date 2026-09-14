@@ -289,3 +289,72 @@ def test_el_decorador_cuelga_la_ficha_sin_envolver_la_funcion():
     assert prueba_falsa.ficha_caso.id_caso == "TC-AUTO-902"
     assert prueba_falsa.__name__ == "prueba_falsa"
     assert prueba_falsa.__code__.co_varnames[:2] == ("reglas", "tmp_path")
+
+
+# --------------------------------------------------------------------------
+# Auditoría del formato: qué es incumplimiento y qué es limitación del entorno
+# --------------------------------------------------------------------------
+
+class _ConfigFalsa:
+    """Config mínima: el auditor no la consulta, pero el constructor la exige."""
+
+    def getoption(self, _nombre):
+        return False
+
+
+def _auditor(ids, modulos_omitidos=()):
+    """Auditor cargado con las fichas indicadas y, opcionalmente, módulos omitidos."""
+    from reporte.plugin import CasoDocumentado, ReporteFormal
+
+    auditor = ReporteFormal(_ConfigFalsa())
+    for numero in ids:
+        ficha_caso = ficha_con(id_caso=f"TC-AUTO-{numero:03d}")
+        auditor.casos[ficha_caso.id_caso] = CasoDocumentado(
+            ficha=ficha_caso, nodeid=f"tests/unit/test_x.py::test_{numero}")
+    auditor.modulos = {"tests/unit/test_x.py": {f"TC-AUTO-{n:03d}" for n in ids}}
+    auditor.modulos_omitidos = list(modulos_omitidos)
+    return auditor
+
+
+@pytest.mark.unitaria
+def test_un_hueco_real_es_incumplimiento_en_una_corrida_completa():
+    """
+    Sin módulos omitidos, un hueco significa que un caso documentado se borró
+    del código: eso sí debe romper la corrida con --exigir-fichas.
+    """
+    problemas, avisos = _auditor([1, 2, 4])._auditar_formato()
+
+    assert any("huecos" in p for p in problemas)
+    assert avisos == []
+
+
+@pytest.mark.unitaria
+def test_un_hueco_por_modulos_omitidos_es_solo_un_aviso():
+    """
+    Regresión de una falla real de integración continua. El entorno de CI no
+    tiene interfaz gráfica, así que omite las pruebas E2E en bloque; sus fichas
+    se declaran al importar el módulo, de modo que nunca se registran y la serie
+    aparece incompleta. Tratarlo como incumplimiento dejaba la suite en rojo de
+    forma permanente, y una señal siempre roja deja de avisar cuando algo se
+    rompe de verdad.
+    """
+    problemas, avisos = _auditor(
+        [1, 2, 4], modulos_omitidos=["tests/e2e/test_gui_flow.py"])._auditar_formato()
+
+    assert problemas == [], "un hueco explicado por el entorno no es un incumplimiento"
+    assert any("huecos" in a for a in avisos), "pero debe informarse igual"
+    assert any("omitido" in a for a in avisos), "y explicarse por qué"
+
+
+@pytest.mark.unitaria
+def test_un_modulo_sin_ficha_sigue_siendo_incumplimiento_aunque_haya_omitidos():
+    """
+    La tolerancia alcanza solo a los huecos de numeración. Un módulo de pruebas
+    sin ningún caso documentado es un incumplimiento real en cualquier entorno.
+    """
+    auditor = _auditor([1, 2], modulos_omitidos=["tests/e2e/test_gui_flow.py"])
+    auditor.modulos["tests/unit/test_sin_ficha.py"] = set()
+
+    problemas, _ = auditor._auditar_formato()
+
+    assert any("ningún caso documentado" in p for p in problemas)

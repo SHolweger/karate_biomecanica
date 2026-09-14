@@ -174,3 +174,30 @@ def test_volver_regresa_a_la_seleccion_de_perfiles(app, pantalla_camara):
     pantalla_camara._volver()
 
     assert isinstance(app.pantalla_actual, PerfilScreen)
+
+
+# --------------------------------------------------------------------------
+# Regresiones de la pantalla de cámara
+# --------------------------------------------------------------------------
+
+def test_abrir_la_pantalla_con_una_camara_ip_ya_configurada_no_inventa_un_error(
+        app, db, entrenador_registrado, camaras_simuladas):
+    """
+    Regresión: con una cámara IP guardada, la pantalla mostraba
+    "La cámara configurada (índice __ip__) no está disponible ahora."
+
+    `__ip__` es el valor interno del selector, no un índice de dispositivo. La
+    comprobación de "la cámara configurada ya no existe" lo leía después de que
+    el bloque de cámara IP hubiera reemplazado la selección, y concluía que un
+    dispositivo inexistente se había desconectado.
+    """
+    db.guardar_config(CLAVE_FUENTE, "http://192.168.1.50:8080/video")
+    app.on_login_exitoso(entrenador_registrado)
+    app.pantalla_actual._abrir_camara()
+    pantalla = app.pantalla_actual
+
+    assert pantalla.error_var.get() == "", \
+        f"se mostró un error inventado: {pantalla.error_var.get()}"
+    assert pantalla.url_var.get() == "http://192.168.1.50:8080/video", \
+        "la dirección guardada debe precargarse para poder corregirla"
+    assert pantalla.fuente_elegida() == "http://192.168.1.50:8080/video"
