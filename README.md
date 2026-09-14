@@ -34,16 +34,35 @@ pip install -r requirements.txt
 El modelo de estimación de pose (`pose_landmarker_full.task`) ya viene incluido
 en el repositorio.
 
+> **Nombre del intérprete.** En macOS y en la mayoría de distribuciones de Linux
+> el comando es `python3`; `python` a secas puede no existir o apuntar a Python 2.
+> En Windows suele ser `python` o `py`. Los ejemplos de este documento usan
+> `python3`: sustitúyelo por el que corresponda a tu sistema.
+
 ## Ejecución del sistema
 
 ```bash
-python main.py              # interfaz gráfica — la forma normal de usarlo
-python main.py --consola    # versión de terminal con ventana de OpenCV
+python3 main.py              # interfaz gráfica — la forma normal de usarlo
+python3 main.py --consola    # versión de terminal con ventana de OpenCV
 ```
 
 Ambas vías usan el mismo motor de análisis. Si la cámara no abre, ajusta el
-índice en `vision/camera.py` (`Camera(source=...)`); `python test_camaras.py`
+índice en `vision/camera.py` (`Camera(source=...)`); `python3 test_camaras.py`
 lista los índices disponibles en el equipo.
+
+## Pantallas del sistema
+
+| Pantalla | Para qué sirve |
+|---|---|
+| Acceso | Autenticación del entrenador (RF-08) |
+| Perfiles | Selección del alumno que entrena hoy |
+| Análisis en vivo | Video, esqueleto y diagnóstico técnico en tiempo real |
+| Cámara | Elección de la fuente de video: dispositivo del sistema o cámara IP |
+| Calibrar umbrales | Edición de los criterios biomecánicos, con historial de versiones |
+| Biblioteca de técnicas | Qué evalúa el sistema y con qué criterio |
+| Alumnos y progreso | Estado de cada atleta: sesiones, última fecha y precisión |
+| Perfil del alumno | Dominio por técnica, sesiones y generación del reporte de progreso |
+| Reporte de sesión | Precisión, puntos de control y los errores más repetidos |
 
 ## Calibración de umbrales (RF-08)
 
@@ -69,7 +88,7 @@ medición.
 La suite cubre la lógica biomecánica, las reglas del sistema experto, la máquina
 de estados de las patadas, la persistencia y el flujo completo de la interfaz.
 
-**276 casos · 21 documentados con ficha formal · 94 % de cobertura · ~4 segundos de ejecución**
+**352 casos · 28 documentados con ficha formal · 92 % de cobertura · ~6 segundos de ejecución**
 
 ## Instalación de las dependencias de prueba
 
@@ -133,9 +152,9 @@ de pruebas sin ningún caso documentado, IDs repetidos y huecos en la serie
 
 | Carpeta | Contenido | Casos |
 |---|---|:--:|
-| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, validación de la calibración, plantilla de reportes | 160 |
-| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales | 99 |
-| `tests/e2e/` | Flujo completo de la GUI: login → perfil → análisis → cierre, y calibración de umbrales | 17 |
+| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, fuentes de video, validación de la calibración, punto de entrada, plantilla de reportes | 190 |
+| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales, configuración y consultas de progreso | 125 |
+| `tests/e2e/` | Flujo completo de la GUI: acceso, perfiles, análisis, calibración de umbrales, cámara, historial, reportes y biblioteca de técnicas | 37 |
 | `tests/helpers/` | Dobles de prueba: cámara y poses sintéticas | — |
 | `tests/reporte/` | Plantilla formal de los casos y complemento de pytest que emite los reportes | — |
 | `tests/conftest.py` | Fixtures compartidas (base de datos temporal, cámara sintética) | — |
