@@ -26,6 +26,7 @@ pytest.importorskip("PIL", reason="Pillow no está instalado")
 from gui.app import App
 from gui.live_screen import LiveScreen
 from gui.login_screen import LoginScreen
+from gui.inicio_screen import InicioScreen
 from gui.perfil_screen import PerfilScreen
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
@@ -44,7 +45,7 @@ def test_el_primer_arranque_pide_crear_la_cuenta_inicial(app):
     assert app.entrenador is None
 
 
-def test_crear_la_primera_cuenta_lleva_a_la_seleccion_de_perfiles(app):
+def test_crear_la_primera_cuenta_lleva_al_panel_de_inicio(app):
     """Flujo de alta inicial completo, disparando el mismo manejador que el botón."""
     login = app.pantalla_actual
     login.nombre_var.set("Sebastian Holweger")
@@ -55,7 +56,7 @@ def test_crear_la_primera_cuenta_lleva_a_la_seleccion_de_perfiles(app):
     login._crear_cuenta(rol="principal")
 
     assert app.entrenador["nombre"] == "Sebastian Holweger"
-    assert isinstance(app.pantalla_actual, PerfilScreen)
+    assert isinstance(app.pantalla_actual, InicioScreen)
 
 
 def test_no_permite_crear_una_cuenta_incompleta(app):
@@ -82,7 +83,7 @@ def test_login_con_credenciales_correctas(db, entrenador_registrado):
 
         login._intentar_login()
 
-        assert isinstance(app.pantalla_actual, PerfilScreen)
+        assert isinstance(app.pantalla_actual, InicioScreen)
         assert app.entrenador["usuario"] == "sensei"
     finally:
         app.destroy()
@@ -108,12 +109,12 @@ def test_login_con_credenciales_incorrectas_muestra_error(db, entrenador_registr
 
 @ficha(
     id_caso="TC-AUTO-013",
-    nombre="Al elegir un perfil de atleta se abre la pantalla de análisis en vivo y queda "
-           "registrada una sesión abierta",
+    nombre="Al abrir el análisis en vivo con un alumno elegido queda registrada una sesión "
+           "abierta a su nombre",
     tipo=TipoPrueba.E2E,
     prioridad=Prioridad.ALTA,
     justificacion_riesgo="es el flujo principal de uso del sistema",
-    componente="gui/ (App, LoginScreen, PerfilScreen, LiveScreen)",
+    componente="gui/ (App, LoginScreen, InicioScreen, LiveScreen)",
     requisitos=["RF-06", "RNF-04"],
     precondiciones="CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico "
                    "disponible; archivo `pose_landmarker_full.task` presente; entrenador "
@@ -125,7 +126,7 @@ def test_login_con_credenciales_incorrectas_muestra_error(db, entrenador_registr
         Paso("Crear la aplicación `App(db)` con la ventana oculta (`withdraw()`)",
              "La pantalla inicial es `LoginScreen`"),
         Paso("Disparar `app.on_login_exitoso(entrenador)`",
-             "assert isinstance(app.pantalla_actual, PerfilScreen)"),
+             "assert isinstance(app.pantalla_actual, InicioScreen)"),
         Paso("Navegar a `LiveScreen` inyectando la cámara sintética",
              "assert isinstance(app.pantalla_actual, LiveScreen)"),
         Paso("Consultar la sesión creada en la base de datos",
@@ -146,7 +147,7 @@ def test_elegir_un_perfil_abre_la_sesion_de_analisis(app, db, entrenador_registr
     atleta = {"id_atleta": db.crear_atleta("Diego Morales", grado_cinturon="5o kyu"),
               "nombre": "Diego Morales"}
     app.on_login_exitoso(entrenador_registrado)
-    assert isinstance(app.pantalla_actual, PerfilScreen)
+    assert isinstance(app.pantalla_actual, InicioScreen)
 
     app.atleta = atleta
     app._mostrar(LiveScreen(app, db, entrenador_registrado, atleta, cam=camara_sintetica))
@@ -196,7 +197,7 @@ def test_el_video_se_embebe_en_la_ventana(app, db, entrenador_registrado, camara
              "assert fila[\"hora_fin\"] is not None"),
         Paso("Verificar la liberación del hardware y la navegación",
              "assert camara.liberada is True y assert isinstance(app.pantalla_actual, "
-             "PerfilScreen)"),
+             "InicioScreen)"),
     ],
     resultado_esperado="PASSED. En CI headless se marca SKIPPED de forma controlada",
     evidencia="Reporte de consola de pytest y captura de pantalla manual de la ejecución "
@@ -228,7 +229,7 @@ def test_terminar_la_sesion_cierra_el_registro_y_libera_la_camara(app, db, entre
     fila = db.conn.execute("SELECT hora_fin FROM sesion WHERE id_sesion = ?", (id_sesion,)).fetchone()
     assert fila["hora_fin"] is not None, "no se registró la hora de fin"
     assert camara_sintetica.liberada is True, "la cámara quedó ocupada"
-    assert isinstance(app.pantalla_actual, PerfilScreen), "debe volver a la selección de perfiles"
+    assert isinstance(app.pantalla_actual, InicioScreen), "debe volver al panel de inicio"
 
 
 # --------------------------------------------------------------------------
@@ -240,20 +241,21 @@ def test_el_acceso_no_muestra_barra_lateral(app):
     assert app.barra is None
 
 
-def test_tras_autenticarse_aparece_la_barra_con_la_seccion_de_entrenar_activa(
+def test_tras_autenticarse_aparece_la_barra_con_la_seccion_de_inicio_activa(
         app, entrenador_registrado):
     app.on_login_exitoso(entrenador_registrado)
 
     assert app.barra is not None
-    assert app.barra.seccion_activa == "perfiles"
+    assert app.barra.seccion_activa == "inicio"
 
 
 @pytest.mark.parametrize("seccion, nombre_pantalla", [
+    ("inicio", "InicioScreen"),
+    ("vivo", "LiveScreen"),
     ("historial", "HistorialScreen"),
     ("tecnicas", "TecnicasScreen"),
     ("umbrales", "UmbralesScreen"),
     ("camara", "CamaraScreen"),
-    ("perfiles", "PerfilScreen"),
 ])
 def test_cada_seccion_de_la_barra_abre_su_pantalla(app, entrenador_registrado,
                                                    seccion, nombre_pantalla):

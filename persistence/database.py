@@ -154,6 +154,20 @@ class Database:
         self.conn.commit()
         return cursor.lastrowid
 
+    def listar_entrenadores(self):
+        """
+        Senseis registrados, para el selector de perfil.
+
+        Nunca devuelve `password_hash`: la pantalla que muestra esta lista no
+        necesita el hash para nada, y no sacarlo de la capa de datos evita que
+        termine, por descuido, en un widget o en un registro de depuracion.
+        """
+        filas = self.conn.execute(
+            "SELECT id_entrenador, nombre, usuario, correo, rol, fecha_registro "
+            "FROM entrenador ORDER BY nombre"
+        ).fetchall()
+        return [dict(f) for f in filas]
+
     def autenticar_entrenador(self, usuario, password):
         """Devuelve el entrenador (dict) si usuario/password son correctos, o None."""
         fila = self.conn.execute(

@@ -16,6 +16,7 @@ from gui import theme
 from gui.barra_lateral import BarraLateral
 from gui.login_screen import LoginScreen
 from gui.perfil_screen import PerfilScreen
+from gui.inicio_screen import InicioScreen
 from gui.live_screen import LiveScreen
 from gui.umbrales_screen import UmbralesScreen
 from gui.camara_screen import CamaraScreen
@@ -112,7 +113,17 @@ class App(ctk.CTk):
         self.pantalla_actual.pack(expand=True, fill="both")
 
     def _limpiar_pantalla(self):
+        """
+        Retira la pantalla vigente.
+
+        Si es el análisis en vivo hay que cerrarla antes de destruirla: destruir
+        el widget no libera la cámara ni sella la hora de fin de la sesión, y esa
+        sesión quedaría abierta para siempre en la base — contaminando los
+        promedios de todo lo que venga después.
+        """
         if self.pantalla_actual is not None:
+            if isinstance(self.pantalla_actual, LiveScreen):
+                self.pantalla_actual.cerrar()
             self.pantalla_actual.pack_forget()
             self.pantalla_actual.destroy()
             self.pantalla_actual = None
@@ -120,7 +131,9 @@ class App(ctk.CTk):
     def _navegar(self, seccion):
         """Traduce la sección elegida en la barra a la pantalla que corresponde."""
         destinos = {
-            "perfiles": self.on_volver_a_perfiles,
+            "inicio": self.on_abrir_inicio,
+            "vivo": self.on_abrir_vivo,
+            "perfiles": self.on_cambiar_perfil,
             "historial": self.on_abrir_historial,
             "tecnicas": self.on_abrir_tecnicas,
             "umbrales": self.on_abrir_umbrales,
@@ -132,8 +145,23 @@ class App(ctk.CTk):
     # ---------------- navegación ----------------
 
     def on_login_exitoso(self, entrenador):
+        """
+        Entra al sistema. El destino es el panel de inicio y no una selección de
+        alumno: quién entrena se decide dentro del análisis en vivo, cuando ya se
+        va a medir.
+        """
         self.entrenador = entrenador
-        self.on_volver_a_perfiles()
+        self.on_abrir_inicio()
+
+    def on_cambiar_perfil(self):
+        """
+        Selección del sensei que opera el sistema.
+
+        Va a ventana completa y sin barra lateral porque durante ese momento no
+        hay una identidad activa que respalde las secciones: la barra mostraría
+        opciones firmadas por un sensei que se está a punto de dejar de ser.
+        """
+        self._mostrar(PerfilScreen(self, self.db, self.entrenador, app=self))
 
     def on_cerrar_sesion_entrenador(self):
         """Vuelve al acceso. La barra desaparece: sin entrenador no hay qué navegar."""
@@ -141,14 +169,33 @@ class App(ctk.CTk):
         self.atleta = None
         self._mostrar(LoginScreen(self, self.db))
 
+    def on_abrir_inicio(self):
+        self._mostrar_en_marco(
+            lambda padre: InicioScreen(padre, self.db, self.entrenador, app=self), "inicio")
+
+    def on_abrir_vivo(self, atleta=None):
+        """
+        Análisis en vivo (RF-01, RF-03, RF-05, RF-06).
+
+        Conserva la barra lateral: durante una clase el instructor necesita poder
+        consultar un umbral o el historial sin perder de vista dónde está. Que
+        salir de aquí cierre la sesión correctamente lo garantiza
+        `_limpiar_pantalla`, no la ausencia de navegación.
+        """
+        self.atleta = atleta if atleta is not None else self.atleta
+        self._mostrar_en_marco(
+            lambda padre: LiveScreen(padre, self.db, self.entrenador, self.atleta, app=self),
+            "vivo")
+
+    # Nombre anterior de `on_abrir_vivo`. La selección de perfiles ya no elige
+    # alumno, pero la pantalla de alumnos sigue necesitando "medir a este".
     def on_perfil_elegido(self, atleta):
-        self.atleta = atleta
-        self._mostrar(LiveScreen(self, self.db, self.entrenador, atleta))
+        self.on_abrir_vivo(atleta)
 
     def on_terminar_sesion(self):
         if isinstance(self.pantalla_actual, LiveScreen):
             self.pantalla_actual.cerrar()
-        self.on_volver_a_perfiles()
+        self.on_abrir_inicio()
 
     def on_abrir_umbrales(self):
         """
@@ -194,9 +241,8 @@ class App(ctk.CTk):
             "tecnicas")
 
     def on_volver_a_perfiles(self):
-        self._mostrar_en_marco(
-            lambda padre: PerfilScreen(padre, self.db, self.entrenador, app=self),
-            "perfiles")
+        """Nombre histórico del regreso tras una medición; hoy lleva al inicio."""
+        self.on_abrir_inicio()
 
     def _al_cerrar(self):
         """

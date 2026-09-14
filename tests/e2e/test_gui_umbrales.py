@@ -19,7 +19,7 @@ pytest.importorskip("mediapipe", reason="MediaPipe no está instalado")
 pytest.importorskip("PIL", reason="Pillow no está instalado")
 
 from expert_system.knowledge_base import KarateRules, UMBRALES_LITERATURA
-from gui.perfil_screen import PerfilScreen
+from gui.inicio_screen import InicioScreen
 from gui.umbrales_screen import UmbralesScreen
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
@@ -207,7 +207,7 @@ def test_una_base_sin_umbrales_lo_informa_en_vez_de_mostrar_una_tabla_vacia(pant
     assert pantalla_umbrales._guardar_cambios() == 0
 
 
-def test_volver_regresa_a_la_seleccion_de_perfiles(app, pantalla_umbrales):
+def test_volver_regresa_al_panel_de_inicio(app, pantalla_umbrales):
     pantalla_umbrales._volver()
 
-    assert isinstance(app.pantalla_actual, PerfilScreen)
+    assert isinstance(app.pantalla_actual, InicioScreen)

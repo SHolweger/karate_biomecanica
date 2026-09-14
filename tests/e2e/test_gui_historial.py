@@ -20,7 +20,7 @@ pytest.importorskip("matplotlib", reason="Matplotlib no está instalado")
 
 from gui.alumno_screen import AlumnoScreen
 from gui.historial_screen import HistorialScreen
-from gui.perfil_screen import PerfilScreen
+from gui.inicio_screen import InicioScreen
 from gui.reporte_screen import ReporteScreen
 from gui.tecnicas_screen import TecnicasScreen
 from gui.umbrales_screen import UmbralesScreen
@@ -72,7 +72,7 @@ def test_el_alumno_sin_entrenar_aparece_sin_precision(historial):
 
 def test_volver_desde_el_historial_regresa_a_perfiles(app, historial):
     historial._volver()
-    assert isinstance(app.pantalla_actual, PerfilScreen)
+    assert isinstance(app.pantalla_actual, InicioScreen)
 
 
 # --------------------------------------------------------------------------

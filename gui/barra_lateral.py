@@ -3,10 +3,15 @@ import customtkinter as ctk
 from gui import theme
 
 # Secciones de la barra, en el orden en que se usan durante una clase: primero
-# a quién se evalúa, luego con qué criterio, después qué resultó, y al final la
-# configuración del equipo — que se toca una vez y casi nunca más.
+# el estado del dojo, luego la medición, después el criterio y el seguimiento, y
+# al final la configuración del equipo — que se toca una vez y casi nunca más.
+#
+# "perfiles" ya no está aquí. Elegir sensei no es una sección del sistema sino
+# un cambio de quién lo opera, y vive en el pie de la barra junto a la identidad
+# activa, que es donde el usuario espera encontrarlo.
 SECCIONES = [
-    ("perfiles",  "Entrenar"),
+    ("inicio",    "Inicio"),
+    ("vivo",      "Análisis en vivo"),
     ("historial", "Alumnos y progreso"),
     ("tecnicas",  "Técnicas"),
     ("umbrales",  "Calibración"),
@@ -33,12 +38,16 @@ class BarraLateral(ctk.CTkFrame):
 
     ANCHO = 236
 
-    def __init__(self, master, al_navegar, entrenador=None, seccion_activa="perfiles"):
+    def __init__(self, master, al_navegar, entrenador=None, seccion_activa="inicio"):
         super().__init__(master, fg_color=theme.CARD, width=self.ANCHO, corner_radius=0)
         self.al_navegar = al_navegar
         self.entrenador = entrenador
         self.seccion_activa = seccion_activa
         self.botones = {}
+        self.boton_cambiar = None
+        # Estado del hardware inercial (RF-02, RF-04). Mientras no haya sensores
+        # armados el sistema lo dice con todas sus letras en vez de callarlo.
+        self.texto_sensores = "Sin sensores IMU · solo visión"
 
         self.pack_propagate(False)
         self._marca()
@@ -79,29 +88,54 @@ class BarraLateral(ctk.CTkFrame):
             self.botones[clave] = boton
 
     def _pie(self):
+        """
+        Identidad activa y estado del equipo.
+
+        El pie responde dos preguntas que el instructor se hace a mitad de una
+        clase: quién está operando el sistema y si el hardware está listo. El
+        estado de los sensores se declara aunque no haya ninguno — decir "sin
+        sensores IMU" es información; omitir la línea dejaría creer que el
+        sistema los está usando.
+        """
         ctk.CTkFrame(self, fg_color=theme.BORDE, height=1).pack(fill="x")
         caja = ctk.CTkFrame(self, fg_color="transparent")
         caja.pack(fill="x", padx=20, pady=16)
 
-        if self.entrenador:
-            iniciales = "".join(p[0] for p in self.entrenador["nombre"].split()[:2]).upper()
-            fila = ctk.CTkFrame(caja, fg_color="transparent")
-            fila.pack(fill="x", anchor="w")
-            ctk.CTkLabel(fila, text=iniciales, width=26, height=26, corner_radius=13,
-                         fg_color=theme.ACENTO_ROJO, text_color="white",
-                         font=(theme.FUENTE, 10.5, "bold")).pack(side="left", padx=(0, 8))
-            textos = ctk.CTkFrame(fila, fg_color="transparent")
-            textos.pack(side="left", anchor="w")
-            ctk.CTkLabel(textos, text=self.entrenador["nombre"], font=(theme.FUENTE, 11.5),
-                         text_color=theme.TEXTO).pack(anchor="w")
-            ctk.CTkLabel(textos, text=self.entrenador.get("rol", "sensei").title(),
-                         font=(theme.FUENTE, 10),
-                         text_color=theme.TEXTO_TENUE).pack(anchor="w")
+        estado = ctk.CTkFrame(caja, fg_color="transparent")
+        estado.pack(fill="x", anchor="w", pady=(0, 12))
+        ctk.CTkLabel(estado, text="●", font=(theme.FUENTE, 11),
+                     text_color=theme.TEXTO_TENUE).pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(estado, text=self.texto_sensores, font=(theme.FUENTE, 10.5),
+                     text_color=theme.TEXTO_TENUE).pack(side="left")
 
-            ctk.CTkButton(caja, text="Cerrar sesión", height=28, fg_color="transparent",
-                          text_color=theme.TEXTO_TENUE, hover_color=theme.CARD_HOVER,
-                          font=(theme.FUENTE, 11),
-                          command=lambda: self.al_navegar("salir")).pack(fill="x", pady=(10, 0))
+        if not self.entrenador:
+            return
+
+        iniciales = "".join(p[0] for p in self.entrenador["nombre"].split()[:2]).upper()
+        fila = ctk.CTkFrame(caja, fg_color="transparent")
+        fila.pack(fill="x", anchor="w")
+        ctk.CTkLabel(fila, text=iniciales, width=26, height=26, corner_radius=13,
+                     fg_color=theme.ACENTO_ROJO, text_color="white",
+                     font=(theme.FUENTE, 10.5, "bold")).pack(side="left", padx=(0, 8))
+        textos = ctk.CTkFrame(fila, fg_color="transparent")
+        textos.pack(side="left", anchor="w")
+        ctk.CTkLabel(textos, text=self.entrenador["nombre"], font=(theme.FUENTE, 11.5),
+                     text_color=theme.TEXTO).pack(anchor="w")
+
+        # "Cambiar perfil" cuelga de la identidad activa y no de la lista de
+        # secciones: no es un lugar del sistema al que se va, es cambiar quién
+        # lo está usando.
+        self.boton_cambiar = ctk.CTkButton(
+            textos, text=f"{(self.entrenador.get('rol') or 'sensei').title()} · cambiar perfil",
+            height=16, fg_color="transparent", hover_color=theme.CARD_HOVER,
+            text_color=theme.TEXTO_TENUE, font=(theme.FUENTE, 10), anchor="w",
+            command=lambda: self.al_navegar("perfiles"))
+        self.boton_cambiar.pack(anchor="w")
+
+        ctk.CTkButton(caja, text="Cerrar sesión", height=28, fg_color="transparent",
+                      text_color=theme.TEXTO_TENUE, hover_color=theme.CARD_HOVER,
+                      font=(theme.FUENTE, 11),
+                      command=lambda: self.al_navegar("salir")).pack(fill="x", pady=(10, 0))
 
     def marcar(self, seccion):
         """Resalta la sección activa sin reconstruir la barra."""

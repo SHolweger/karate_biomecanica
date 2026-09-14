@@ -1,8 +1,8 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Generado:** 2026-09-07 04:23:56
-**Casos documentados:** 21 de 276 pruebas recolectadas
+**Generado:** 2026-09-14 17:35:22
+**Casos documentados:** 25 de 384 pruebas recolectadas
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -12,9 +12,8 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 8 | 28 |
-| API/Integración | 10 | 16 |
-| Interfaz (UI/E2E) | 3 | 3 |
+| Unitaria | 12 | 36 |
+| API/Integración | 13 | 23 |
 
 ---
 
@@ -179,7 +178,7 @@
 | **Componente bajo prueba** | `expert_system/analyzer.py (TechniqueAnalyzer)` |
 | **Requisito asociado** | RF-01, RF-05 |
 | **Precondiciones** | Instancia de `TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=1)`; pose sintética de 33 landmarks con visibilidad 1.0 |
-| **Datos de Entrada (Test Data)** | (izq=175, der=175) → Postura natural; (140, 140) → Kiba Dachi; (100, 170) → Zenkutsu; (110, 100) → Kokutsu. Profundidad z_tobillo_izq=−0.2, z_tobillo_der=0.2 |
+| **Datos de Entrada (Test Data)** | (izq=175, der=175) → Postura natural; (140, 140) → Kiba Dachi; (100, 170) → Zenkutsu (peso adelante); (165, 105) → Kokutsu (peso atrás). Profundidad z_tobillo_izq=−0.2, z_tobillo_der=0.2 |
 | **Archivo / Clase del Script** | `tests/integration/test_analyzer.py::test_identifica_la_postura_antes_de_evaluarla` |
 
 **Pasos de Ejecución Automatizada y Aserciones**
@@ -378,66 +377,6 @@
 
 ---
 
-## TC-AUTO-013 — Al elegir un perfil de atleta se abre la pantalla de análisis en vivo y queda registrada una sesión abierta
-
-| Campo | Descripción / Detalle |
-|---|---|
-| **ID del Caso de Prueba** | TC-AUTO-013 |
-| **Nombre de la Prueba** | Al elegir un perfil de atleta se abre la pantalla de análisis en vivo y queda registrada una sesión abierta |
-| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
-| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es el flujo principal de uso del sistema |
-| **Componente bajo prueba** | `gui/ (App, LoginScreen, PerfilScreen, LiveScreen)` |
-| **Requisito asociado** | RF-06, RNF-04 |
-| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; archivo `pose_landmarker_full.task` presente; entrenador registrado en la base temporal |
-| **Datos de Entrada (Test Data)** | Entrenador usuario="sensei", password="clave123"; atleta "Diego Morales", grado "5o kyu"; cámara sustituida por `CamaraSintetica` (frames 640×480 generados en memoria) |
-| **Archivo / Clase del Script** | `tests/e2e/test_gui_flow.py::test_elegir_un_perfil_abre_la_sesion_de_analisis` |
-
-**Pasos de Ejecución Automatizada y Aserciones**
-
-| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
-|---|---|---|
-| 1 | Crear la aplicación `App(db)` con la ventana oculta (`withdraw()`) | La pantalla inicial es `LoginScreen` |
-| 2 | Disparar `app.on_login_exitoso(entrenador)` | assert isinstance(app.pantalla_actual, PerfilScreen) |
-| 3 | Navegar a `LiveScreen` inyectando la cámara sintética | assert isinstance(app.pantalla_actual, LiveScreen) |
-| 4 | Consultar la sesión creada en la base de datos | assert fila["hora_fin"] is None (sesión abierta mientras se entrena) |
-
-**Criterios de Salida y Manejo de Errores**
-- **Resultado Esperado Global:** PASSED. En entornos sin interfaz gráfica (CI headless) el caso se marca SKIPPED de forma controlada, no FAILED
-- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla manual de la ventana en ejecución local para el expediente.
-- **Resultado Obtenido en la última corrida:** PASSED
-
----
-
-## TC-AUTO-014 — Terminar la sesión cierra el registro en la base de datos, libera la cámara y regresa a la selección de perfiles
-
-| Campo | Descripción / Detalle |
-|---|---|
-| **ID del Caso de Prueba** | TC-AUTO-014 |
-| **Nombre de la Prueba** | Terminar la sesión cierra el registro en la base de datos, libera la cámara y regresa a la selección de perfiles |
-| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
-| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — si la cámara no se libera, la siguiente sesión no puede abrirla |
-| **Componente bajo prueba** | `gui/ (App.on_terminar_sesion, LiveScreen)` |
-| **Requisito asociado** | RF-06, RF-07 |
-| **Precondiciones** | Las mismas de TC-AUTO-013, con una `LiveScreen` activa |
-| **Datos de Entrada (Test Data)** | Instancia de `CamaraSintetica` con bandera `liberada`; atleta "Diego Morales" |
-| **Archivo / Clase del Script** | `tests/e2e/test_gui_flow.py::test_terminar_la_sesion_cierra_el_registro_y_libera_la_camara` |
-
-**Pasos de Ejecución Automatizada y Aserciones**
-
-| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
-|---|---|---|
-| 1 | Abrir `LiveScreen` con la cámara sintética y guardar el `id_sesion` | Sesión abierta en la base de datos |
-| 2 | Disparar `app.on_terminar_sesion()` (el mismo manejador del botón "Terminar sesión") | El método se ejecuta sin excepción |
-| 3 | Verificar el cierre del registro | assert fila["hora_fin"] is not None |
-| 4 | Verificar la liberación del hardware y la navegación | assert camara.liberada is True y assert isinstance(app.pantalla_actual, PerfilScreen) |
-
-**Criterios de Salida y Manejo de Errores**
-- **Resultado Esperado Global:** PASSED. En CI headless se marca SKIPPED de forma controlada
-- **Evidencia de Ejecución:** Reporte de consola de pytest y captura de pantalla manual de la ejecución local.
-- **Resultado Obtenido en la última corrida:** PASSED
-
----
-
 ## TC-AUTO-015 — El instrumento que mide la latencia del pipeline cronometra cada etapa por separado con un reloj determinista
 
 | Campo | Descripción / Detalle |
@@ -493,36 +432,6 @@
 
 **Criterios de Salida y Manejo de Errores**
 - **Resultado Esperado Global:** PASSED. El guion se consume por completo: si el programa pidiera más datos de los previstos, el doble de teclado falla la prueba
-- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
-- **Resultado Obtenido en la última corrida:** PASSED
-
----
-
-## TC-AUTO-017 — Sin persona detectada, el fotograma se devuelve intacto y no se dibuja ningún esqueleto
-
-| Campo | Descripción / Detalle |
-|---|---|
-| **ID del Caso de Prueba** | TC-AUTO-017 |
-| **Nombre de la Prueba** | Sin persona detectada, el fotograma se devuelve intacto y no se dibuja ningún esqueleto |
-| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
-| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — dibujar sobre un fotograma sin pose detectada mostraría un esqueleto fantasma al alumno; una excepción aquí congela el video en plena clase |
-| **Componente bajo prueba** | `biomechanics/renderer.py (SkeletonRenderer.draw)` |
-| **Requisito asociado** | RF-06 |
-| **Precondiciones** | OpenCV y NumPy instalados; `SkeletonRenderer()` recién construido |
-| **Datos de Entrada (Test Data)** | Lienzo negro de 640×480×3 (`np.zeros`, dtype uint8) y lista de poses igual a `None` |
-| **Archivo / Clase del Script** | `tests/integration/test_renderer.py::test_sin_persona_detectada_el_video_se_devuelve_intacto` |
-
-**Pasos de Ejecución Automatizada y Aserciones**
-
-| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
-|---|---|---|
-| 1 | Construir el lienzo en negro | Cualquier píxel distinto de cero será algo que se dibujó |
-| 2 | Invocar `renderer.draw(frame, None)` | Retorna sin lanzar excepción |
-| 3 | Verificar que no se copió ni sustituyó el fotograma | assert resultado is frame_negro |
-| 4 | Verificar que no se pintó nada | assert resultado.sum() == 0 |
-
-**Criterios de Salida y Manejo de Errores**
-- **Resultado Esperado Global:** PASSED. Caso complementario: test_dibuja_el_esqueleto_cuando_hay_pose comprueba el camino positivo
 - **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
 - **Resultado Obtenido en la última corrida:** PASSED
 
@@ -615,32 +524,233 @@
 
 ---
 
-## TC-AUTO-021 — Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente
+## TC-AUTO-023 — Un índice de cámara escrito como texto se convierte a entero antes de llegar a OpenCV
 
 | Campo | Descripción / Detalle |
 |---|---|
-| **ID del Caso de Prueba** | TC-AUTO-021 |
-| **Nombre de la Prueba** | Recalibrar un umbral desde la interfaz cambia el criterio con el que el sistema experto evalúa, sin modificar el código fuente |
-| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
-| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es la única vía por la que un instructor puede ajustar el criterio técnico del sistema; si la pantalla no escribe en la base de datos, el RF-08 queda sostenido solo por código que nadie del dojo puede ejecutar |
-| **Componente bajo prueba** | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` |
-| **Requisito asociado** | RF-08 |
-| **Precondiciones** | CustomTkinter, MediaPipe, OpenCV y Pillow instalados; entorno gráfico disponible; entrenador autenticado; umbrales de literatura ya sembrados por `App` al arrancar |
-| **Datos de Entrada (Test Data)** | Umbral `tsuki` / `codo`, vigente en 160–175°, editado a 170–175° desde el formulario; ángulo de prueba 165°, correcto con el criterio anterior |
-| **Archivo / Clase del Script** | `tests/e2e/test_gui_umbrales.py::test_recalibrar_cambia_el_criterio_del_sistema_experto` |
+| **ID del Caso de Prueba** | TC-AUTO-023 |
+| **Nombre de la Prueba** | Un índice de cámara escrito como texto se convierte a entero antes de llegar a OpenCV |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — OpenCV distingue por tipo: con el entero 2 abre la tercera cámara del equipo, pero con la cadena "2" busca un archivo de video llamado "2". Como el valor llega desde un formulario de la interfaz, siempre viene en texto, y sin la conversión el sistema nunca abriría la cámara seleccionada |
+| **Componente bajo prueba** | `vision/camera.py (normalizar)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | Ninguna. `normalizar` es una función pura que no abre dispositivos |
+| **Datos de Entrada (Test Data)** | Cuatro fuentes locales: los enteros 0 y 2, y las cadenas "0" y "2" |
+| **Archivo / Clase del Script** | `tests/unit/test_fuentes_video.py::test_los_indices_se_convierten_a_entero` |
 
 **Pasos de Ejecución Automatizada y Aserciones**
 
 | Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
 |---|---|---|
-| 1 | Autenticarse y abrir la pantalla con `_abrir_umbrales()` (el manejador del botón real) | assert isinstance(app.pantalla_actual, UmbralesScreen) |
-| 2 | Escribir 170 en el campo del mínimo y disparar `_guardar_cambios()` | assert guardados == 1 (se escribe solo el umbral modificado) |
-| 3 | Releer los umbrales vigentes y construir `KarateRules` con ellos | assert reglas.evaluate_tsuki(165)[0] is False (165° ya no aprueba) |
-| 4 | Consultar `historial_umbral('tsuki', 'codo')` | assert len(historial) == 2 y la versión vigente quedó firmada por el entrenador que la guardó |
+| 1 | Invocar `normalizar(entrada)` con cada una de las cuatro fuentes | assert resultado == esperado en los cuatro casos |
+| 2 | Verificar el tipo del valor devuelto | assert isinstance(resultado, int) — nunca una cadena |
 
 **Criterios de Salida y Manejo de Errores**
-- **Resultado Esperado Global:** PASSED. El criterio nuevo rige la siguiente sesión de análisis y la versión anterior permanece en el historial, de modo que las mediciones ya registradas siguen siendo interpretables
-- **Evidencia de Ejecución:** Reporte de consola de pytest; captura de pantalla de la pantalla de calibración para el expediente.
+- **Resultado Esperado Global:** PASSED. Las direcciones de cámara IP, en cambio, se conservan como texto: es el tipo con el que OpenCV las interpreta como flujo de red
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-024 — La fuente de video configurada persiste entre ejecuciones del sistema
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-024 |
+| **Nombre de la Prueba** | La fuente de video configurada persiste entre ejecuciones del sistema |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — si la preferencia no sobreviviera al reinicio, configurar la cámara dejaría de ser una tarea de instalación y pasaría a ser un paso que el entrenador repite cada sesión, en contra del ciclo de uso breve que exige el RNF-04 |
+| **Componente bajo prueba** | `persistence/database.py (guardar_config, leer_config)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | Archivo de base de datos temporal; sin preferencias previas |
+| **Datos de Entrada (Test Data)** | Fuente de video `http://192.168.1.50:8080/video` (cámara IP del dojo) |
+| **Archivo / Clase del Script** | `tests/integration/test_configuracion.py::test_la_preferencia_sobrevive_al_reinicio_del_sistema` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Abrir la base, guardar la fuente con `guardar_config` y cerrar la conexión | La escritura se confirma sin excepción |
+| 2 | Abrir de nuevo el MISMO archivo, como ocurre al reiniciar el programa | assert leer_config('fuente_video') devuelve la dirección íntegra |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. La preferencia vive en el mismo archivo SQLite que el resto del estado del dojo, de modo que un respaldo la incluye
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-025 — Un Kokutsu Dachi correctamente ejecutado se reconoce como tal y no como una transición entre posturas
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-025 |
+| **Nombre de la Prueba** | Un Kokutsu Dachi correctamente ejecutado se reconoce como tal y no como una transición entre posturas |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es una prueba de regresión de un defecto real: el clasificador exigía la rodilla frontal flexionada para reconocer un Kokutsu, cuando en esa postura el peso va atrás y la frontal queda casi extendida. Toda ejecución correcta caía en la rama por defecto y se reportaba como "EN TRANSICION", de modo que una de las posturas del alcance no se evaluaba nunca y nada lo delataba |
+| **Componente bajo prueba** | `expert_system/analyzer.py (clasificador de posturas)` |
+| **Requisito asociado** | RF-01, RF-05 |
+| **Precondiciones** | Instancia de `TechniqueAnalyzer(ventana_filtro=1)`; poses sintéticas de 33 landmarks con visibilidad 1.0 |
+| **Datos de Entrada (Test Data)** | Cinco ejecuciones con la pierna frontal extendida y la trasera flexionada: (170, 100), (165, 105), (160, 110), (155, 115) y (150, 120) |
+| **Archivo / Clase del Script** | `tests/integration/test_analyzer.py::test_un_kokutsu_real_no_se_confunde_con_una_transicion` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Generar la pose sintética con la pierna izquierda adelante (z_tobillo_izq < z_tobillo_der) | 33 landmarks con los ángulos de rodilla solicitados |
+| 2 | Invocar `analyzer.analyze_stance(landmarks, 1000, 1000)` | assert "KOKUTSU" in mensaje en las cinco ejecuciones |
+| 3 | Comprobar que no se reportó como movimiento | assert "TRANSICION" not in mensaje y assert "MOVIENDOSE" not in mensaje |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Con el clasificador anterior las cinco ejecuciones fallaban, por lo que esta prueba impide que la corrección se revierta
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-026 — La precisión de un alumno se calcula solo sobre evaluaciones cerradas, ignorando los estados transitorios
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-026 |
+| **Nombre de la Prueba** | La precisión de un alumno se calcula solo sobre evaluaciones cerradas, ignorando los estados transitorios |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — durante una sesión el sistema emite muchos diagnósticos sin veredicto ("EN TRANSICION", "MAE GERI: CARGA", articulación no visible). Contarlos como fallos hundiría el porcentaje de cualquier alumno por el solo hecho de haberse movido frente a la cámara, y el instructor tomaría decisiones de entrenamiento sobre una cifra falsa |
+| **Componente bajo prueba** | `persistence/database.py (resumen_atletas)` |
+| **Requisito asociado** | RF-07 |
+| **Precondiciones** | Base temporal con un atleta que acumula 4 evaluaciones correctas, 3 incorrectas y 1 estado transitorio sin veredicto |
+| **Datos de Entrada (Test Data)** | Sesión 1: dos tsukis correctos, uno hiperextendido y un "EN TRANSICION". Sesión 2: dos tsukis correctos y dos posturas incorrectas |
+| **Archivo / Clase del Script** | `tests/integration/test_consultas_progreso.py::test_la_precision_ignora_los_estados_transitorios` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Invocar `resumen_atletas()` | assert el atleta aparece con sesiones == 2 |
+| 2 | Verificar el denominador del porcentaje | assert evaluaciones == 7, no 8: el estado transitorio queda fuera |
+| 3 | Verificar el porcentaje calculado | assert precision == pytest.approx(4 / 7 * 100) |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Un alumno sin mediciones aparece con precisión None y no con 0 %, porque "sin datos" y "falla todo" son afirmaciones distintas
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-028 — Ejecutar el programa sin argumentos abre la interfaz gráfica, no la versión de terminal
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-028 |
+| **Nombre de la Prueba** | Ejecutar el programa sin argumentos abre la interfaz gráfica, no la versión de terminal |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — `python main.py` es lo primero que ejecuta cualquiera que reciba el proyecto. Mientras ese comando abría la versión de consola, el usuario terminaba en un formulario de terminal y concluía que el sistema no tenía interfaz gráfica, cuando sí la tiene |
+| **Componente bajo prueba** | `main.py (main)` |
+| **Requisito asociado** | RNF-04 |
+| **Precondiciones** | Las dos funciones de arranque se sustituyen por dobles; no se abre ninguna ventana ni se toca la cámara |
+| **Datos de Entrada (Test Data)** | Línea de comandos vacía, y la variante `--consola` |
+| **Archivo / Clase del Script** | `tests/unit/test_punto_de_entrada.py::test_la_linea_de_comandos_elige_la_via_correcta` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Invocar `main.main()` con argv sin argumentos | assert se eligió la vía gráfica y no la de consola |
+| 2 | Invocar `main.main()` con argv = ['--consola'] | assert se eligió la vía de consola |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. Ambas vías comparten el mismo motor de análisis; solo cambia cómo se presentan los resultados
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-029 — El panel de inicio cuenta la actividad reciente del dojo y descarta la anterior a la ventana de siete días
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-029 |
+| **Nombre de la Prueba** | El panel de inicio cuenta la actividad reciente del dojo y descarta la anterior a la ventana de siete días |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es la primera cifra que el instructor ve al abrir el sistema y la que usará para decidir cómo va la semana; si la ventana no filtra, el número crece para siempre y deja de significar «actividad reciente», convirtiendo el panel en un contador histórico disfrazado |
+| **Componente bajo prueba** | `persistence/database.py (metricas_dojo)` |
+| **Requisito asociado** | RF-07 |
+| **Precondiciones** | Base de datos limpia con un entrenador y dos alumnos registrados |
+| **Datos de Entrada (Test Data)** | Tres sesiones fechadas a 1, 3 y 20 días atrás; la de 20 días queda fuera de la ventana de siete. Seis evaluaciones cerradas dentro de la ventana, cuatro correctas |
+| **Archivo / Clase del Script** | `tests/integration/test_panel_inicio.py::test_la_ventana_de_actividad_deja_fuera_las_sesiones_viejas` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Crear las tres sesiones y reescribir su fecha hacia el pasado | assert las tres existen en la tabla `sesion` |
+| 2 | Registrar mediciones cerradas solo en las dos sesiones recientes | assert se guardaron con `correcto` no nulo |
+| 3 | Invocar `metricas_dojo()` con la ventana por defecto | assert metricas['sesiones'] == 2 (la de 20 días no cuenta) |
+| 4 | Comprobar alumnos activos y precisión | assert metricas['alumnos_activos'] == 1 y metricas['precision'] == pytest.approx(66.67) |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El panel refleja la actividad de los últimos siete días y la precisión se calcula solo sobre evaluaciones cerradas de ese periodo.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-030 — El panel de correcciones no repite una corrección que sigue vigente, de modo que la retroalimentación en pantalla conserve solo lo que cambió
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-030 |
+| **Nombre de la Prueba** | El panel de correcciones no repite una corrección que sigue vigente, de modo que la retroalimentación en pantalla conserve solo lo que cambió |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — el análisis corre a unos 30 fotogramas por segundo y el mismo diagnóstico se repite en decenas consecutivos; sin el filtro, un solo error sostenido durante un segundo llena la lista con treinta copias idénticas y empuja fuera de pantalla las demás correcciones, incumpliendo de fondo el RF-06 aunque el panel se dibuje |
+| **Componente bajo prueba** | `gui/panel_vivo.py (FeedCorrecciones)` |
+| **Requisito asociado** | RF-05, RF-06 |
+| **Precondiciones** | Feed recién creado, sin correcciones previas |
+| **Datos de Entrada (Test Data)** | Treinta fotogramas con el mismo diagnóstico incorrecto de codo; luego un diagnóstico distinto; luego el primero otra vez |
+| **Archivo / Clase del Script** | `tests/unit/test_panel_vivo.py::test_una_correccion_vigente_no_se_vuelve_a_anotar` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Registrar el mismo diagnóstico incorrecto en 30 fotogramas seguidos | assert len(feed.entradas) == 1 |
+| 2 | Registrar un diagnóstico distinto de la misma articulación | assert len(feed.entradas) == 2 y el más reciente queda primero |
+| 3 | Volver a registrar el diagnóstico original | assert len(feed.entradas) == 3 (la recaída sí es información nueva) |
+| 4 | Registrar 20 correcciones distintas con un tope de 8 | assert len(feed.entradas) == 8 y conserva las más recientes |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. El panel muestra la secuencia de correcciones reales del alumno y no la frecuencia de muestreo de la cámara.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-031 — Un grado numérico escrito bajo un color de cinta que no lo admite se descarta al guardar, en vez de producir una ficha que se contradice
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-031 |
+| **Nombre de la Prueba** | Un grado numérico escrito bajo un color de cinta que no lo admite se descarta al guardar, en vez de producir una ficha que se contradice |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | [ ] Alta **[X]** Media [ ] Baja — el campo de grado aparece y desaparece según el color elegido, de modo que un sensei que escribe «1er kyu» y después corrige la cinta a «Blanca» deja un valor huérfano en el formulario; guardarlo registraría a un principiante como alumno avanzado y ese dato alimenta después las estadísticas por grado |
+| **Componente bajo prueba** | `gui/registro_alumno.py (interpretar_formulario)` |
+| **Requisito asociado** | RF-07 |
+| **Precondiciones** | Ninguna; la función es pura y no toca la base de datos |
+| **Datos de Entrada (Test Data)** | Formulario con nombre «Marta Similox», color de cinta «Blanca» y grado «1er kyu» remanente de una selección anterior |
+| **Archivo / Clase del Script** | `tests/unit/test_registro_alumno.py::test_un_grado_huerfano_no_se_guarda` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Interpretar el formulario con cinta Café y grado «1er kyu» | assert datos['grado_cinturon'] == '1er kyu' (el café sí admite grado) |
+| 2 | Interpretar el mismo formulario cambiando la cinta a «Blanca» | assert datos['grado_cinturon'] is None (el grado se descarta) |
+| 3 | Comprobar que el resto de la ficha se conserva intacto | assert datos['nombre'] == 'Marta Similox' y datos['color_cinta'] == 'Blanca' |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED. La ficha guardada nunca afirma un grado que su color de cinta contradice.
+- **Evidencia de Ejecución:** Reporte de consola de pytest.
 - **Resultado Obtenido en la última corrida:** PASSED
 
 ---
@@ -661,12 +771,16 @@
 | TC-AUTO-010 | `persistence/database.py (Database.crear_entrenador)` | RNF-05 | API/Integración |
 | TC-AUTO-011 | `persistence/medicion_logger.py (MedicionLogger)` | RF-07 | API/Integración |
 | TC-AUTO-012 | `persistence/reportes.py (generar_reporte_progreso)` | RF-07 | API/Integración |
-| TC-AUTO-013 | `gui/ (App, LoginScreen, PerfilScreen, LiveScreen)` | RF-06, RNF-04 | Interfaz (UI/E2E) |
-| TC-AUTO-014 | `gui/ (App.on_terminar_sesion, LiveScreen)` | RF-06, RF-07 | Interfaz (UI/E2E) |
 | TC-AUTO-015 | `biomechanics/metrics.py (PerformanceMonitor)` | RNF-01, RF-01 | Unitaria |
 | TC-AUTO-016 | `persistence/cli_auth.py (login_o_registro)` | RF-08 | API/Integración |
-| TC-AUTO-017 | `biomechanics/renderer.py (SkeletonRenderer.draw)` | RF-06 | API/Integración |
 | TC-AUTO-018 | `persistence/database.py (actualizar_umbral, historial_umbral)` | RF-08 | API/Integración |
 | TC-AUTO-019 | `tests/reporte/plantilla.py (FichaCasoPrueba)` | RF-08 | Unitaria |
 | TC-AUTO-020 | `gui/validacion_umbrales.py (interpretar_rango)` | RF-08 | Unitaria |
-| TC-AUTO-021 | `gui/umbrales_screen.py (UmbralesScreen) + persistence/database.py (actualizar_umbral)` | RF-08 | Interfaz (UI/E2E) |
+| TC-AUTO-023 | `vision/camera.py (normalizar)` | RF-01 | Unitaria |
+| TC-AUTO-024 | `persistence/database.py (guardar_config, leer_config)` | RF-01 | API/Integración |
+| TC-AUTO-025 | `expert_system/analyzer.py (clasificador de posturas)` | RF-01, RF-05 | API/Integración |
+| TC-AUTO-026 | `persistence/database.py (resumen_atletas)` | RF-07 | API/Integración |
+| TC-AUTO-028 | `main.py (main)` | RNF-04 | Unitaria |
+| TC-AUTO-029 | `persistence/database.py (metricas_dojo)` | RF-07 | API/Integración |
+| TC-AUTO-030 | `gui/panel_vivo.py (FeedCorrecciones)` | RF-05, RF-06 | Unitaria |
+| TC-AUTO-031 | `gui/registro_alumno.py (interpretar_formulario)` | RF-07 | Unitaria |

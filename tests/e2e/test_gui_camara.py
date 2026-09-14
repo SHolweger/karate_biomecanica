@@ -20,7 +20,7 @@ import numpy as np
 
 from gui import camara_screen
 from gui.camara_screen import CLAVE_FUENTE, CamaraScreen, fuente_configurada
-from gui.perfil_screen import PerfilScreen
+from gui.inicio_screen import InicioScreen
 from vision.camera import CamaraNoDisponible
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
@@ -170,10 +170,10 @@ def test_avisa_cuando_la_camara_configurada_ya_no_esta_conectada(app, db, entren
     assert "no está disponible" in app.pantalla_actual.error_var.get()
 
 
-def test_volver_regresa_a_la_seleccion_de_perfiles(app, pantalla_camara):
+def test_volver_regresa_al_panel_de_inicio(app, pantalla_camara):
     pantalla_camara._volver()
 
-    assert isinstance(app.pantalla_actual, PerfilScreen)
+    assert isinstance(app.pantalla_actual, InicioScreen)
 
 
 # --------------------------------------------------------------------------
