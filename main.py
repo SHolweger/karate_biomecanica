@@ -1,17 +1,44 @@
-import cv2
-import time
+"""
+Punto de entrada del sistema (Shotokan AI).
 
-# Importamos nuestros módulos (Nuestra Arquitectura Modular)
-from vision.camera import Camera, CamaraNoDisponible, describir, listar_camaras
-from vision.tracker import PoseTracker
-from biomechanics.renderer import SkeletonRenderer
-from expert_system.analyzer import TechniqueAnalyzer
-from expert_system.knowledge_base import CORRECCIONES_LITERATURA, KarateRules, UMBRALES_LITERATURA
-from persistence.database import Database
-from persistence.cli_auth import login_o_registro, elegir_o_crear_perfil
-from persistence.medicion_logger import MedicionLogger
+    python main.py              Interfaz gráfica — la forma normal de usarlo
+    python main.py --consola    Versión de terminal con ventana de OpenCV
 
-def main():
+Ambas vías comparten el mismo motor de análisis (Camera, PoseTracker,
+SkeletonRenderer, TechniqueAnalyzer): lo único que cambia es cómo se muestran
+los resultados y cómo se inicia la sesión.
+
+La versión de consola se conserva porque fue —y sigue siendo— la herramienta
+con la que se depuran los algoritmos: permite ejercitar el pipeline sin cargar
+la interfaz gráfica. No es la vía de uso del dojo.
+"""
+import argparse
+import sys
+
+# Este módulo es un despachador: elige entre la interfaz gráfica y la versión de
+# terminal. Las dependencias pesadas (OpenCV, MediaPipe, CustomTkinter) se
+# importan DENTRO de cada vía, no aquí arriba, por tres razones concretas:
+# mostrar la ayuda no debería exigir tenerlas instaladas; `--consola` no debería
+# exigir un entorno gráfico; y así el punto de entrada se puede verificar en el
+# entorno de integración continua, que no tiene ninguna de las dos.
+
+
+def main_consola():
+    # Importamos nuestros módulos (Nuestra Arquitectura Modular)
+    import time
+
+    import cv2
+
+    from vision.camera import Camera, CamaraNoDisponible, describir, listar_camaras
+    from vision.tracker import PoseTracker
+    from biomechanics.renderer import SkeletonRenderer
+    from expert_system.analyzer import TechniqueAnalyzer
+    from expert_system.knowledge_base import (CORRECCIONES_LITERATURA, KarateRules,
+                                              UMBRALES_LITERATURA)
+    from persistence.database import Database
+    from persistence.cli_auth import login_o_registro, elegir_o_crear_perfil
+    from persistence.medicion_logger import MedicionLogger
+
     print("Iniciando componentes del sistema experto...")
 
     # 0. Acceso: entrenador (RF-08) y perfil de atleta (estilo Netflix), antes
@@ -100,6 +127,41 @@ def main():
     cam.release()
     tracker.close()
     cv2.destroyAllWindows()
+
+def main_grafico():
+    """
+    Abre la interfaz gráfica. El import va dentro de la función a propósito:
+    así `python main.py --consola` no exige tener CustomTkinter instalado ni un
+    entorno gráfico disponible.
+    """
+    from gui.app import App
+
+    App().mainloop()
+
+
+def main():
+    analizador = argparse.ArgumentParser(
+        prog="main.py",
+        description="Sistema experto de análisis biomecánico del Karate-Do Shotokan.")
+    analizador.add_argument(
+        "--consola", action="store_true",
+        help="usa la versión de terminal con ventana de OpenCV, en vez de la interfaz gráfica")
+    argumentos = analizador.parse_args()
+
+    if argumentos.consola:
+        main_consola()
+        return
+
+    try:
+        main_grafico()
+    except ImportError as error:
+        # Falta una dependencia de la interfaz. Se explica cómo seguir en vez
+        # de mostrar una traza que no le dice nada a quien opera el sistema.
+        print(f"No se pudo abrir la interfaz gráfica: {error}")
+        print("Instala las dependencias con:  pip install -r requirements.txt")
+        print("O usa la versión de terminal:  python main.py --consola")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

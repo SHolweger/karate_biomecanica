@@ -37,8 +37,8 @@ en el repositorio.
 ## Ejecución del sistema
 
 ```bash
-python gui/app.py     # interfaz gráfica (recomendado)
-python main.py        # versión de consola con ventana de OpenCV
+python main.py              # interfaz gráfica — la forma normal de usarlo
+python main.py --consola    # versión de terminal con ventana de OpenCV
 ```
 
 Ambas vías usan el mismo motor de análisis. Si la cámara no abre, ajusta el
