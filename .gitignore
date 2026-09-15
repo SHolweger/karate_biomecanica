@@ -18,3 +18,6 @@ htmlcov/
 !evidencias/*.md
 !tests/*.md
 !.github/*.md
+# CLAUDE.md tampoco es un apunte personal: lo lee el asistente al abrir cada
+# sesion de trabajo, asi que solo cumple su funcion si viaja con el repositorio.
+!CLAUDE.md
