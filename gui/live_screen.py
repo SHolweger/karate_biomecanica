@@ -11,8 +11,8 @@ from expert_system.knowledge_base import KarateRules
 from gui import theme
 from gui import coaching
 from gui.camara_screen import fuente_configurada
-from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_DATO, metricas_articulares,
-                            veredicto_legible)
+from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
+                            etiqueta_alumno, metricas_articulares, veredicto_legible)
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
 from vision.tracker import PoseTracker
@@ -131,10 +131,11 @@ class LiveScreen(ctk.CTkFrame):
                      text_color=theme.TEXTO_TENUE).pack(side="left", padx=(0, 8))
 
         nombres = [a["nombre"] for a in self.alumnos]
-        self.alumno_var = ctk.StringVar(
-            value=self.atleta["nombre"] if self.atleta else (nombres[0] if nombres else ""))
+        # El aviso no entra en `values`: si fuera una opción del desplegable,
+        # elegirlo buscaría un alumno llamado "Elige un alumno".
+        self.alumno_var = ctk.StringVar(value=etiqueta_alumno(self.atleta, nombres))
         self.selector_alumno = ctk.CTkOptionMenu(
-            fila, values=nombres or ["Sin alumnos registrados"], variable=self.alumno_var,
+            fila, values=nombres or [SIN_ALUMNOS], variable=self.alumno_var,
             width=210, fg_color=theme.CARD, button_color=theme.BORDE,
             button_hover_color=theme.CARD_HOVER, text_color=theme.TEXTO,
             font=(theme.FUENTE, 12), command=self._cambiar_alumno)

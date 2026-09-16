@@ -37,6 +37,29 @@ PUNTOS_IMU = [
 
 SIN_DATO = "—"
 
+# Textos del selector de alumno de la pantalla en vivo cuando todavía no hay a
+# quién medir.
+ELIGE_ALUMNO = "Elige un alumno"
+SIN_ALUMNOS = "Sin alumnos registrados"
+
+
+def etiqueta_alumno(atleta, nombres):
+    """
+    Qué dice el selector de alumno según el estado de la medición.
+
+    Antes, sin alumno elegido el desplegable mostraba el nombre del primero de
+    la lista. Era engañoso: el sensei leía «Diego Morales» en el recuadro, creía
+    que estaba midiendo a Diego y en realidad no había sesión abierta ni cámara
+    encendida —solo el aviso de que faltaba elegir—. El desplegable debe pedir la
+    elección, no fingir que ya se hizo.
+
+    Elegir por él tampoco sirve: abriría una sesión a nombre de alguien que nadie
+    seleccionó, y ese registro quedaría en el historial de ese alumno.
+    """
+    if atleta:
+        return atleta["nombre"]
+    return ELIGE_ALUMNO if nombres else SIN_ALUMNOS
+
 
 def formatear_tiempo(timestamp_ms):
     """Milisegundos de sesión a `MM:SS`, como se leen en un cronómetro."""

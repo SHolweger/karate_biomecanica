@@ -16,6 +16,7 @@ pytest.importorskip("mediapipe", reason="MediaPipe no está instalado")
 pytest.importorskip("PIL", reason="Pillow no está instalado")
 
 from gui.live_screen import LiveScreen
+from gui.panel_vivo import ELIGE_ALUMNO, SIN_ALUMNOS
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = [pytest.mark.e2e, pytest.mark.lenta]
@@ -214,3 +215,29 @@ def test_el_tamano_de_dibujado_no_altera_los_angulos_medidos(vivo):
 
     assert [d["angulo"] for d in segunda] == angulos_primera, \
         "el tamaño con el que se dibuja el video llegó a influir en la medición"
+
+
+def test_sin_alumno_elegido_el_desplegable_no_nombra_al_primero_de_la_lista(
+        app, db, entrenador_registrado, dos_alumnos):
+    """
+    Regresión: el selector arrancaba mostrando «Diego Morales» aunque nadie lo
+    hubiera elegido. El sensei leía ese nombre en el recuadro y creía estar
+    midiendo a Diego, cuando no había sesión abierta ni cámara encendida.
+    """
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_vivo(atleta=None)
+    pantalla = app.pantalla_actual
+
+    assert pantalla.alumno_var.get() == ELIGE_ALUMNO
+    assert pantalla.alumno_var.get() not in [a["nombre"] for a in dos_alumnos]
+    assert set(pantalla.selector_alumno.cget("values")) == {a["nombre"] for a in dos_alumnos}, \
+        "el aviso no debe colarse como una opción elegible del desplegable"
+
+
+def test_sin_alumnos_inscritos_el_desplegable_lo_declara(app, db, entrenador_registrado):
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_vivo(atleta=None)
+    pantalla = app.pantalla_actual
+
+    assert pantalla.alumno_var.get() == SIN_ALUMNOS
+    assert pantalla.selector_alumno.cget("state") == "disabled"

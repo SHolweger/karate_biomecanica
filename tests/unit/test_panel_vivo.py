@@ -9,9 +9,9 @@ un panel que repite la misma corrección treinta veces por segundo, o que escrib
 """
 import pytest
 
-from gui.panel_vivo import (ARTICULACIONES, FeedCorrecciones, PUNTOS_IMU, SIN_DATO,
-                            formatear_angulo, formatear_tiempo, metricas_articulares,
-                            veredicto_legible)
+from gui.panel_vivo import (ARTICULACIONES, ELIGE_ALUMNO, FeedCorrecciones, PUNTOS_IMU,
+                            SIN_ALUMNOS, SIN_DATO, etiqueta_alumno, formatear_angulo,
+                            formatear_tiempo, metricas_articulares, veredicto_legible)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
@@ -239,3 +239,34 @@ def test_los_puntos_imu_estan_declarados_aunque_no_haya_hardware():
     """
     assert len(PUNTOS_IMU) == 4
     assert all(isinstance(punto, str) and punto for punto in PUNTOS_IMU)
+
+
+# ---------------- selector de alumno ----------------
+
+def test_sin_alumno_elegido_el_selector_pide_elegir():
+    """
+    Mostrar el nombre del primero de la lista hacía creer que ya se estaba
+    midiendo a esa persona, cuando no había sesión abierta ni cámara encendida.
+    """
+    assert etiqueta_alumno(None, ["Diego Morales", "Ana Lucía Pérez"]) == ELIGE_ALUMNO
+
+
+def test_con_alumno_elegido_el_selector_lo_nombra():
+    assert etiqueta_alumno({"nombre": "Diego Morales"}, ["Diego Morales"]) == "Diego Morales"
+
+
+def test_sin_alumnos_inscritos_el_selector_lo_declara():
+    """
+    Un desplegable en blanco parecería un fallo de carga. Decir que no hay
+    alumnos inscritos señala qué falta hacer: inscribir a alguien.
+    """
+    assert etiqueta_alumno(None, []) == SIN_ALUMNOS
+
+
+def test_el_texto_del_selector_no_se_confunde_con_el_nombre_de_un_alumno():
+    """
+    Los dos avisos deben distinguirse de cualquier nombre propio: si alguno
+    coincidiera con una opción real del desplegable, elegirlo abriría una sesión.
+    """
+    assert ELIGE_ALUMNO != SIN_ALUMNOS
+    assert etiqueta_alumno(None, [ELIGE_ALUMNO]) == ELIGE_ALUMNO
