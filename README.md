@@ -46,28 +46,46 @@ python3 main.py              # interfaz gráfica — la forma normal de usarlo
 python3 main.py --consola    # versión de terminal con ventana de OpenCV
 ```
 
-Ambas vías usan el mismo motor de análisis. Si la cámara no abre, ajusta el
-índice en `vision/camera.py` (`Camera(source=...)`); `python3 test_camaras.py`
-lista los índices disponibles en el equipo.
+Ambas vías usan el mismo motor de análisis. La cámara se elige desde la sección
+**Cámara** de la interfaz, que enumera los dispositivos conectados con una vista
+previa de cada uno y guarda la elección para los siguientes arranques; ya no hay
+que editar el código. Si la lista sale vacía, `python3 test_camaras.py` sondea
+los índices desde la terminal y dice qué encontró.
 
 ## Pantallas del sistema
 
-| Pantalla | Para qué sirve |
-|---|---|
-| Acceso | Autenticación del entrenador (RF-08) |
-| Perfiles | Selección del alumno que entrena hoy |
-| Análisis en vivo | Video, esqueleto y diagnóstico técnico en tiempo real |
-| Cámara | Elección de la fuente de video: dispositivo del sistema o cámara IP |
-| Calibrar umbrales | Edición de los criterios biomecánicos, con historial de versiones |
-| Biblioteca de técnicas | Qué evalúa el sistema y con qué criterio |
-| Alumnos y progreso | Estado de cada atleta: sesiones, última fecha y precisión |
-| Perfil del alumno | Dominio por técnica, sesiones y generación del reporte de progreso |
-| Reporte de sesión | Precisión, puntos de control y los errores más repetidos |
+Una barra lateral permanente da acceso a las cinco secciones del sistema; las
+demás pantallas cuelgan de ellas.
+
+| Pantalla | Cómo se llega | Para qué sirve |
+|---|---|---|
+| Acceso | Al arrancar | Autenticación del sensei (RF-08) |
+| Inicio | Barra lateral | Estado del dojo: sesiones, alumnos activos, precisión y técnicas más practicadas |
+| Análisis en vivo | Barra lateral | Video, esqueleto, ángulos y correcciones en tiempo real |
+| Alumnos y progreso | Barra lateral | Estado de cada atleta e inscripción de alumnos nuevos |
+| Biblioteca de técnicas | Barra lateral | Qué evalúa el sistema y con qué criterio |
+| Cámara | Barra lateral | Elección de la fuente de video: dispositivo del sistema, cámara IP o grabación |
+| Perfil del alumno | Desde «Alumnos y progreso» | Evolución por sesión, dominio por técnica y reporte de progreso |
+| Reporte de sesión | Desde el perfil del alumno | Precisión, errores repetidos y prevención de lesiones |
+| Calibrar umbrales | Desde la biblioteca de técnicas | Edición de los criterios biomecánicos, con historial de versiones |
+| Perfiles | Desde la identidad activa, al pie de la barra | Cambio del **sensei** que opera el sistema y firma cada medición |
+
+El selector de perfiles elige al sensei, no al alumno: el perfil identifica a
+quién opera el sistema, y el alumno —a quién se mide— se inscribe desde
+«Alumnos y progreso».
+
+Ninguna tarea principal cuesta más de tres pulsaciones desde el panel de inicio
+(RNF-04). El recuento vive en [`gui/navegacion.py`](gui/navegacion.py) y lo
+verifican dos pruebas: una cuenta los pasos declarados y otra recorre cada ruta
+pulsando los botones reales de la ventana.
 
 ## Calibración de umbrales (RF-08)
 
-En la selección de perfiles, el botón **Calibrar umbrales** abre la edición de
+En la biblioteca de técnicas, el botón **Calibrar umbrales** abre la edición de
 los criterios biomecánicos con los que el sistema experto evalúa cada técnica.
+Se llega desde ahí y no desde la barra lateral porque recalibrar es algo que se
+hace *sobre* una técnica, y conviene tener a la vista el criterio vigente antes
+de cambiarlo.
 Los umbrales son datos de la tabla `umbral_referencia`, no constantes del código
 fuente: un instructor puede endurecer o relajar un criterio sin tocar Python.
 
@@ -88,7 +106,14 @@ medición.
 La suite cubre la lógica biomecánica, las reglas del sistema experto, la máquina
 de estados de las patadas, la persistencia y el flujo completo de la interfaz.
 
-**352 casos · 28 documentados con ficha formal · 92 % de cobertura · ~6 segundos de ejecución**
+**564 casos · 38 documentados con ficha formal · 93 % de cobertura**
+
+La cifra depende del entorno, y la diferencia es deliberada: con cámara y
+entorno gráfico corren 564 casos; sin ellos (integración continua) corren 466 y
+8 módulos de interfaz se omiten solos. Por eso toda regla de presentación que
+pueda expresarse sin CustomTkinter vive en un módulo aparte —`gui/panel_vivo.py`,
+`gui/coaching.py`, `gui/navegacion.py`, `gui/validacion_umbrales.py`,
+`vision/fuentes.py`—, de modo que CI la verifique igual.
 
 ## Instalación de las dependencias de prueba
 
@@ -152,9 +177,9 @@ de pruebas sin ningún caso documentado, IDs repetidos y huecos en la serie
 
 | Carpeta | Contenido | Casos |
 |---|---|:--:|
-| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, fuentes de video, validación de la calibración, punto de entrada, plantilla de reportes | 190 |
-| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales, configuración y consultas de progreso | 125 |
-| `tests/e2e/` | Flujo completo de la GUI: acceso, perfiles, análisis, calibración de umbrales, cámara, historial, reportes y biblioteca de técnicas | 37 |
+| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, fuentes de video, validación de la calibración, panel en vivo, correcciones del sensei, prevención de lesiones, inscripción de alumnos, mapa de navegación, punto de entrada y plantilla de reportes | 330 |
+| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales, configuración y consultas de progreso | 143 |
+| `tests/e2e/` | Flujo completo de la GUI: acceso, panel de inicio, análisis en vivo, calibración de umbrales, cámara, historial, reportes, biblioteca de técnicas y auditoría de navegación (RNF-04) | 91 |
 | `tests/helpers/` | Dobles de prueba: cámara y poses sintéticas | — |
 | `tests/reporte/` | Plantilla formal de los casos y complemento de pytest que emite los reportes | — |
 | `tests/conftest.py` | Fixtures compartidas (base de datos temporal, cámara sintética) | — |

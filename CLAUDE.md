@@ -82,8 +82,8 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 512 passed |
-| CI / sin entorno gráfico | igual | 431 passed, 7 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 564 passed |
+| CI / sin entorno gráfico | igual | 466 passed, 8 skipped |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -93,7 +93,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-037**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-039**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -108,6 +108,16 @@ actualizó, para que no borre evidencia.
 `tests/helpers/fakes.py` permiten ejercitar el encadenamiento completo sin
 cámara ni ejecutante. La prueba *declara* los ángulos y verifica qué concluye el
 sistema.
+
+**La navegación está contada, no supuesta** (RNF-04, 16-sep-2026).
+`gui/navegacion.py` declara la secuencia exacta de controles de cada tarea
+principal; ninguna pasa de tres pulsaciones. Lo vigilan dos pruebas:
+`tests/unit/test_navegacion.py` cuenta los pasos (corre también en CI, porque el
+módulo no importa CustomTkinter) y `tests/e2e/test_navegacion_rnf04.py` recorre
+cada ruta **pulsando los widgets reales** que encuentra por su etiqueta. Al
+mover, renombrar o intercalar un control hay que actualizar la ruta, o el
+recorrido falla nombrando el paso y listando los botones que sí están. Escribir
+no cuenta como pulsación: el requisito mide profundidad de navegación.
 
 ---
 

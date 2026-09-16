@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 36
+**Casos documentados:** 38
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -11,9 +11,9 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 15 | 39 |
+| Unitaria | 16 | 40 |
 | API/Integración | 14 | 24 |
-| Interfaz (UI/E2E) | 7 | 7 |
+| Interfaz (UI/E2E) | 8 | 16 |
 
 ---
 
@@ -1079,6 +1079,65 @@
 
 ---
 
+## TC-AUTO-037 — Ninguna tarea principal del sistema cuesta más de tres pulsaciones
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-037 |
+| **Nombre de la Prueba** | Ninguna tarea principal del sistema cuesta más de tres pulsaciones |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — es la verificación directa del RNF-04; sin ella el requisito se daba por cumplido sin haber contado nunca las pulsaciones reales |
+| **Componente bajo prueba** | `gui/navegacion.py (RUTAS, exceden_el_limite)` |
+| **Requisito asociado** | RNF-04 |
+| **Precondiciones** | Ninguna: el mapa de navegación es un módulo sin dependencias gráficas |
+| **Datos de Entrada (Test Data)** | Las nueve rutas declaradas en `gui.navegacion.RUTAS`, cada una con la secuencia de controles que hay que pulsar desde el panel de inicio |
+| **Archivo / Clase del Script** | `tests/unit/test_navegacion.py::test_ninguna_tarea_pasa_de_tres_pulsaciones` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Contar los pasos de cada ruta declarada | Cada ruta tiene entre 1 y 3 pasos |
+| 2 | Invocar `exceden_el_limite(RUTAS, limite=3)` | assert resultado == [] (ninguna tarea supera el límite) |
+| 3 | Invocar el mismo verificador sobre una ruta artificial de cuatro pasos | assert la ruta aparece en el resultado: el verificador sí detecta un incumplimiento, de modo que el resultado vacío anterior no es vacuo |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED en los dos entornos, con y sin interfaz gráfica
+- **Evidencia de Ejecución:** Reporte de consola de pytest y documento de casos generado con `--reporte-formal`.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-038 — Cada tarea principal se completa pulsando los controles reales de la interfaz, en no más de tres pulsaciones desde el panel de inicio
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-038 |
+| **Nombre de la Prueba** | Cada tarea principal se completa pulsando los controles reales de la interfaz, en no más de tres pulsaciones desde el panel de inicio |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — verifica el RNF-04 sobre la interfaz construida y no sobre una declaración: una pantalla intermedia o un botón renombrado rompen el recorrido y quedan a la vista |
+| **Componente bajo prueba** | `gui/ (App, BarraLateral y las nueve pantallas), gui/navegacion.py` |
+| **Requisito asociado** | RNF-04 |
+| **Precondiciones** | CustomTkinter, OpenCV, MediaPipe, Pillow y Matplotlib instalados; entorno gráfico disponible; sensei autenticado; un alumno con una sesión cerrada en la base temporal |
+| **Datos de Entrada (Test Data)** | Las nueve rutas de `gui.navegacion.RUTAS`; sensei "Sensei Ejemplo" (clave123, rol principal); alumno "Diego Morales" con 2 evaluaciones cerradas; cámara y enumeración de dispositivos sustituidas por dobles |
+| **Archivo / Clase del Script** | `tests/e2e/test_navegacion_rnf04.py::test_cada_tarea_principal_se_completa_en_tres_pulsaciones` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Situar la aplicación en el panel de inicio con el sensei autenticado | assert la pantalla actual es `InicioScreen` |
+| 2 | Para cada ruta, buscar en el árbol de widgets el control que declara cada paso y activarlo (botón, desplegable, casilla o tarjeta) | Cada control existe en ese punto del recorrido; si no, el fallo nombra el control buscado y lista los botones disponibles |
+| 3 | Contar las pulsaciones dadas | assert pulsaciones <= 3 |
+| 4 | Comprobar dónde terminó el recorrido | assert la pantalla actual es la que la ruta declara como destino |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** PASSED para las nueve rutas. En entornos sin interfaz gráfica (CI headless) el caso se marca SKIPPED de forma controlada, no FAILED
+- **Evidencia de Ejecución:** Reporte de consola de pytest, con una línea por tarea auditada.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1119,3 +1178,5 @@
 | TC-AUTO-034 | `gui/coaching.py (CORRECCIONES) + expert_system/knowledge_base.py` | RF-05, RF-06 | Unitaria |
 | TC-AUTO-035 | `vision/nombres_camara.py (analizar_salida_macos)` | RF-01 | Unitaria |
 | TC-AUTO-036 | `expert_system/riesgos.py (evaluar_asimetria)` | RF-05, RF-07 | Unitaria |
+| TC-AUTO-037 | `gui/navegacion.py (RUTAS, exceden_el_limite)` | RNF-04 | Unitaria |
+| TC-AUTO-038 | `gui/ (App, BarraLateral y las nueve pantallas), gui/navegacion.py` | RNF-04 | Interfaz (UI/E2E) |
