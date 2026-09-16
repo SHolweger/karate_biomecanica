@@ -1,26 +1,12 @@
 import customtkinter as ctk
 
 from gui import theme
-
-# Secciones de la barra, en el orden en que se usan durante una clase: primero
-# el estado del dojo, luego la medición, después el criterio y el seguimiento, y
-# al final la configuración del equipo — que se toca una vez y casi nunca más.
-#
-# "perfiles" ya no está aquí. Elegir sensei no es una sección del sistema sino
-# un cambio de quién lo opera, y vive en el pie de la barra junto a la identidad
-# activa, que es donde el usuario espera encontrarlo.
-#
-# "Calibración" tampoco está: recalibrar un umbral es algo que se hace sobre una
-# técnica concreta, y se llega desde la biblioteca de técnicas, donde el criterio
-# vigente está a la vista. Como sección suelta invitaba a abrir una tabla de diez
-# umbrales sin recordar cuál se quería tocar.
-SECCIONES = [
-    ("inicio",    "Inicio"),
-    ("vivo",      "Análisis en vivo"),
-    ("historial", "Alumnos y progreso"),
-    ("tecnicas",  "Técnicas"),
-    ("camara",    "Cámara"),
-]
+# La composición del menú y el texto del control de cambio de perfil viven en
+# `gui/navegacion.py`, que no importa CustomTkinter: así la suite puede
+# verificar qué secciones existen y cuántos clics cuesta cada tarea (RNF-04)
+# también en integración continua, donde no hay entorno gráfico. Se reexportan
+# aquí porque este sigue siendo el lugar donde se los busca al leer la barra.
+from gui.navegacion import SECCIONES, etiqueta_cambiar_perfil
 
 
 class BarraLateral(ctk.CTkFrame):
@@ -147,7 +133,7 @@ class BarraLateral(ctk.CTkFrame):
         # secciones: no es un lugar del sistema al que se va, es cambiar quién
         # lo está usando.
         self.boton_cambiar = ctk.CTkButton(
-            textos, text=f"{(self.entrenador.get('rol') or 'sensei').title()} · cambiar perfil",
+            textos, text=etiqueta_cambiar_perfil(self.entrenador.get("rol")),
             height=16, fg_color="transparent", hover_color=theme.CARD_HOVER,
             text_color=theme.TEXTO_TENUE, font=(theme.FUENTE, 10), anchor="w",
             command=lambda: self.al_navegar("perfiles"))
