@@ -194,8 +194,32 @@ def reportar(monitor, carpeta="evidencias"):
     print(f"Gráfica: {ruta_png}")
 
 
+def fuente_por_defecto():
+    """
+    La cámara que el entrenador dejó configurada en la aplicación.
+
+    Antes este valor era el índice 2 escrito a mano, que correspondía al iPhone
+    por Continuity del equipo de desarrollo. En cualquier otro equipo ese índice
+    no existe, de modo que la medición fallaba en la máquina donde más importa
+    hacerla: la del dojo.
+
+    Si no hay base de datos todavía, se usa el índice 0, que es la cámara
+    integrada en prácticamente todo equipo portátil.
+    """
+    try:
+        from persistence.database import Database
+        db = Database()
+        try:
+            return db.leer_config("fuente_video", 0)
+        finally:
+            db.close()
+    except Exception:
+        return 0
+
+
 if __name__ == "__main__":
-    arg = sys.argv[1] if len(sys.argv) > 1 else "2"
-    fuente = int(arg) if arg.isdigit() else arg
+    # `normalizar` (vision/fuentes.py) decide si lo recibido es un índice, una
+    # dirección de cámara IP o un archivo de video; aquí no hay que interpretarlo.
+    fuente = sys.argv[1] if len(sys.argv) > 1 else fuente_por_defecto()
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 300
     reportar(medir(fuente, n))

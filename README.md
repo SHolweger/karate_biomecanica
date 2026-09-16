@@ -186,9 +186,32 @@ cobertura, la evidencia de ejecución y el documento de casos generado.
 
 ## Scripts de evidencia (no forman parte de la suite)
 
-`test_antijitter.py` y `test_camaras.py` son herramientas manuales que generan
-evidencia para la tesis (gráficas del filtro) o inspeccionan el hardware. Se
+`test_antijitter.py`, `test_camaras.py` y `test_rendimiento.py` son herramientas
+manuales que generan evidencia para la tesis o inspeccionan el hardware. Se
 ejecutan a mano y quedan fuera de `pytest` a propósito (`testpaths = tests`).
+
+### Medición de rendimiento (RNF-01 y RF-01)
+
+`test_rendimiento.py` ejecuta el encadenamiento real de producción instrumentado
+etapa por etapa y contrasta el resultado contra los dos criterios del capítulo 3:
+cómputo por fotograma < 500 ms y tasa sostenida ≥ 30 fps. Deja un CSV con el
+detalle por fotograma y una gráfica en `evidencias/`.
+
+```bash
+python3 test_rendimiento.py                  # usa la cámara configurada en la app
+python3 test_rendimiento.py 0 300            # cámara 0, 300 fotogramas
+python3 test_rendimiento.py sesion.mp4 300   # sobre una grabación
+```
+
+**La medición solo es válida con una persona en cuadro.** Si nadie aparece,
+MediaPipe no detecta pose, el analizador no llega a ejecutarse y las etapas de
+análisis y renderizado salen en cero: el resultado mide un encadenamiento que no
+hizo su trabajo. El protocolo es situarse de cuerpo completo y ejecutar técnicas
+con normalidad durante toda la medición.
+
+Medir sobre una **grabación** en vez de en vivo tiene una ventaja de método: la
+entrada es idéntica en cada corrida, de modo que una diferencia en el resultado
+solo puede provenir del código y no de cómo se ejecutó la técnica ese día.
 
 ## Documentación
 

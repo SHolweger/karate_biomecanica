@@ -8,7 +8,8 @@ haberlas separado de la clase `Camera`.
 """
 import pytest
 
-from vision.fuentes import CamaraNoDisponible, describir, es_url, normalizar
+from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
+                            normalizar)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
@@ -89,3 +90,60 @@ def test_una_fuente_ininteligible_se_rechaza_con_un_mensaje_util(basura):
 def test_la_descripcion_distingue_red_de_dispositivo_local():
     assert "IP" in describir("http://192.168.1.50:8080/video")
     assert "índice 2" in describir(2)
+
+
+# ---------------- archivos de video grabados ----------------
+
+@pytest.mark.parametrize("ruta", [
+    "sesion.mp4", "grabaciones/kihon.MOV", "/Users/sebastian/tatami.avi",
+    "prueba.mkv", "captura.webm", "video.m4v", "clip.mpeg",
+])
+def test_una_grabacion_se_reconoce_como_archivo(ruta):
+    """
+    Regresión del 16-sep-2026. Al extraer esta resolución de `camera.py` se
+    perdió el soporte de rutas de archivo, y `test_rendimiento.py` —que mide la
+    latencia real del sistema contra el RNF-01 y el RF-01— dejó de poder
+    ejecutarse sobre una grabación. El fallo pasó inadvertido porque ese script
+    no forma parte de la suite.
+    """
+    assert es_archivo(ruta) is True
+    assert normalizar(ruta) == ruta.strip()
+
+
+@pytest.mark.parametrize("fuente", ["0", "2", "camara", "", "sesion", "notas.txt",
+                                    "carpeta.mp4/algo", None])
+def test_lo_que_no_es_una_grabacion_no_se_confunde_con_una(fuente):
+    """
+    El reconocimiento es por extensión y estricto a propósito. Aceptar cualquier
+    texto como ruta convertiría un error de escritura en la pantalla de cámara
+    en un intento silencioso de abrir un archivo inexistente, con un mensaje que
+    apunta al lugar equivocado.
+    """
+    assert es_archivo(fuente) is False
+
+
+def test_una_transmision_de_red_con_extension_de_video_sigue_siendo_una_url():
+    """
+    `http://camara.local/stream.mp4` es una cámara IP, no un archivo. Tratarla
+    como archivo produciría un diagnóstico que culpa al disco de un problema de
+    red.
+    """
+    url = "http://camara.dojo.local/stream.mp4"
+
+    assert es_url(url) is True
+    assert es_archivo(url) is False
+    assert "Cámara IP" in describir(url)
+
+
+def test_la_descripcion_distingue_una_grabacion_de_una_camara():
+    assert "Video grabado" in describir("sesion.mp4")
+    assert "Cámara del sistema" in describir(0)
+
+
+def test_el_mensaje_de_error_menciona_las_tres_formas_validas():
+    """Quien se equivoca al escribir una fuente debe ver qué sí se acepta."""
+    with pytest.raises(CamaraNoDisponible) as error:
+        normalizar("camara del tatami")
+
+    mensaje = str(error.value)
+    assert "índice" in mensaje and "IP" in mensaje and "archivo de video" in mensaje
