@@ -125,8 +125,15 @@ real cuesta ~100 ms, así que el siguiente temporizador ya venció cuando termin
 el anterior. `update()` procesa eventos hasta vaciar una cola que se rellena
 sola y no vuelve nunca: colgó la suite en la Mac el 18-sep-2026 mientras en
 Linux pasaba, porque ahí el temporizador todavía no había vencido. Lo fija
-`test_el_recorrido_no_deja_correr_el_ciclo_del_video`, que pone el intervalo en
-cero para provocar la condición en cualquier sistema.
+`test_el_recorrido_no_deja_desbocado_el_ciclo_del_video`, que pone el intervalo
+en cero para provocar la condición en cualquier sistema.
+
+Ojo con lo que se afirma en esas pruebas: **no se puede exigir que el ciclo dé
+exactamente una vuelta**. CustomTkinter llama a `update_idletasks()` por su
+cuenta al redibujar un desplegable (`CTkOptionMenu._draw`), y en macOS esa
+llamada atiende temporizadores ya vencidos —seis vueltas en la Mac contra una en
+Linux, con el mismo código correcto—. Lo que se verifica es que el ciclo **pare
+solo**, no cuántas vueltas dio.
 
 ---
 

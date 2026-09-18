@@ -421,37 +421,40 @@ def test_cambiar_de_sensei_exige_la_contrasena(sensei_en_el_sistema, sustitucion
 # El recorrido detecta lo que debe detectar
 # --------------------------------------------------------------------------
 
-# Tope de vueltas del ciclo de video antes de darlo por desbocado. Basta con que
-# sea mayor que 1 —la única vuelta legítima— y lo bastante pequeño para que la
-# prueba falle en segundos en vez de quedarse colgada.
-TOPE_VUELTAS = 5
+# Vueltas del ciclo de video a partir de las cuales se lo da por desbocado y se
+# lo corta a la fuerza. Con el arreglo el recorrido da unas pocas —cuántas
+# depende del sistema, ver la prueba—; sin él no para nunca, así que cualquier
+# tope holgado separa un caso del otro. Cortar en vez de dejar correr convierte
+# lo que sería un cuelgue en un fallo que se lee.
+TOPE_VUELTAS = 60
 
 
-def test_el_recorrido_no_deja_correr_el_ciclo_del_video(sensei_en_el_sistema, sustituciones,
-                                                        monkeypatch):
+def test_el_recorrido_no_deja_desbocado_el_ciclo_del_video(sensei_en_el_sistema, sustituciones,
+                                                           monkeypatch):
     """
     Regresión del 18-sep-2026: la suite se quedaba colgada en la ruta «medir».
 
     El recorrido llamaba a `app.update()` tras cada pulsación. El análisis en
     vivo se refresca con `after(15 ms)` y cada fotograma cuesta unos 100 ms con
-    MediaPipe real, así que al terminar un fotograma el siguiente temporizador ya
-    había vencido: `update()` procesaba eventos hasta vaciar una cola que se
-    rellenaba sola, y no volvía nunca.
+    MediaPipe real, así que al terminar uno el siguiente temporizador ya había
+    vencido: `update()` procesa eventos hasta vaciar la cola, esa cola se
+    rellenaba sola en cada vuelta, y la llamada no volvía nunca.
 
-    Aquí se cuentan las vueltas del ciclo durante el recorrido. La legítima es
-    una —la que `_comenzar` dispara en el acto—; las demás solo pueden venir de
-    que alguien haya vuelto a ejecutar temporizadores dentro del recorrido.
+    Lo que se verifica es que **el ciclo pare solo**. No que dé exactamente una
+    vuelta: eso no está en manos de este recorrido. CustomTkinter ejecuta
+    `update_idletasks()` por su cuenta al redibujar un desplegable
+    (`CTkOptionMenu._draw`), y en macOS esa llamada alcanza a atender
+    temporizadores ya vencidos, de modo que unas pocas vueltas son inevitables y
+    correctas. La diferencia entre correcto y roto no es el número: es si el
+    ciclo se detiene por sí mismo o hay que cortarlo.
 
     El intervalo de refresco se pone en cero a propósito. Con el intervalo real
-    el temporizador todavía no ha vencido cuando el recorrido sigue adelante, y
-    si la máquina es lo bastante rápida el defecto no se manifiesta —que es
-    justo por qué esta prueba pasaba en Linux mientras la suite se colgaba en la
-    Mac—. En cero, el siguiente refresco está vencido siempre, en cualquier
-    sistema: es la misma condición que produce un fotograma más lento que el
-    intervalo, provocada a voluntad.
-
-    El tope corta el ciclo en vez de dejar que la prueba se cuelgue: un fallo se
-    lee, un cuelgue hay que diagnosticarlo.
+    el temporizador puede no haber vencido todavía cuando el recorrido sigue
+    adelante, y en una máquina rápida el defecto no se manifiesta —que es justo
+    por qué la suite se colgaba en la Mac y pasaba en Linux—. En cero, el
+    siguiente refresco está vencido siempre, en cualquier sistema: la misma
+    condición que produce un fotograma más lento que el intervalo, provocada a
+    voluntad.
     """
     if not os.path.exists(MODELO_POSE):
         pytest.skip(f"falta el modelo de pose {MODELO_POSE}")
@@ -459,12 +462,15 @@ def test_el_recorrido_no_deja_correr_el_ciclo_del_video(sensei_en_el_sistema, su
     monkeypatch.setattr(live_screen.LiveScreen, "INTERVALO_MS", 0)
 
     vueltas = []
+    cortado = []
     original = live_screen.LiveScreen._actualizar_frame
 
     def contada(self):
         vueltas.append(1)
         if len(vueltas) > TOPE_VUELTAS:
-            self._activo = False   # corta el ciclo: la prueba debe fallar, no colgarse
+            # Corta el ciclo para que la prueba falle en vez de colgarse.
+            cortado.append(1)
+            self._activo = False
             return
         original(self)
 
@@ -472,10 +478,11 @@ def test_el_recorrido_no_deja_correr_el_ciclo_del_video(sensei_en_el_sistema, su
 
     recorrer(app, navegacion.ruta("medir"), sustituciones)
 
-    assert len(vueltas) == 1, (
-        f"el ciclo del video dio {len(vueltas)} vueltas durante el recorrido. "
-        f"Alguien volvió a llamar a update() en vez de _asentar(): con fotogramas "
-        f"más lentos que el intervalo de refresco, eso cuelga la suite.")
+    assert not cortado, (
+        f"el ciclo del video no paró solo: llegó a {len(vueltas)} vueltas dentro del "
+        f"recorrido y hubo que cortarlo. Alguien volvió a llamar a update() en vez de "
+        f"_asentar(): con fotogramas más lentos que el intervalo de refresco, esa cola "
+        f"se rellena sola y la suite se cuelga.")
 
 
 def test_un_control_que_no_existe_hace_fallar_el_recorrido(sensei_en_el_sistema):
