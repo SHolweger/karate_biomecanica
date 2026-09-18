@@ -113,6 +113,10 @@ def _pulsar_tarjeta(tarjeta):
     Se la devuelve al gestor de ventanas transparente y fuera de la pantalla el
     tiempo mínimo para que el evento se entregue: así el clic es real y sigue
     sin verse nada.
+
+    `when="now"` entrega el evento al manejador en el acto, sin pasar por la
+    cola. Es lo que permite no llamar nunca a `update()` — ver la advertencia
+    de `_asentar`.
     """
     ventana = tarjeta.winfo_toplevel()
     oculta = ventana.state() == "withdrawn"
@@ -121,13 +125,33 @@ def _pulsar_tarjeta(tarjeta):
         ventana.geometry("+4000+4000")
         ventana.deiconify()
     try:
-        ventana.update()
-        tarjeta._canvas.event_generate("<Button-1>", x=2, y=2)
-        ventana.update()
+        _asentar(ventana)
+        tarjeta._canvas.event_generate("<Button-1>", x=2, y=2, when="now")
     finally:
         if oculta:
             ventana.withdraw()
             ventana.wm_attributes("-alpha", 1.0)
+
+
+def _asentar(widget):
+    """
+    Deja que Tk termine de colocar lo que se acaba de crear.
+
+    **Nunca `update()`.** El análisis en vivo se refresca con `after(15 ms)` y
+    cada fotograma cuesta unos 100 ms con MediaPipe real: cuando el manejador
+    termina, el siguiente temporizador ya venció. `update()` procesa eventos
+    hasta vaciar la cola, y esa cola no se vacía nunca —cada vuelta programa
+    otra ya vencida—, de modo que el recorrido se cuelga en la ruta «medir».
+    Ocurrió en la máquina de desarrollo el 18-sep-2026; en Linux la misma
+    prueba pasaba, así que el fallo depende del sistema y no se puede confiar en
+    haberlo visto pasar una vez.
+
+    `update_idletasks` hace lo único que este recorrido necesita —geometría y
+    redibujado— y no ejecuta temporizadores, así que el ciclo del video no
+    avanza mientras se navega. Que no avance es correcto: lo que se audita es la
+    navegación, no el video.
+    """
+    widget.update_idletasks()
 
 
 def pulsar(app, paso, sustituciones):
@@ -147,7 +171,7 @@ def pulsar(app, paso, sustituciones):
     else:  # pragma: no cover - lo impide la prueba unitaria del mapa
         raise AssertionError(f"tipo de control desconocido: {paso.control}")
 
-    app.update()
+    _asentar(app)
     return etiqueta
 
 
@@ -167,7 +191,7 @@ def recorrer(app, ruta, sustituciones, tecleos=None):
         dados += 1
         if dados in tecleos:
             tecleos[dados](app)
-            app.update()
+            _asentar(app)
     return dados
 
 
@@ -396,6 +420,63 @@ def test_cambiar_de_sensei_exige_la_contrasena(sensei_en_el_sistema, sustitucion
 # --------------------------------------------------------------------------
 # El recorrido detecta lo que debe detectar
 # --------------------------------------------------------------------------
+
+# Tope de vueltas del ciclo de video antes de darlo por desbocado. Basta con que
+# sea mayor que 1 —la única vuelta legítima— y lo bastante pequeño para que la
+# prueba falle en segundos en vez de quedarse colgada.
+TOPE_VUELTAS = 5
+
+
+def test_el_recorrido_no_deja_correr_el_ciclo_del_video(sensei_en_el_sistema, sustituciones,
+                                                        monkeypatch):
+    """
+    Regresión del 18-sep-2026: la suite se quedaba colgada en la ruta «medir».
+
+    El recorrido llamaba a `app.update()` tras cada pulsación. El análisis en
+    vivo se refresca con `after(15 ms)` y cada fotograma cuesta unos 100 ms con
+    MediaPipe real, así que al terminar un fotograma el siguiente temporizador ya
+    había vencido: `update()` procesaba eventos hasta vaciar una cola que se
+    rellenaba sola, y no volvía nunca.
+
+    Aquí se cuentan las vueltas del ciclo durante el recorrido. La legítima es
+    una —la que `_comenzar` dispara en el acto—; las demás solo pueden venir de
+    que alguien haya vuelto a ejecutar temporizadores dentro del recorrido.
+
+    El intervalo de refresco se pone en cero a propósito. Con el intervalo real
+    el temporizador todavía no ha vencido cuando el recorrido sigue adelante, y
+    si la máquina es lo bastante rápida el defecto no se manifiesta —que es
+    justo por qué esta prueba pasaba en Linux mientras la suite se colgaba en la
+    Mac—. En cero, el siguiente refresco está vencido siempre, en cualquier
+    sistema: es la misma condición que produce un fotograma más lento que el
+    intervalo, provocada a voluntad.
+
+    El tope corta el ciclo en vez de dejar que la prueba se cuelgue: un fallo se
+    lee, un cuelgue hay que diagnosticarlo.
+    """
+    if not os.path.exists(MODELO_POSE):
+        pytest.skip(f"falta el modelo de pose {MODELO_POSE}")
+    app = sensei_en_el_sistema
+    monkeypatch.setattr(live_screen.LiveScreen, "INTERVALO_MS", 0)
+
+    vueltas = []
+    original = live_screen.LiveScreen._actualizar_frame
+
+    def contada(self):
+        vueltas.append(1)
+        if len(vueltas) > TOPE_VUELTAS:
+            self._activo = False   # corta el ciclo: la prueba debe fallar, no colgarse
+            return
+        original(self)
+
+    monkeypatch.setattr(live_screen.LiveScreen, "_actualizar_frame", contada)
+
+    recorrer(app, navegacion.ruta("medir"), sustituciones)
+
+    assert len(vueltas) == 1, (
+        f"el ciclo del video dio {len(vueltas)} vueltas durante el recorrido. "
+        f"Alguien volvió a llamar a update() en vez de _asentar(): con fotogramas "
+        f"más lentos que el intervalo de refresco, eso cuelga la suite.")
+
 
 def test_un_control_que_no_existe_hace_fallar_el_recorrido(sensei_en_el_sistema):
     """

@@ -82,7 +82,7 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 564 passed |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 565 passed |
 | CI / sin entorno gráfico | igual | 466 passed, 8 skipped |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
@@ -118,6 +118,15 @@ cada ruta **pulsando los widgets reales** que encuentra por su etiqueta. Al
 mover, renombrar o intercalar un control hay que actualizar la ruta, o el
 recorrido falla nombrando el paso y listando los botones que sí están. Escribir
 no cuenta como pulsación: el requisito mide profundidad de navegación.
+
+**En las pruebas de interfaz, `update()` nunca; `update_idletasks()` sí.**
+El análisis en vivo se refresca con `after(15 ms)` y un fotograma con MediaPipe
+real cuesta ~100 ms, así que el siguiente temporizador ya venció cuando termina
+el anterior. `update()` procesa eventos hasta vaciar una cola que se rellena
+sola y no vuelve nunca: colgó la suite en la Mac el 18-sep-2026 mientras en
+Linux pasaba, porque ahí el temporizador todavía no había vencido. Lo fija
+`test_el_recorrido_no_deja_correr_el_ciclo_del_video`, que pone el intervalo en
+cero para provocar la condición en cualquier sistema.
 
 ---
 
