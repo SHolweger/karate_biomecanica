@@ -120,20 +120,22 @@ recorrido falla nombrando el paso y listando los botones que sí están. Escribi
 no cuenta como pulsación: el requisito mide profundidad de navegación.
 
 **En las pruebas de interfaz, `update()` nunca; `update_idletasks()` sí.**
-El análisis en vivo se refresca con `after(15 ms)` y un fotograma con MediaPipe
-real cuesta ~100 ms, así que el siguiente temporizador ya venció cuando termina
-el anterior. `update()` procesa eventos hasta vaciar una cola que se rellena
-sola y no vuelve nunca: colgó la suite en la Mac el 18-sep-2026 mientras en
-Linux pasaba, porque ahí el temporizador todavía no había vencido. Lo fija
-`test_el_recorrido_no_deja_desbocado_el_ciclo_del_video`, que pone el intervalo
-en cero para provocar la condición en cualquier sistema.
+`update()` atiende el ciclo de eventos completo y deja correr el reloj mientras
+lo hace, así que el `after(15 ms)` del análisis en vivo vence dentro de la
+propia llamada: ejecuta un fotograma (~100 ms con MediaPipe real), ese fotograma
+programa el siguiente refresco, que ya está vencido, y la llamada no vuelve
+nunca. Colgó la suite en la Mac el 18-sep-2026; en Linux no, porque ahí
+`update()` no llega a dejar vencer el temporizador. Lo fija
+`test_el_recorrido_no_llama_a_update`.
 
-Ojo con lo que se afirma en esas pruebas: **no se puede exigir que el ciclo dé
-exactamente una vuelta**. CustomTkinter llama a `update_idletasks()` por su
-cuenta al redibujar un desplegable (`CTkOptionMenu._draw`), y en macOS esa
-llamada atiende temporizadores ya vencidos —seis vueltas en la Mac contra una en
-Linux, con el mismo código correcto—. Lo que se verifica es que el ciclo **pare
-solo**, no cuántas vueltas dio.
+Y una lección sobre **qué se puede afirmar en esa prueba**, que costó dos
+intentos fallidos: cuánto avanza el ciclo de video depende del sistema
+operativo. Con el intervalo forzado a cero, macOS encadena sin parar y Linux se
+detiene, con el mismo código correcto. Cualquier aserción sobre el número de
+vueltas es verdad en una máquina y mentira en la otra. Lo que sí es igual en
+todas —y lo único que la prueba afirma— es que este recorrido no llama a
+`update()`; medido, no lo llama ni una vez, ni siquiera desde dentro de
+CustomTkinter.
 
 ---
 

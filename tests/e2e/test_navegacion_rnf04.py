@@ -28,6 +28,12 @@ pytest.importorskip("mediapipe", reason="MediaPipe no está instalado")
 pytest.importorskip("PIL", reason="Pillow no está instalado")
 pytest.importorskip("matplotlib", reason="Matplotlib no está instalado")
 
+# Debajo del guardia: en el contenedor de integración continua no hay ni
+# CustomTkinter ni Tkinter, y un import arriba convertiría el SKIPPED controlado
+# de este módulo en un ERROR de recolección — que parece una suite rota en vez de
+# una limitación conocida del entorno (ver tests/e2e/conftest.py).
+import tkinter
+
 import numpy as np
 
 from gui import camara_screen, live_screen, navegacion
@@ -137,19 +143,25 @@ def _asentar(widget):
     """
     Deja que Tk termine de colocar lo que se acaba de crear.
 
-    **Nunca `update()`.** El análisis en vivo se refresca con `after(15 ms)` y
-    cada fotograma cuesta unos 100 ms con MediaPipe real: cuando el manejador
-    termina, el siguiente temporizador ya venció. `update()` procesa eventos
-    hasta vaciar la cola, y esa cola no se vacía nunca —cada vuelta programa
-    otra ya vencida—, de modo que el recorrido se cuelga en la ruta «medir».
-    Ocurrió en la máquina de desarrollo el 18-sep-2026; en Linux la misma
-    prueba pasaba, así que el fallo depende del sistema y no se puede confiar en
-    haberlo visto pasar una vez.
+    **Nunca `update()`.** `update()` atiende el ciclo de eventos completo y deja
+    correr el reloj mientras lo hace, así que el `after(15 ms)` del análisis en
+    vivo vence dentro de la propia llamada: se ejecuta un fotograma —unos 100 ms
+    con MediaPipe real—, ese fotograma programa el siguiente refresco, que para
+    entonces también está vencido, y la llamada no vuelve nunca. Colgó la suite
+    en la máquina de desarrollo el 18-sep-2026.
 
-    `update_idletasks` hace lo único que este recorrido necesita —geometría y
-    redibujado— y no ejecuta temporizadores, así que el ciclo del video no
-    avanza mientras se navega. Que no avance es correcto: lo que se audita es la
-    navegación, no el video.
+    `update_idletasks` solo ejecuta tareas de reposo —geometría y redibujado—,
+    que es lo único que este recorrido necesita, y no espera: un temporizador
+    que todavía no vence no se ejecuta. Como entre programar el refresco y
+    llegar aquí no pasa tiempo real, no hay nada vencido y el ciclo del video no
+    avanza. Que no avance es correcto: lo que se audita es la navegación, no el
+    video.
+
+    Esto no es una garantía absoluta y conviene no confundirlo con una: si un
+    temporizador ya está vencido, `update_idletasks` sí lo ejecuta, y en macOS
+    encadena con los que ese temporizador programe. Lo comprobamos forzando el
+    intervalo de refresco a cero. La garantía real es más modesta y suficiente:
+    el recorrido no deja pasar tiempo entre un refresco y el siguiente paso.
     """
     widget.update_idletasks()
 
@@ -421,68 +433,50 @@ def test_cambiar_de_sensei_exige_la_contrasena(sensei_en_el_sistema, sustitucion
 # El recorrido detecta lo que debe detectar
 # --------------------------------------------------------------------------
 
-# Vueltas del ciclo de video a partir de las cuales se lo da por desbocado y se
-# lo corta a la fuerza. Con el arreglo el recorrido da unas pocas —cuántas
-# depende del sistema, ver la prueba—; sin él no para nunca, así que cualquier
-# tope holgado separa un caso del otro. Cortar en vez de dejar correr convierte
-# lo que sería un cuelgue en un fallo que se lee.
-TOPE_VUELTAS = 60
-
-
-def test_el_recorrido_no_deja_desbocado_el_ciclo_del_video(sensei_en_el_sistema, sustituciones,
-                                                           monkeypatch):
+def test_el_recorrido_no_llama_a_update(sensei_en_el_sistema, sustituciones, monkeypatch):
     """
     Regresión del 18-sep-2026: la suite se quedaba colgada en la ruta «medir».
 
-    El recorrido llamaba a `app.update()` tras cada pulsación. El análisis en
-    vivo se refresca con `after(15 ms)` y cada fotograma cuesta unos 100 ms con
-    MediaPipe real, así que al terminar uno el siguiente temporizador ya había
-    vencido: `update()` procesa eventos hasta vaciar la cola, esa cola se
-    rellenaba sola en cada vuelta, y la llamada no volvía nunca.
+    El recorrido llamaba a `app.update()` tras cada pulsación. A diferencia de
+    `update_idletasks`, `update()` atiende el ciclo de eventos completo y deja
+    correr el reloj mientras lo hace, así que el `after(15 ms)` del análisis en
+    vivo vence dentro de la propia llamada: se ejecuta un fotograma —unos 100 ms
+    con MediaPipe real—, ese fotograma programa el siguiente refresco, que para
+    entonces también está vencido, y `update()` no vuelve nunca. En la Mac colgó
+    la suite; en Linux no, porque allí `update()` no llega a dejar vencer el
+    temporizador.
 
-    Lo que se verifica es que **el ciclo pare solo**. No que dé exactamente una
-    vuelta: eso no está en manos de este recorrido. CustomTkinter ejecuta
-    `update_idletasks()` por su cuenta al redibujar un desplegable
-    (`CTkOptionMenu._draw`), y en macOS esa llamada alcanza a atender
-    temporizadores ya vencidos, de modo que unas pocas vueltas son inevitables y
-    correctas. La diferencia entre correcto y roto no es el número: es si el
-    ciclo se detiene por sí mismo o hay que cortarlo.
+    Se comprueba que el recorrido no llame a `update()`, y no una propiedad del
+    ciclo de video. Es una distinción que costó dos intentos: cuánto avanza el
+    ciclo depende del sistema —con el intervalo forzado a cero, en macOS encadena
+    sin parar y en Linux se detiene— de modo que cualquier afirmación sobre el
+    número de vueltas es verdad en una máquina y mentira en la otra. Que este
+    módulo no llame a `update()` sí es igual en todas.
 
-    El intervalo de refresco se pone en cero a propósito. Con el intervalo real
-    el temporizador puede no haber vencido todavía cuando el recorrido sigue
-    adelante, y en una máquina rápida el defecto no se manifiesta —que es justo
-    por qué la suite se colgaba en la Mac y pasaba en Linux—. En cero, el
-    siguiente refresco está vencido siempre, en cualquier sistema: la misma
-    condición que produce un fotograma más lento que el intervalo, provocada a
-    voluntad.
+    Se espía `tkinter.Misc.update` y no solo `App.update` porque el peligro está
+    en la llamada, la haga quien la haga y sobre qué widget sea. Medido: con el
+    arreglo el recorrido completo de «medir» no la invoca ni una vez, ni siquiera
+    desde dentro de CustomTkinter.
     """
     if not os.path.exists(MODELO_POSE):
         pytest.skip(f"falta el modelo de pose {MODELO_POSE}")
     app = sensei_en_el_sistema
-    monkeypatch.setattr(live_screen.LiveScreen, "INTERVALO_MS", 0)
 
-    vueltas = []
-    cortado = []
-    original = live_screen.LiveScreen._actualizar_frame
+    llamadas = []
+    original = tkinter.Misc.update
 
-    def contada(self):
-        vueltas.append(1)
-        if len(vueltas) > TOPE_VUELTAS:
-            # Corta el ciclo para que la prueba falle en vez de colgarse.
-            cortado.append(1)
-            self._activo = False
-            return
-        original(self)
+    def espiado(self):
+        llamadas.append(type(self).__name__)
+        return original(self)
 
-    monkeypatch.setattr(live_screen.LiveScreen, "_actualizar_frame", contada)
+    monkeypatch.setattr(tkinter.Misc, "update", espiado)
 
     recorrer(app, navegacion.ruta("medir"), sustituciones)
 
-    assert not cortado, (
-        f"el ciclo del video no paró solo: llegó a {len(vueltas)} vueltas dentro del "
-        f"recorrido y hubo que cortarlo. Alguien volvió a llamar a update() en vez de "
-        f"_asentar(): con fotogramas más lentos que el intervalo de refresco, esa cola "
-        f"se rellena sola y la suite se cuelga.")
+    assert llamadas == [], (
+        f"el recorrido llamó a update() sobre {llamadas}. Con el análisis en vivo "
+        f"abierto, esa llamada deja vencer el temporizador de refresco dentro de sí "
+        f"misma y no vuelve: cuelga la suite. Usa _asentar() (update_idletasks).")
 
 
 def test_un_control_que_no_existe_hace_fallar_el_recorrido(sensei_en_el_sistema):
