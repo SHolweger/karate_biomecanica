@@ -210,3 +210,25 @@ def nombre_visible(ruta_guardada):
     if not ruta_guardada or not str(ruta_guardada).strip():
         return SIN_VIDEO
     return os.path.basename(str(ruta_guardada).strip())
+
+
+# Cómo se anuncia el estado de grabación en la pantalla de análisis, antes de
+# que la sesión empiece.
+GRABANDO = "● Grabando"
+SOLO_MIDIENDO = "○ Solo midiendo"
+
+
+def aviso_en_vivo(activada):
+    """
+    Lo que lee el sensei —y el alumno, si mira la pantalla— mientras se mide.
+
+    Existe por la misma razón que el interruptor: nadie debería descubrir que
+    lo estaban filmando después. Que el estado esté a la vista durante la
+    sesión convierte el consentimiento en algo verificable en el momento, y no
+    en una casilla que alguien marcó una vez hace meses.
+
+    El punto lleno/vacío acompaña al texto a propósito: es la convención con
+    la que cualquier persona reconoce una grabación en curso, y se entiende
+    de un vistazo desde el otro lado del tatami.
+    """
+    return GRABANDO if activada else SOLO_MIDIENDO

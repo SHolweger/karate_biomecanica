@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 45
+**Casos documentados:** 46
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -13,7 +13,7 @@
 |---|---|---|
 | Unitaria | 18 | 42 |
 | API/Integración | 17 | 27 |
-| Interfaz (UI/E2E) | 10 | 18 |
+| Interfaz (UI/E2E) | 11 | 19 |
 
 ---
 
@@ -1339,6 +1339,35 @@
 
 ---
 
+## TC-AUTO-046 — El instructor decide si las sesiones se graban, y la decisión persiste entre arranques
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-046 |
+| **Nombre de la Prueba** | El instructor decide si las sesiones se graban, y la decisión persiste entre arranques |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — grabar sin que el usuario lo haya decidido llena su disco sin aviso y, con alumnos menores de edad, lo pone a filmar sin el consentimiento de sus encargados |
+| **Componente bajo prueba** | `gui/camara_screen.py (CamaraScreen) + vision/grabacion.py (grabacion_activada)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | CustomTkinter, OpenCV, MediaPipe y Pillow instalados; entorno gráfico |
+| **Datos de Entrada (Test Data)** | El interruptor de grabación, apagado y vuelto a encender |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_camara.py::test_el_instructor_decide_si_se_graba_y_se_recuerda` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Apagar el interruptor | Se guarda en la tabla de configuración al instante |
+| 2 | Volver a abrir la pantalla | El interruptor sigue apagado |
+| 3 | Encenderlo de nuevo | assert la configuración vuelve a activar la grabación |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** La elección del instructor se respeta y sobrevive al reinicio
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1388,3 +1417,4 @@
 | TC-AUTO-043 | `vision/grabador.py (GrabadorSesion.escribir)` | RF-01, RF-07 | API/Integración |
 | TC-AUTO-044 | `gui/live_screen.py + vision/grabador.py + persistence/database.py` | RF-01, RF-07 | Interfaz (UI/E2E) |
 | TC-AUTO-045 | `gui/camara_screen.py (CamaraScreen) + vision/fuentes.py (validar_grabacion)` | RF-01 | Interfaz (UI/E2E) |
+| TC-AUTO-046 | `gui/camara_screen.py (CamaraScreen) + vision/grabacion.py (grabacion_activada)` | RF-01 | Interfaz (UI/E2E) |

@@ -22,6 +22,7 @@ from gui import camara_screen
 from gui.camara_screen import CLAVE_FUENTE, CamaraScreen, fuente_configurada
 from gui.inicio_screen import InicioScreen
 from vision.camera import CamaraNoDisponible
+from vision.grabacion import CLAVE_GRABAR, grabacion_activada
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = [pytest.mark.e2e, pytest.mark.lenta]
@@ -305,4 +306,84 @@ def test_elegir_una_camara_del_sistema_sigue_funcionando(pantalla_camara, db):
     pantalla_camara.seleccion.set("1")
 
     assert pantalla_camara.guardar_seleccion() is True
+    assert fuente_configurada(db) == "1"
+
+
+# ---------------------------------------------------------------------------
+# Grabar o solo medir (RF-01)
+#
+# Dos motivos para poder apagarlo, los dos del usuario y no del sistema: el
+# consentimiento —en un dojo se entrena con menores— y el disco, que es el
+# equipo con el que el instructor da clase.
+# ---------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-046",
+    nombre="El instructor decide si las sesiones se graban, y la decisión persiste entre arranques",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "grabar sin que el usuario lo haya decidido llena su disco sin aviso y, con alumnos "
+        "menores de edad, lo pone a filmar sin el consentimiento de sus encargados"
+    ),
+    componente="gui/camara_screen.py (CamaraScreen) + vision/grabacion.py (grabacion_activada)",
+    requisitos="RF-01",
+    precondiciones="CustomTkinter, OpenCV, MediaPipe y Pillow instalados; entorno gráfico",
+    datos_entrada="El interruptor de grabación, apagado y vuelto a encender",
+    pasos=[
+        Paso("Apagar el interruptor", "Se guarda en la tabla de configuración al instante"),
+        Paso("Volver a abrir la pantalla", "El interruptor sigue apagado"),
+        Paso("Encenderlo de nuevo", "assert la configuración vuelve a activar la grabación"),
+    ],
+    resultado_esperado="La elección del instructor se respeta y sobrevive al reinicio",
+)
+def test_el_instructor_decide_si_se_graba_y_se_recuerda(app, db, entrenador_registrado,
+                                                        camaras_simuladas):
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("camara")
+    pantalla = app.pantalla_actual
+
+    assert pantalla.grabar_var.get() is True, "viene activada: es lo que hace repetible el análisis"
+
+    pantalla.grabar_var.set(False)
+    pantalla._cambiar_grabacion()
+    assert grabacion_activada(db.leer_config(CLAVE_GRABAR)) is False
+
+    # Se reabre la pantalla, como en un arranque posterior.
+    app._navegar("camara")
+    assert app.pantalla_actual.grabar_var.get() is False
+
+    app.pantalla_actual.grabar_var.set(True)
+    app.pantalla_actual._cambiar_grabacion()
+    assert grabacion_activada(db.leer_config(CLAVE_GRABAR)) is True
+
+
+def test_el_texto_explica_que_implica_el_estado_no_que_hace_el_boton(app, entrenador_registrado,
+                                                                     camaras_simuladas):
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("camara")
+    pantalla = app.pantalla_actual
+
+    encendido = pantalla.detalle_grabacion_var.get()
+    assert "consentimiento" in encendido, "el motivo legal tiene que estar a la vista"
+    assert "espacio en disco" in encendido
+
+    pantalla.grabar_var.set(False)
+    pantalla._cambiar_grabacion()
+    apagado = pantalla.detalle_grabacion_var.get()
+    assert "se miden y se registran igual" in apagado, "apagar no puede parecer que anula el análisis"
+
+
+def test_apagar_la_grabacion_no_toca_la_fuente_de_video(app, db, entrenador_registrado,
+                                                        camaras_simuladas):
+    """Son dos ajustes independientes: de dónde viene el video y si se guarda."""
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("camara")
+    pantalla = app.pantalla_actual
+    pantalla.seleccion.set("1")
+    pantalla.guardar_seleccion()
+
+    pantalla.grabar_var.set(False)
+    pantalla._cambiar_grabacion()
+
     assert fuente_configurada(db) == "1"

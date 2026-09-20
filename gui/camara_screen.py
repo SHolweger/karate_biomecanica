@@ -5,6 +5,7 @@ import customtkinter as ctk
 from gui import theme
 from vision.camera import CamaraNoDisponible, Camera, describir, es_url, listar_camaras
 from vision.fuentes import EXTENSIONES_VIDEO, es_archivo, validar_grabacion
+from vision.grabacion import CLAVE_GRABAR, grabacion_activada
 
 # Clave con la que se recuerda la fuente elegida en la tabla `configuracion`.
 CLAVE_FUENTE = "fuente_video"
@@ -54,6 +55,12 @@ class CamaraScreen(ctk.CTkFrame):
         self.seleccion = ctk.StringVar(value=str(db.leer_config(CLAVE_FUENTE, "")))
         self.url_var = ctk.StringVar()
         self.archivo_var = ctk.StringVar()
+        # Grabar o solo medir. Se lee de la base al abrir la pantalla: la
+        # decisión es del equipo y persiste entre sesiones, no algo que el
+        # sensei tenga que recordar marcar cada tarde.
+        self.grabar_var = ctk.BooleanVar(
+            value=grabacion_activada(db.leer_config(CLAVE_GRABAR)))
+        self.detalle_grabacion_var = ctk.StringVar(value="")
         self.error_var = ctk.StringVar(value="")
         self.estado_var = ctk.StringVar(value="")
 
@@ -218,6 +225,7 @@ class CamaraScreen(ctk.CTkFrame):
 
         self._tarjeta_ip()
         self._tarjeta_archivo()
+        self._tarjeta_grabacion()
 
         # Si el dispositivo guardado ya no existe (se desconectó la cámara USB),
         # se avisa en vez de dejar seleccionada en silencio una fuente que va a
@@ -317,6 +325,61 @@ class CamaraScreen(ctk.CTkFrame):
                       border_width=1, border_color=theme.BORDE_CLARO,
                       text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
                       command=self._elegir_archivo).pack(side="left", padx=(8, 0))
+
+    def _tarjeta_grabacion(self):
+        """
+        Grabar la sesión, o solo medirla.
+
+        Dos motivos distintos para poder apagarlo, y los dos son del usuario y
+        no del sistema:
+
+        El primero es el consentimiento. En un dojo se entrena con menores, y
+        filmar a un menor requiere el permiso de quien lo tiene a cargo. Un
+        sistema que graba por su cuenta pondría al instructor a incumplir eso
+        sin enterarse.
+
+        El segundo es el disco. Una sesión de quince minutos son cientos de
+        megabytes, y llenar el disco de alguien sin habérselo advertido no es
+        una molestia menor: es el equipo con el que da clase.
+
+        Apagado, la sesión se mide exactamente igual. Lo único que se pierde es
+        poder volver a analizar la ejecución más adelante.
+        """
+        caja = ctk.CTkFrame(self.lista, fg_color=theme.CARD, border_color=theme.BORDE,
+                            border_width=1, corner_radius=10)
+        caja.pack(fill="x", pady=(12, 3))
+
+        cabecera = ctk.CTkFrame(caja, fg_color="transparent")
+        cabecera.pack(fill="x", padx=14, pady=(12, 2))
+        ctk.CTkSwitch(cabecera, text="", variable=self.grabar_var, width=44,
+                      progress_color=theme.ACENTO_ROJO,
+                      command=self._cambiar_grabacion).pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(cabecera, text="Grabar el video de las sesiones",
+                     font=(theme.FUENTE, 13, "bold"),
+                     text_color=theme.TEXTO).pack(side="left")
+
+        ctk.CTkLabel(caja, textvariable=self.detalle_grabacion_var,
+                     font=(theme.FUENTE, 11.5), text_color=theme.TEXTO_MUTED,
+                     wraplength=620, justify="left").pack(anchor="w", padx=(68, 14), pady=(0, 14))
+        self._describir_grabacion()
+
+    def _describir_grabacion(self):
+        """El texto dice qué implica el estado actual, no qué hace el interruptor."""
+        if self.grabar_var.get():
+            self.detalle_grabacion_var.set(
+                "Cada sesión dejará un video que se puede volver a analizar más adelante. "
+                "Ocupa espacio en disco (cientos de MB por sesión) y requiere el "
+                "consentimiento de los alumnos, o de sus encargados si son menores.")
+        else:
+            self.detalle_grabacion_var.set(
+                "Las sesiones se miden y se registran igual, pero no queda video. "
+                "No se podrá volver a analizar la ejecución si más adelante cambia "
+                "lo que el sistema mide.")
+
+    def _cambiar_grabacion(self):
+        """Se guarda al instante: un interruptor que exige confirmar aparte engaña."""
+        self.db.guardar_config(CLAVE_GRABAR, "1" if self.grabar_var.get() else "0")
+        self._describir_grabacion()
 
     def _elegir_archivo(self):
         """Abre el diálogo del sistema y deja la ruta en el campo."""

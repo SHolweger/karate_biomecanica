@@ -11,7 +11,8 @@ from datetime import datetime
 import pytest
 
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
-from vision.grabacion import (FPS_POR_DEFECTO, describir_resultado, directorio_configurado,
+from vision.grabacion import (FPS_POR_DEFECTO, aviso_en_vivo, describir_resultado,
+                              directorio_configurado,
                               fps_estimado, grabacion_activada, nombre_de_archivo,
                               nombre_visible, parte_de_nombre, ruta_de_sesion)
 
@@ -196,3 +197,18 @@ def test_sin_video_el_reporte_declara_la_ausencia_en_vez_de_callarla(vacio):
     no lo menciona, y esa diferencia importa al ir a buscar el archivo.
     """
     assert nombre_visible(vacio) == "Sin video"
+
+
+# ---------------- el aviso durante la sesión ----------------
+
+def test_grabando_se_anuncia_con_el_punto_lleno():
+    """La convención con la que cualquiera reconoce una grabación en curso."""
+    assert aviso_en_vivo(True) == "● Grabando"
+
+
+def test_sin_grabar_tambien_se_anuncia_en_vez_de_no_decir_nada():
+    """
+    Una etiqueta ausente se lee como "no me fijé", no como "no se está
+    grabando". El estado tiene que estar afirmado en los dos casos.
+    """
+    assert aviso_en_vivo(False) == "○ Solo midiendo"

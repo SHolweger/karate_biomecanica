@@ -15,8 +15,8 @@ from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
-from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, directorio_configurado,
-                              grabacion_activada)
+from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, aviso_en_vivo,
+                              directorio_configurado, grabacion_activada)
 from vision.grabador import GrabadorSesion
 from vision.tracker import PoseTracker
 
@@ -88,6 +88,10 @@ class LiveScreen(ctk.CTkFrame):
         self.filas_metricas = {}
         self.estado_var = ctk.StringVar(value="")
         self.veredicto_var = ctk.StringVar(value=SIN_DATO)
+        # Grabando o solo midiendo, a la vista durante toda la sesión. Nadie
+        # debería descubrir que lo estaban filmando después.
+        self.grabacion_var = ctk.StringVar(
+            value=aviso_en_vivo(grabacion_activada(db.leer_config(CLAVE_GRABAR))))
 
         self._encabezado()
         self._controles()
@@ -156,8 +160,20 @@ class LiveScreen(ctk.CTkFrame):
         ctk.CTkLabel(fila, text=str(fuente_configurada(self.db)), font=(theme.FUENTE, 11.5),
                      text_color=theme.TEXTO_MUTED).pack(side="left")
 
+        # El estado de grabación va junto a la cámara y no escondido en un
+        # menú: es parte de las condiciones en que se está midiendo, igual que
+        # de qué fuente viene el video y a quién se mide.
+        self.etiqueta_grabacion = ctk.CTkLabel(
+            fila, textvariable=self.grabacion_var, font=(theme.FUENTE, 11.5, "bold"),
+            text_color=theme.ACENTO_ROJO if self._graba() else theme.TEXTO_TENUE)
+        self.etiqueta_grabacion.pack(side="left", padx=(22, 0))
+
         ctk.CTkLabel(fila, textvariable=self.estado_var, font=(theme.FUENTE, 11.5),
                      text_color=theme.ACENTO_AMARILLO).pack(side="right")
+
+    def _graba(self):
+        """¿Este equipo está configurado para grabar? Se consulta a la base, no se recuerda."""
+        return grabacion_activada(self.db.leer_config(CLAVE_GRABAR))
 
     def _cuerpo(self):
         cuerpo = ctk.CTkFrame(self, fg_color="transparent")
@@ -318,7 +334,7 @@ class LiveScreen(ctk.CTkFrame):
         # Apagable por equipo: en un dojo se entrena con menores, y filmar a un
         # menor requiere el consentimiento de quien lo tiene a cargo. Apagada,
         # la sesión se mide igual; solo deja de quedar el video.
-        if grabacion_activada(self.db.leer_config(CLAVE_GRABAR)):
+        if self._graba():
             self.grabador = GrabadorSesion(
                 self.id_sesion, self.atleta["nombre"],
                 directorio=directorio_configurado(self.db.leer_config(CLAVE_DIRECTORIO)))

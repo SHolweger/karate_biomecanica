@@ -400,3 +400,29 @@ def test_con_la_grabacion_apagada_la_sesion_se_mide_igual_y_lo_dice(app, db,
     # los quince fotogramas que esta prueba impulsó se consumieron.
     assert camara_sintetica.frames_entregados >= 15
     assert id_sesion is not None
+
+
+def test_la_pantalla_en_vivo_anuncia_si_esta_grabando(vivo_grabando):
+    """Nadie debería descubrir que lo estaban filmando después."""
+    pantalla, _ = vivo_grabando
+    assert pantalla.grabacion_var.get() == "● Grabando"
+
+
+def test_con_la_grabacion_apagada_la_pantalla_lo_dice_en_vez_de_callarlo(app, db,
+                                                                         entrenador_registrado,
+                                                                         dos_alumnos,
+                                                                         camara_sintetica):
+    """
+    Una etiqueta ausente se lee como "no me fijé", no como "no se está
+    grabando". El estado tiene que estar afirmado en los dos casos.
+    """
+    db.guardar_config("grabar_sesiones", "0")
+    app.on_login_exitoso(entrenador_registrado)
+    app._limpiar_pantalla()
+    app._montar_marco("vivo")
+    pantalla = LiveScreen(app.contenido, db, entrenador_registrado, dos_alumnos[0],
+                          cam=camara_sintetica, app=app)
+    try:
+        assert pantalla.grabacion_var.get() == "○ Solo midiendo"
+    finally:
+        pantalla.cerrar()
