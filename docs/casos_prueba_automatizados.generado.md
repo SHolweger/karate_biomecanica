@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 46
+**Casos documentados:** 48
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -11,9 +11,9 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 18 | 42 |
+| Unitaria | 19 | 43 |
 | API/Integración | 17 | 27 |
-| Interfaz (UI/E2E) | 11 | 19 |
+| Interfaz (UI/E2E) | 12 | 20 |
 
 ---
 
@@ -1368,6 +1368,63 @@
 
 ---
 
+## TC-AUTO-047 — El impacto de una recalibración se expresa en veredictos que cambian, no en filas
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-047 |
+| **Nombre de la Prueba** | El impacto de una recalibración se expresa en veredictos que cambian, no en filas |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — recalibrar sin ver el efecto es cambiar la vara de medir a ciegas; el número de veredictos que se mueven es lo que le dice al cuerpo técnico si el ajuste describe mejor la postura o si se pasó de estricto |
+| **Componente bajo prueba** | `gui/impacto_umbrales.py (titular)` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | Ninguna. El módulo no importa CustomTkinter |
+| **Datos de Entrada (Test Data)** | Informe con 3 mediciones que cambian y 2 que sostienen su veredicto |
+| **Archivo / Clase del Script** | `tests/unit/test_impacto_umbrales.py::test_el_titular_cuenta_los_cambios_sobre_las_juzgadas` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Invocar titular() con el informe | Se cuentan cambios sobre juzgadas |
+| 2 | Leer la frase resultante | assert dice «3 de 5 mediciones cambiarían de veredicto» |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** Una frase que el cuerpo técnico puede usar para decidir
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-048 — Antes de adoptar una recalibración, el sistema informa cuántas mediciones del historial cambiarían de veredicto
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-048 |
+| **Nombre de la Prueba** | Antes de adoptar una recalibración, el sistema informa cuántas mediciones del historial cambiarían de veredicto |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — recalibrar sin ver el efecto es cambiar a ciegas la vara con que se mide a los alumnos: el mismo historial puede pasar de 100 % a 40 % de precisión sin que nadie haya vuelto a medir |
+| **Componente bajo prueba** | `gui/umbrales_screen.py + expert_system/reevaluacion.py + gui/impacto_umbrales.py` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | Entorno gráfico y dependencias de GUI; cinco Kokutsu registrados como correctos con el umbral vigente de rodilla trasera (90–120°) |
+| **Datos de Entrada (Test Data)** | Rodilla trasera de Kokutsu Dachi corregida de 90–120° a 90–100° |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_umbrales.py::test_el_impacto_se_ve_antes_de_guardar` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Escribir el rango corregido en la fila de Kokutsu · rodilla trasera | El formulario difiere del umbral vigente |
+| 2 | Pulsar «Ver impacto en el historial» | Se vuelve a juzgar lo registrado con el criterio propuesto |
+| 3 | Leer el resumen | assert reporta 3 de 5 mediciones que cambian de veredicto |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** El resumen identifica las tres ejecuciones afectadas sin escribir nada
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1418,3 +1475,5 @@
 | TC-AUTO-044 | `gui/live_screen.py + vision/grabador.py + persistence/database.py` | RF-01, RF-07 | Interfaz (UI/E2E) |
 | TC-AUTO-045 | `gui/camara_screen.py (CamaraScreen) + vision/fuentes.py (validar_grabacion)` | RF-01 | Interfaz (UI/E2E) |
 | TC-AUTO-046 | `gui/camara_screen.py (CamaraScreen) + vision/grabacion.py (grabacion_activada)` | RF-01 | Interfaz (UI/E2E) |
+| TC-AUTO-047 | `gui/impacto_umbrales.py (titular)` | RF-08 | Unitaria |
+| TC-AUTO-048 | `gui/umbrales_screen.py + expert_system/reevaluacion.py + gui/impacto_umbrales.py` | RF-08 | Interfaz (UI/E2E) |

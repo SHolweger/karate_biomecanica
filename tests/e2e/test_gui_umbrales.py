@@ -211,3 +211,145 @@ def test_volver_regresa_al_panel_de_inicio(app, pantalla_umbrales):
     pantalla_umbrales._volver()
 
     assert isinstance(app.pantalla_actual, InicioScreen)
+
+
+# ---------------------------------------------------------------------------
+# Ver el impacto antes de adoptar el cambio (RF-08)
+#
+# El escenario para el que se construyó: los rangos de Kokutsu Dachi vigentes
+# son provisionales, deducidos del principio biomecánico. Cuando el cuerpo
+# técnico los confirme y corrija un número, la pregunta inmediata es cuánto del
+# historial cambia de veredicto — y hay que contestarla ANTES de adoptar el
+# cambio, porque es lo que dice si el ajuste describe mejor la postura o si se
+# pasó de estricto.
+# ---------------------------------------------------------------------------
+
+KOKUTSU_TRASERA = ("kokutsu_dachi", "rodilla_trasera")
+
+
+@pytest.fixture
+def kokutsu_medido(db, entrenador_registrado):
+    """
+    Cinco Kokutsu registrados con el umbral vigente (trasera 90–120°), los cinco
+    dados por correctos. Tres tienen la rodilla trasera por encima de 100°.
+    """
+    id_atleta = db.crear_atleta("Diego Morales")
+    id_sesion = db.iniciar_sesion(id_atleta, entrenador_registrado["id_entrenador"])
+    reglas = KarateRules(db.cargar_umbrales_vigentes())
+
+    for frontal, trasera in [(162, 118), (158, 105), (165, 96), (160, 112), (155, 92)]:
+        correcto, mensaje, _ = reglas.evaluate_kokutsu_dachi(frontal, trasera)
+        db.guardar_medicion(id_sesion, "Postura de piernas", frontal, mensaje, 0,
+                            correcto=correcto,
+                            id_umbral=reglas.id_umbral_principal("kokutsu_dachi"),
+                            tecnica_clave="kokutsu_dachi",
+                            angulo_regla_1=frontal, angulo_regla_2=trasera)
+    db.cerrar_sesion(id_sesion)
+    return id_sesion
+
+
+def _escribir_rango(pantalla, clave, minimo, maximo):
+    campos = pantalla.campos[clave]
+    campos["min"].set(str(minimo))
+    campos["max"].set(str(maximo))
+
+
+@ficha(
+    id_caso="TC-AUTO-048",
+    nombre="Antes de adoptar una recalibración, el sistema informa cuántas mediciones del "
+           "historial cambiarían de veredicto",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "recalibrar sin ver el efecto es cambiar a ciegas la vara con que se mide a los "
+        "alumnos: el mismo historial puede pasar de 100 % a 40 % de precisión sin que nadie "
+        "haya vuelto a medir"
+    ),
+    componente="gui/umbrales_screen.py + expert_system/reevaluacion.py + "
+               "gui/impacto_umbrales.py",
+    requisitos="RF-08",
+    precondiciones="Entorno gráfico y dependencias de GUI; cinco Kokutsu registrados como "
+                   "correctos con el umbral vigente de rodilla trasera (90–120°)",
+    datos_entrada="Rodilla trasera de Kokutsu Dachi corregida de 90–120° a 90–100°",
+    pasos=[
+        Paso("Escribir el rango corregido en la fila de Kokutsu · rodilla trasera",
+             "El formulario difiere del umbral vigente"),
+        Paso("Pulsar «Ver impacto en el historial»",
+             "Se vuelve a juzgar lo registrado con el criterio propuesto"),
+        Paso("Leer el resumen",
+             "assert reporta 3 de 5 mediciones que cambian de veredicto"),
+    ],
+    resultado_esperado="El resumen identifica las tres ejecuciones afectadas sin escribir nada",
+)
+def test_el_impacto_se_ve_antes_de_guardar(pantalla_umbrales, kokutsu_medido):
+    _escribir_rango(pantalla_umbrales, KOKUTSU_TRASERA, 90, 100)
+
+    resumen = pantalla_umbrales._ver_impacto()
+
+    assert resumen is not None
+    assert resumen["hay_cambios"] is True
+    assert "3 de 5" in resumen["titular"]
+    assert resumen["por_tecnica"]["kokutsu_dachi"]["a_incorrecto"] == 3
+    pantalla_umbrales._cerrar_impacto()
+
+
+def test_ver_el_impacto_no_guarda_el_umbral_ni_toca_las_mediciones(pantalla_umbrales, db,
+                                                                   kokutsu_medido):
+    """
+    Consultar no puede aplicar. El veredicto registrado es la evidencia de qué
+    criterio regía al medir, y el umbral vigente no debe moverse por mirarlo.
+    """
+    antes = db.cargar_umbrales_vigentes()[KOKUTSU_TRASERA]
+    _escribir_rango(pantalla_umbrales, KOKUTSU_TRASERA, 90, 100)
+
+    pantalla_umbrales._ver_impacto()
+    pantalla_umbrales._cerrar_impacto()
+
+    despues = db.cargar_umbrales_vigentes()[KOKUTSU_TRASERA]
+    assert despues["valor_max"] == antes["valor_max"], "el umbral vigente no debió cambiar"
+
+    veredictos = [f["correcto"] for f in db.mediciones_reevaluables()]
+    assert veredictos == [1, 1, 1, 1, 1], "los veredictos registrados deben seguir intactos"
+
+
+def test_un_ajuste_que_no_mueve_nada_tambien_se_informa(pantalla_umbrales, kokutsu_medido):
+    """Que ninguna cambie es el resultado que permite adoptar el ajuste con confianza."""
+    _escribir_rango(pantalla_umbrales, KOKUTSU_TRASERA, 85, 130)
+
+    resumen = pantalla_umbrales._ver_impacto()
+
+    assert resumen["hay_cambios"] is False
+    assert "Ninguna" in resumen["titular"]
+    pantalla_umbrales._cerrar_impacto()
+
+
+def test_sin_cambios_escritos_no_se_abre_la_ventana(pantalla_umbrales, kokutsu_medido):
+    assert pantalla_umbrales._ver_impacto() is None
+    assert pantalla_umbrales.ventana_impacto is None
+    assert "No hay cambios" in pantalla_umbrales.estado_var.get()
+
+
+def test_un_valor_mal_escrito_se_avisa_en_vez_de_calcular_con_el(pantalla_umbrales,
+                                                                 kokutsu_medido):
+    _escribir_rango(pantalla_umbrales, KOKUTSU_TRASERA, "noventa", 100)
+
+    assert pantalla_umbrales._ver_impacto() is None
+    assert pantalla_umbrales.ventana_impacto is None
+    assert pantalla_umbrales.error_var.get(), "debe decir qué fila corregir"
+
+
+def test_el_impacto_contrasta_contra_el_criterio_completo_no_solo_el_campo_editado(
+        pantalla_umbrales, kokutsu_medido):
+    """
+    Un Kokutsu se juzga por dos rodillas. Si el informe mirara solo el campo
+    editado, endurecer la rodilla FRONTAL daría cero cambios aunque el criterio
+    resultante rechace ejecuciones que antes pasaban.
+    """
+    # Las cinco ejecuciones tienen la frontal entre 155 y 165: exigir 160-175
+    # deja fuera a las de 158 y 155.
+    _escribir_rango(pantalla_umbrales, ("kokutsu_dachi", "rodilla_frontal"), 160, 175)
+
+    resumen = pantalla_umbrales._ver_impacto()
+
+    assert resumen["por_tecnica"]["kokutsu_dachi"]["a_incorrecto"] == 2
+    pantalla_umbrales._cerrar_impacto()

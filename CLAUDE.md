@@ -80,6 +80,15 @@ que la fila no guarda. Las mediciones anteriores al 19-sep quedan fuera del
 informe, y `cobertura_reevaluable()` lo dice, para que «no cambia ninguna» no
 se lea como garantía cuando la muestra es de cuatro filas.
 
+**El impacto de recalibrar se ve ANTES de guardar** (19-sep-2026). El botón
+«Ver impacto en el historial» de `gui/umbrales_screen.py` contrasta lo escrito
+en el formulario contra lo ya medido y responde «3 de 5 mediciones cambiarían
+de veredicto». Contrasta el **criterio completo** que quedaría, no solo el
+campo editado: un Kokutsu se juzga por dos rodillas y mirar una sola daría un
+número tranquilizador y falso. No escribe nada. La redacción vive en
+`gui/impacto_umbrales.py` (puro, corre en CI) y ninguna frase afirma que el
+criterio nuevo sea el correcto — eso lo fija el cuerpo técnico, no el programa.
+
 **Se graba el fotograma crudo, nunca el anotado** (19-sep-2026). El video con
 esqueleto se regenera del crudo; al revés no. Grabar el anotado dejaría las
 conclusiones de hoy cocidas en la evidencia. La velocidad de escritura **se
@@ -103,7 +112,7 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 671 passed |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 692 passed |
 | CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
@@ -114,7 +123,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-047**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-049**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

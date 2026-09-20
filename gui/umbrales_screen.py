@@ -1,5 +1,8 @@
 import customtkinter as ctk
 
+from expert_system.knowledge_base import KarateRules
+from expert_system.reevaluacion import comparar
+from gui import impacto_umbrales
 from gui import theme
 from gui.validacion_umbrales import ValorInvalido, formatear_valor, interpretar_rango
 
@@ -96,6 +99,7 @@ class UmbralesScreen(ctk.CTkFrame):
         self.error_var = ctk.StringVar(value="")
         self.estado_var = ctk.StringVar(value="")
         self.ventana_historial = None
+        self.ventana_impacto = None
 
         self._construir_encabezado()
 
@@ -146,6 +150,14 @@ class UmbralesScreen(ctk.CTkFrame):
             ctk.CTkButton(pie, text="Descartar", fg_color="transparent", width=110,
                           text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
                           command=self._recargar).pack(side="right", padx=(0, 8))
+            # Va ANTES de guardar, y ese orden es el punto: recalibrar sin ver
+            # el efecto es cambiar la vara de medir a ciegas. Cuántos veredictos
+            # se mueven es lo que dice si el ajuste describe mejor la postura o
+            # si se pasó de estricto.
+            ctk.CTkButton(pie, text="Ver impacto en el historial", fg_color="transparent",
+                          border_width=1, border_color=theme.BORDE_CLARO, width=200,
+                          text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
+                          command=self._ver_impacto).pack(side="right", padx=(0, 8))
 
     def _encabezado_tabla(self):
         fila = ctk.CTkFrame(self.lista, fg_color="transparent")
@@ -277,6 +289,107 @@ class UmbralesScreen(ctk.CTkFrame):
         self._recargar()
         return len(cambios)
 
+    # ---------------- impacto de la recalibración ----------------
+
+    def _reglas_propuestas(self):
+        """
+        Las reglas que regirían si se adoptaran los valores escritos ahora.
+
+        Se parte de los umbrales vigentes y se sobrescriben solo los campos que
+        el entrenador cambió. Así el informe contrasta el historial contra el
+        criterio completo que quedaría, y no solo contra el campo editado: un
+        Kokutsu se juzga por dos rodillas, y mirar una sola daría un número
+        tranquilizador y falso.
+        """
+        umbrales = dict(self.db.cargar_umbrales_vigentes())
+        cambios, problemas = self._leer_formulario()
+
+        for tecnica, articulacion, valor_min, valor_max in cambios:
+            anterior = umbrales.get((tecnica, articulacion), {})
+            umbrales[(tecnica, articulacion)] = {
+                "valor_min": valor_min, "valor_max": valor_max,
+                "id_umbral": anterior.get("id_umbral"),
+            }
+
+        return KarateRules(umbrales_bd=umbrales), cambios, problemas
+
+    def _ver_impacto(self):
+        """
+        Qué le costaría al historial adoptar lo escrito. No guarda nada.
+
+        Devuelve el resumen además de mostrarlo, para que las pruebas puedan
+        afirmar sobre el resultado sin leer texto de pantalla —igual que
+        `_guardar_cambios` devuelve cuántos umbrales aplicó.
+        """
+        reglas, cambios, problemas = self._reglas_propuestas()
+
+        if problemas:
+            self.estado_var.set("")
+            self.error_var.set(" · ".join(problemas))
+            return None
+
+        if not cambios:
+            self.error_var.set("")
+            self.estado_var.set("No hay cambios que contrastar contra el historial.")
+            return None
+
+        informe = comparar(self.db.mediciones_reevaluables(), reglas)
+        resumen = impacto_umbrales.resumen(informe, self.db.cobertura_reevaluable())
+
+        self.error_var.set("")
+        self.estado_var.set("")
+        self._mostrar_impacto(resumen)
+        return resumen
+
+    def _mostrar_impacto(self, resumen):
+        """Ventana de solo lectura con el efecto del cambio propuesto."""
+        if self.ventana_impacto is not None:
+            return
+
+        self.ventana_impacto = ctk.CTkToplevel(self)
+        self.ventana_impacto.title("Impacto en el historial")
+        self.ventana_impacto.geometry("560x420")
+        self.ventana_impacto.configure(fg_color=theme.CARD)
+        self.ventana_impacto.protocol("WM_DELETE_WINDOW", self._cerrar_impacto)
+
+        ctk.CTkLabel(self.ventana_impacto, text="Si adoptas estos umbrales",
+                     font=(theme.FUENTE, 15, "bold"), text_color=theme.TEXTO).pack(
+            padx=20, pady=(18, 2), anchor="w")
+
+        ctk.CTkLabel(self.ventana_impacto, text=resumen["titular"],
+                     font=(theme.FUENTE, 13),
+                     text_color=theme.ACENTO_AMARILLO if resumen["hay_cambios"]
+                     else theme.ACENTO_VERDE,
+                     wraplength=500, justify="left").pack(padx=20, pady=(0, 12), anchor="w")
+
+        contenedor = ctk.CTkScrollableFrame(self.ventana_impacto, fg_color="transparent")
+        contenedor.pack(expand=True, fill="both", padx=20, pady=(0, 6))
+
+        for clave, grupo in sorted(resumen["por_tecnica"].items(),
+                                   key=lambda par: -par[1]["total"]):
+            linea = ctk.CTkFrame(contenedor, fg_color="transparent")
+            linea.pack(fill="x", pady=3)
+            ctk.CTkLabel(linea, text=NOMBRE_TECNICA.get(clave, clave), width=230, anchor="w",
+                         font=(theme.FUENTE, 12, "bold"),
+                         text_color=theme.TEXTO).pack(side="left")
+            ctk.CTkLabel(linea, text=impacto_umbrales.describir_grupo(grupo), anchor="w",
+                         font=(theme.FUENTE, 11.5),
+                         text_color=theme.TEXTO_MUTED).pack(side="left")
+
+        if resumen["cobertura"]:
+            ctk.CTkLabel(self.ventana_impacto, text=resumen["cobertura"],
+                         font=(theme.FUENTE, 11), text_color=theme.TEXTO_MUTED,
+                         wraplength=500, justify="left").pack(padx=20, pady=(6, 2), anchor="w")
+
+        ctk.CTkLabel(self.ventana_impacto, text=resumen["nota"], font=(theme.FUENTE, 11),
+                     text_color=theme.TEXTO_TENUE, wraplength=500,
+                     justify="left").pack(padx=20, pady=(2, 16), anchor="w")
+
+    def _cerrar_impacto(self):
+        if self.ventana_impacto is not None:
+            self.ventana_impacto.destroy()
+            self.ventana_impacto = None
+
     # ---------------- historial ----------------
 
     def _abrir_historial(self, clave):
@@ -326,5 +439,6 @@ class UmbralesScreen(ctk.CTkFrame):
     # ---------------- navegación ----------------
 
     def _volver(self):
+        self._cerrar_impacto()
         self._cerrar_historial()
         self.master_app.on_volver_a_perfiles()
