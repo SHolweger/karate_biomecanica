@@ -13,7 +13,7 @@ import pytest
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 from vision.grabacion import (FPS_POR_DEFECTO, describir_resultado, directorio_configurado,
                               fps_estimado, grabacion_activada, nombre_de_archivo,
-                              parte_de_nombre, ruta_de_sesion)
+                              nombre_visible, parte_de_nombre, ruta_de_sesion)
 
 pytestmark = pytest.mark.unitaria
 
@@ -179,3 +179,20 @@ def test_sin_carpeta_configurada_se_usa_la_de_por_defecto():
 def test_la_carpeta_configurada_manda():
     """En el dojo puede ser un disco externo, no el disco del equipo."""
     assert directorio_configurado("/Volumes/DojoUSB/videos") == "/Volumes/DojoUSB/videos"
+
+
+# ---------------- cómo se nombra el video en el reporte ----------------
+
+def test_el_reporte_muestra_el_nombre_del_archivo_no_la_ruta_completa():
+    """La ruta de un disco externo ocupa media pantalla y no aporta nada."""
+    assert nombre_visible("/Volumes/DojoUSB/videos/20261003_180542_ana_gomez_s14.mp4") \
+        == "20261003_180542_ana_gomez_s14.mp4"
+
+
+@pytest.mark.parametrize("vacio", [None, "", "   "])
+def test_sin_video_el_reporte_declara_la_ausencia_en_vez_de_callarla(vacio):
+    """
+    Omitir la línea dejaría sin saber si la sesión no se grabó o si el reporte
+    no lo menciona, y esa diferencia importa al ir a buscar el archivo.
+    """
+    assert nombre_visible(vacio) == "Sin video"

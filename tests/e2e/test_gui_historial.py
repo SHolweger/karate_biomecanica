@@ -223,3 +223,52 @@ def test_desde_la_biblioteca_se_llega_a_la_calibracion(app, entrenador_registrad
     app._navegar("umbrales")
 
     assert isinstance(app.pantalla_actual, UmbralesScreen)
+
+
+# ---------------- el video de la sesión en el reporte (RF-01, RF-07) ----------------
+
+def test_el_reporte_nombra_el_video_de_la_sesion(app, db, entrenador_registrado,
+                                                 dojo_con_historia):
+    """Saber que hay video, y cuál, es parte de saber qué quedó de la sesión."""
+    id_sesion = dojo_con_historia["sesion"]
+    db.registrar_video_de_sesion(id_sesion,
+                                 "/Volumes/DojoUSB/20261003_180542_diego_morales_s3.mp4")
+
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(id_sesion)
+
+    # Se muestra el nombre del archivo, no la ruta: la de un disco externo
+    # ocupa media pantalla y no dice nada que el nombre no diga mejor.
+    assert app.pantalla_actual.sesion["ruta_video"].endswith("_s3.mp4")
+    etiquetas = _textos_de(app.pantalla_actual)
+    assert "20261003_180542_diego_morales_s3.mp4" in etiquetas
+    assert "/Volumes/DojoUSB" not in etiquetas
+
+
+def test_una_sesion_sin_video_lo_declara_en_vez_de_omitirlo(app, db, entrenador_registrado,
+                                                            dojo_con_historia):
+    """
+    Omitir la línea dejaría sin saber si la sesión no se grabó o si el reporte
+    simplemente no lo menciona, y esa diferencia importa al buscar el archivo.
+    """
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(dojo_con_historia["sesion"])
+
+    assert app.pantalla_actual.sesion["ruta_video"] is None
+    assert "Sin video" in _textos_de(app.pantalla_actual)
+
+
+def _textos_de(widget):
+    """Todo el texto visible de una pantalla, concatenado."""
+    textos = []
+    pendientes = [widget]
+    while pendientes:
+        actual = pendientes.pop()
+        try:
+            texto = actual.cget("text")
+            if isinstance(texto, str):
+                textos.append(texto)
+        except Exception:
+            pass
+        pendientes.extend(actual.winfo_children())
+    return " | ".join(textos)

@@ -503,7 +503,7 @@ class Database:
         Devuelve None si la sesión no existe.
         """
         fila = self.conn.execute("""
-            SELECT s.id_sesion, s.fecha, s.hora_inicio, s.hora_fin,
+            SELECT s.id_sesion, s.fecha, s.hora_inicio, s.hora_fin, s.ruta_video,
                    a.id_atleta, a.nombre AS atleta, a.grado_cinturon,
                    e.nombre AS entrenador,
                    COUNT(t.id_medicion)                             AS evaluaciones,

@@ -4,6 +4,7 @@ from expert_system import riesgos
 from gui import coaching
 from gui import componentes as cp
 from gui import theme
+from vision.grabacion import nombre_visible
 
 
 class ReporteScreen(ctk.CTkFrame):
@@ -76,6 +77,12 @@ class ReporteScreen(ctk.CTkFrame):
             ("Inicio", cp.fecha_legible(self.sesion["hora_inicio"])[11:] or "—", None),
             ("Estado", "En curso" if abierta else "Cerrada",
              theme.ACENTO_AMARILLO if abierta else None),
+            # Si hay video de la sesión, aquí se dice cuál. Si no lo hay, se
+            # declara la ausencia en vez de omitir la línea: omitirla dejaría
+            # sin saber si la sesión no se grabó o si el reporte no lo menciona,
+            # y esa diferencia importa cuando se va a buscar el archivo.
+            ("Video", nombre_visible(self.sesion["ruta_video"]),
+             theme.TEXTO_TENUE if not self.sesion["ruta_video"] else None),
         ]:
             cp.metrica(fila, etiqueta, valor, color).pack(side="left", padx=(0, 44))
 

@@ -190,3 +190,23 @@ def directorio_configurado(valor_guardado):
     if valor_guardado is None or not str(valor_guardado).strip():
         return DIRECTORIO_POR_DEFECTO
     return str(valor_guardado).strip()
+
+
+# Lo que se muestra en el reporte de una sesión cuando no quedó video. Se
+# declara la ausencia en vez de omitir la línea: omitirla dejaría al sensei sin
+# saber si la sesión no se grabó o si el reporte simplemente no lo menciona —y
+# esa diferencia importa cuando va a buscar el archivo.
+SIN_VIDEO = "Sin video"
+
+
+def nombre_visible(ruta_guardada):
+    """
+    Cómo se nombra el video de una sesión en el reporte.
+
+    Se muestra el nombre del archivo y no la ruta completa: la ruta de un disco
+    externo del dojo ocupa media pantalla y no aporta nada que el nombre —que ya
+    lleva fecha, alumno e id de sesión— no diga mejor.
+    """
+    if not ruta_guardada or not str(ruta_guardada).strip():
+        return SIN_VIDEO
+    return os.path.basename(str(ruta_guardada).strip())
