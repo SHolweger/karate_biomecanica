@@ -69,6 +69,27 @@ criterio verificable.
 transitorio o articulación no visible. Todas las consultas agregadas filtran por
 `correcto IS NOT NULL`.
 
+**Una medición se guarda con qué la juzgó, no solo con su veredicto**
+(19-sep-2026). Además del `id_umbral`, la fila lleva `tecnica_clave` y los
+argumentos exactos que consumió la regla (`angulo_regla_1`, `angulo_regla_2`).
+Eso es lo que permite contestar «¿qué cambiaría si corrijo este umbral?» sin
+volver al dojo — `expert_system/reevaluacion.py`. Ese módulo **no escribe**:
+re-juzgar en el lugar borraría la evidencia de qué criterio regía al medir. El
+Mae Geri queda fuera a propósito: su veredicto usa la velocidad angular pico,
+que la fila no guarda. Las mediciones anteriores al 19-sep quedan fuera del
+informe, y `cobertura_reevaluable()` lo dice, para que «no cambia ninguna» no
+se lea como garantía cuando la muestra es de cuatro filas.
+
+**Se graba el fotograma crudo, nunca el anotado** (19-sep-2026). El video con
+esqueleto se regenera del crudo; al revés no. Grabar el anotado dejaría las
+conclusiones de hoy cocidas en la evidencia. La velocidad de escritura **se
+mide**, no se asume: el bucle corre a la velocidad de MediaPipe (~10 fps), no
+a la de la cámara, y por eso `GrabadorSesion` retiene los primeros 12
+fotogramas para estimarla antes de abrir el archivo. **Un fallo de grabación
+jamás tumba la sesión**: se apaga la grabación, se anota el motivo y se sigue
+midiendo. La grabación se puede apagar por equipo (`grabar_sesiones` en
+`configuracion`) porque en un dojo se entrena con menores.
+
 **El texto técnico del diagnóstico es el registro; la instrucción es aparte.**
 `gui/coaching.py` traduce «TSUKI: HIPEREXTENDIDO» a «No bloquees el codo al
 impacto». El texto técnico no se cambia porque es la clave con la que la base
@@ -82,18 +103,18 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 565 passed |
-| CI / sin entorno gráfico | igual | 466 passed, 8 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 658 passed |
+| CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
 un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 `gui/validacion_umbrales.py`, `gui/registro_alumno.py`, `vision/fuentes.py`,
-`vision/nombres_camara.py`) para que CI la verifique.
+`vision/nombres_camara.py`, `vision/grabacion.py`) para que CI la verifique.
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-039**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-046**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -164,8 +185,9 @@ Lecciones aprendidas, todas por haberlas sufrido:
 **Funciona y está verificado:** captura, estimación de pose, inferencia,
 retroalimentación en vivo con correcciones, persistencia, panel de inicio,
 historial, perfil del alumno con gráfica de evolución, reporte de sesión con
-prevención de lesiones, biblioteca de técnicas, calibración de umbrales y
-selección de cámara.
+prevención de lesiones, biblioteca de técnicas, calibración de umbrales,
+selección de cámara, **grabación del video crudo de cada sesión** y
+**re-análisis de una grabación** desde la pantalla de cámara.
 
 **Bloqueado por hardware:** RF-02 y RF-04 (sensores inerciales). Sebastián tiene
 el ESP32 y los IMU pero **no tiene cautín**. La contingencia ya está tomada: el
@@ -174,7 +196,13 @@ sistema funciona solo con visión y declara la ausencia.
 **Pendiente de Sebastián, no mío:** confirmar con su sensei los rangos de
 **Kokutsu Dachi** (145–175° rodilla delantera, 90–120° trasera). Esos números
 los deduje yo del principio biomecánico, no salen del dojo, y hoy gobiernan el
-clasificador.
+clasificador. Desde el 19-sep **ya no bloquea la toma de datos**: lo que se
+mida ahora se puede volver a juzgar cuando el sensei conteste.
+
+**Sin resolver, decisión de Sebastián:** el consentimiento para grabar a los
+alumnos del dojo, en particular a los menores. El sistema permite apagar la
+grabación por equipo, pero el permiso en sí es un trámite fuera del código y
+conviene tenerlo firmado antes de la primera visita.
 
 **Pendiente de escritura:**
 
