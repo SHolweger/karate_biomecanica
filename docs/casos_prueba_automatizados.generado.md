@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 38
+**Casos documentados:** 40
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -11,8 +11,8 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 16 | 40 |
-| API/Integración | 14 | 24 |
+| Unitaria | 17 | 41 |
+| API/Integración | 15 | 25 |
 | Interfaz (UI/E2E) | 8 | 16 |
 
 ---
@@ -1138,6 +1138,63 @@
 
 ---
 
+## TC-AUTO-039 — Una medición de Kokutsu Dachi se vuelve a juzgar cuando el sensei corrige el umbral
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-039 |
+| **Nombre de la Prueba** | Una medición de Kokutsu Dachi se vuelve a juzgar cuando el sensei corrige el umbral |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — los rangos de Kokutsu Dachi vigentes son provisionales; sin re-evaluación, confirmarlos con el cuerpo técnico obligaría a repetir toda la toma de datos en el dojo |
+| **Componente bajo prueba** | `expert_system/reevaluacion.py (reevaluar)` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | Ninguna. El módulo no depende de base de datos ni de cámara |
+| **Datos de Entrada (Test Data)** | Kokutsu con rodilla frontal 160° y trasera 105°, juzgada correcta con el umbral vigente (trasera 90-120°); umbral corregido a 90-100° |
+| **Archivo / Clase del Script** | `tests/unit/test_reevaluacion.py::test_corregir_el_umbral_trasero_cambia_el_veredicto_de_un_kokutsu_guardado` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Construir reglas con el umbral corregido de la rodilla trasera | KarateRules toma el rango nuevo |
+| 2 | Invocar reevaluar() con los dos ángulos guardados | assert correcto is False: 105° queda fuera de 90-100° |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** El veredicto recalculado es Incorrecto, sin haber vuelto a medir
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-040 — Corregir un umbral revela qué mediciones del historial cambiarían de veredicto, sin repetir la toma de datos
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-040 |
+| **Nombre de la Prueba** | Corregir un umbral revela qué mediciones del historial cambiarían de veredicto, sin repetir la toma de datos |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — los rangos de Kokutsu Dachi vigentes están pendientes de confirmación del cuerpo técnico; sin recalibración retroactiva, esa confirmación invalidaría toda la toma de datos de campo hecha antes |
+| **Componente bajo prueba** | `expert_system/analyzer.py + persistence/medicion_logger.py + expert_system/reevaluacion.py` |
+| **Requisito asociado** | RF-08 |
+| **Precondiciones** | Base temporal con entrenador, atleta y sesión abierta (fixture `sesion_de_prueba`) |
+| **Datos de Entrada (Test Data)** | Kokutsu sintético: rodilla frontal 160°, trasera 105°, guardia izquierda |
+| **Archivo / Clase del Script** | `tests/integration/test_recalibracion_retroactiva.py::test_una_correccion_de_umbral_se_aplica_a_lo_ya_medido` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Medir la postura con TechniqueAnalyzer y registrarla con MedicionLogger | Una fila con tecnica_clave='kokutsu_dachi' y sus dos ángulos |
+| 2 | Recuperarla con Database.mediciones_reevaluables() | La fila trae los argumentos de la regla |
+| 3 | Comparar contra un umbral de rodilla trasera corregido a 90-100° | assert el informe reporta exactamente una medición que cambia de veredicto |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** El informe identifica el cambio de Correcto a Incorrecto sin volver a medir
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1180,3 +1237,5 @@
 | TC-AUTO-036 | `expert_system/riesgos.py (evaluar_asimetria)` | RF-05, RF-07 | Unitaria |
 | TC-AUTO-037 | `gui/navegacion.py (RUTAS, exceden_el_limite)` | RNF-04 | Unitaria |
 | TC-AUTO-038 | `gui/ (App, BarraLateral y las nueve pantallas), gui/navegacion.py` | RNF-04 | Interfaz (UI/E2E) |
+| TC-AUTO-039 | `expert_system/reevaluacion.py (reevaluar)` | RF-08 | Unitaria |
+| TC-AUTO-040 | `expert_system/analyzer.py + persistence/medicion_logger.py + expert_system/reevaluacion.py` | RF-08 | API/Integración |

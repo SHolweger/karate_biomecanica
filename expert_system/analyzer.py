@@ -81,7 +81,10 @@ class TechniqueAnalyzer:
             resultados.append({
                 "angulo": angulo_izq, "pos_angulo": (codo_izq[0] + 20, codo_izq[1]),
                 "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50, "categoria": "codo_izq",
-                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki")
+                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki"),
+                # Con qué regla y con qué ángulos se juzgó. Es lo que permite
+                # volver a juzgar la medición si el umbral cambia (RF-08).
+                "tecnica": "tsuki", "angulos_regla": (angulo_izq,)
             })
         else:
             # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
@@ -89,7 +92,8 @@ class TechniqueAnalyzer:
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO IZQ: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 50,
-                "categoria": "codo_izq", "correcto": None
+                "categoria": "codo_izq", "correcto": None,
+                "tecnica": None, "angulos_regla": None
             })
 
         # ---------------- BRAZO DERECHO ----------------
@@ -112,7 +116,8 @@ class TechniqueAnalyzer:
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (codo_der[0] - 60, codo_der[1]), # -60 para que no tape el codo
                 "mensaje": f"DER - {msg}", "color": color, "y_offset": 90, "categoria": "codo_der",
-                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki")
+                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki"),
+                "tecnica": "tsuki", "angulos_regla": (angulo_der,)
                 # Más abajo para no chocar con el texto izq
             })
         else:
@@ -121,7 +126,8 @@ class TechniqueAnalyzer:
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO DER: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 90,
-                "categoria": "codo_der", "correcto": None
+                "categoria": "codo_der", "correcto": None,
+                "tecnica": None, "angulos_regla": None
             })
 
         return resultados
@@ -183,6 +189,7 @@ class TechniqueAnalyzer:
                 es_correcto, msg, color = self.reglas.evaluate_heiko_dachi(angulo_frontal) # Puedes pasarle cualquiera de los dos, o crear una regla específica para las rodillas en Heiko
                 postura_detectada = "POSTURA NATURAL"
                 tecnica = "heiko_dachi"
+                angulos_regla = (angulo_frontal,)
 
             # CASO 2: AMBAS rodillas flexionadas por igual -> Kiba Dachi (postura
             # de jinete). Es simétrica y lateral: no depende de qué pierna esté
@@ -192,6 +199,9 @@ class TechniqueAnalyzer:
                 es_correcto, msg, color = self.reglas.evaluate_kiba_dachi(angulo_izq, angulo_der)
                 postura_detectada = "KIBA DACHI"
                 tecnica = "kiba_dachi"
+                # Kiba es simétrica: la regla compara izquierda contra derecha,
+                # no frontal contra trasera.
+                angulos_regla = (angulo_izq, angulo_der)
 
             # CASO 3: peso ADELANTE — rodilla frontal flexionada y trasera
             # extendida y tensa -> Zenkutsu Dachi (postura adelantada).
@@ -199,6 +209,7 @@ class TechniqueAnalyzer:
                 es_correcto, msg, color = self.reglas.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"ZENKUTSU ({guardia})"
                 tecnica = "zenkutsu_dachi"
+                angulos_regla = (angulo_frontal, angulo_trasero)
 
             # CASO 4: peso ATRÁS — rodilla frontal casi extendida y trasera
             # flexionada -> Kokutsu Dachi (postura atrasada). Es la distribución
@@ -211,6 +222,7 @@ class TechniqueAnalyzer:
                 es_correcto, msg, color = self.reglas.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"KOKUTSU ({guardia})"
                 tecnica = "kokutsu_dachi"
+                angulos_regla = (angulo_frontal, angulo_trasero)
 
             # CASO 5: Transición (el usuario se está moviendo entre posturas) — no es una
             # evaluación (nada que calificar de correcto/incorrecto), por eso es_correcto=None.
@@ -220,6 +232,7 @@ class TechniqueAnalyzer:
                 color = (0, 165, 255) # Naranja
                 postura_detectada = "MOVIENDOSE"
                 tecnica = None  # una transicion no se juzga contra ningun umbral
+                angulos_regla = None  # ...asi que tampoco hay nada que volver a juzgar
 
 
             # Agregamos los resultados visuales
@@ -227,12 +240,22 @@ class TechniqueAnalyzer:
                 "angulo": angulo_izq, "pos_angulo": (rodilla_izq[0] + 20, rodilla_izq[1]),
                 "mensaje": f"{postura_detectada}: {msg}", "color": color, "y_offset": 130,
                 "categoria": "postura", "correcto": es_correcto,
-                "id_umbral": self.reglas.id_umbral_principal(tecnica) if tecnica else None
+                "id_umbral": self.reglas.id_umbral_principal(tecnica) if tecnica else None,
+                # `angulo` (arriba) es el de la rodilla IZQUIERDA, porque es el
+                # número que se dibuja junto a esa rodilla en pantalla.
+                # `angulos_regla` es otra cosa: los argumentos con que se juzgó,
+                # ordenados como los consume la regla. Separarlos es lo que evita
+                # que un Kokutsu con la derecha adelante quede guardado con la
+                # rodilla trasera en el lugar de la frontal.
+                "tecnica": tecnica, "angulos_regla": angulos_regla
             })
             resultados.append({
                 "angulo": angulo_der, "pos_angulo": (rodilla_der[0] - 60, rodilla_der[1]),
                 "mensaje": "", "color": color, "y_offset": 130, "categoria": "postura_der_numero",
-                "correcto": es_correcto
+                "correcto": es_correcto,
+                # Esta entrada solo pinta el número de la rodilla derecha; no se
+                # persiste (mensaje vacío), por eso no arrastra técnica.
+                "tecnica": None, "angulos_regla": None
             })
         else:
             # Piernas ocultas: reseteamos los filtros para no arrastrar valores viejos
@@ -242,7 +265,8 @@ class TechniqueAnalyzer:
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255), "y_offset": 130,
-                "categoria": "postura", "correcto": None
+                "categoria": "postura", "correcto": None,
+                "tecnica": None, "angulos_regla": None
             })
 
         return resultados
@@ -288,6 +312,11 @@ class TechniqueAnalyzer:
                     "categoria": f"mae_geri_{lado}",
                     "correcto": res.get("correcto"),
                     "id_umbral": res.get("id_umbral"),
+                    # Sin `angulos_regla`: el Kime se juzga por ángulo Y por
+                    # velocidad angular pico, y esa segunda magnitud la observa
+                    # la máquina de estados a lo largo de varios fotogramas. Con
+                    # un solo ángulo, recalcular el veredicto lo inventaría.
+                    "tecnica": "mae_geri", "angulos_regla": None,
                 })
 
         return resultados

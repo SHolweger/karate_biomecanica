@@ -173,3 +173,108 @@ def test_registra_una_lista_completa_de_diagnosticos_de_un_frame(sesion_de_prueb
     logger.registrar(frame, timestamp_ms=0)
 
     assert len(_filas(db, id_sesion)) == 2
+
+
+# ---------------------------------------------------------------------------
+# Lo que la fila debe guardar para poder volver a juzgarse (RF-08)
+#
+# Antes de esta versión la fila guardaba un ángulo promedio y el `id_umbral` que
+# la juzgó. Con eso el historial queda auditable —se sabe con qué criterio se
+# midió— pero no re-evaluable: no dice qué postura se reconoció ni, en las
+# posturas de dos articulaciones, cuál era el segundo ángulo. Corregir un umbral
+# obligaba entonces a volver al dojo.
+# ---------------------------------------------------------------------------
+
+def _diagnostico_completo(categoria, mensaje, tecnica, angulos_regla, correcto=True):
+    return [{"categoria": categoria, "mensaje": mensaje, "angulo": angulos_regla[0],
+             "color": (0, 255, 0), "correcto": correcto,
+             "tecnica": tecnica, "angulos_regla": angulos_regla}]
+
+
+def test_la_fila_guarda_que_tecnica_se_detecto(sesion_de_prueba):
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar(_diagnostico_completo(
+        "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",
+        "kokutsu_dachi", (160.0, 105.0)), timestamp_ms=33)
+
+    fila = _filas(db, id_sesion)[0]
+    assert fila["tecnica_clave"] == "kokutsu_dachi"
+
+
+def test_la_fila_guarda_los_dos_angulos_de_una_postura_de_dos_articulaciones(sesion_de_prueba):
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar(_diagnostico_completo(
+        "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",
+        "kokutsu_dachi", (160.0, 105.0)), timestamp_ms=33)
+
+    fila = _filas(db, id_sesion)[0]
+    assert fila["angulo_regla_1"] == pytest.approx(160.0)
+    assert fila["angulo_regla_2"] == pytest.approx(105.0)
+
+
+def test_una_tecnica_de_un_solo_angulo_deja_el_segundo_vacio(sesion_de_prueba):
+    """Vacío, no cero: un cero se leería como un codo totalmente plegado."""
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar(_diagnostico_completo(
+        "codo_izq", "IZQ - TSUKI: EXCELENTE", "tsuki", (168.0,)), timestamp_ms=33)
+
+    fila = _filas(db, id_sesion)[0]
+    assert fila["angulo_regla_1"] == pytest.approx(168.0)
+    assert fila["angulo_regla_2"] is None
+
+
+def test_una_transicion_se_guarda_sin_tecnica_ni_angulos_de_regla(sesion_de_prueba):
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar([{"categoria": "postura", "mensaje": "MOVIENDOSE: EN TRANSICION...",
+                       "angulo": 145.0, "color": (0, 165, 255), "correcto": None,
+                       "tecnica": None, "angulos_regla": None}], timestamp_ms=33)
+
+    fila = _filas(db, id_sesion)[0]
+    assert fila["tecnica_clave"] is None
+    assert fila["angulo_regla_1"] is None
+
+
+def test_un_diagnostico_sin_los_campos_nuevos_sigue_guardandose(sesion_de_prueba):
+    """
+    Compatibilidad hacia atrás: `main.py --consola` y cualquier productor de
+    diagnósticos que no declare los campos nuevos debe seguir registrando.
+    """
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar(_diagnostico("codo_der", "DER - TSUKI: EXCELENTE"), timestamp_ms=33)
+
+    fila = _filas(db, id_sesion)[0]
+    assert fila["diagnostico"] == "DER - TSUKI: EXCELENTE"
+    assert fila["tecnica_clave"] is None
+
+
+def test_las_mediciones_reevaluables_excluyen_las_que_no_se_pueden_juzgar(sesion_de_prueba):
+    """
+    La consulta que alimenta el informe de recalibración debe traer solo filas
+    completas. Una transición o un Mae Geri en la lista obligaría a cada
+    consumidor a repetir el filtro.
+    """
+    db, id_sesion, _, _ = sesion_de_prueba
+    logger = MedicionLogger(db, id_sesion)
+
+    logger.registrar(_diagnostico_completo(
+        "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",
+        "kokutsu_dachi", (160.0, 105.0)), timestamp_ms=33)
+    logger.registrar([{"categoria": "postura", "mensaje": "MOVIENDOSE: EN TRANSICION...",
+                       "angulo": None, "color": (0, 165, 255), "correcto": None,
+                       "tecnica": None, "angulos_regla": None}], timestamp_ms=66)
+
+    filas = db.mediciones_reevaluables(tecnica_clave="kokutsu_dachi")
+
+    assert len(filas) == 1
+    assert filas[0]["tecnica_clave"] == "kokutsu_dachi"
+    assert filas[0]["angulo_regla_2"] == pytest.approx(105.0)

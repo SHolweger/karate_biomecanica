@@ -365,3 +365,73 @@ def test_zenkutsu_y_kokutsu_no_se_confunden_entre_si(analizador):
 
     assert "ZENKUTSU" in postura(adelante)
     assert "KOKUTSU" in postura(atras)
+
+
+# ---------------------------------------------------------------------------
+# Lo que la medición debe llevarse para poder volver a juzgarse (RF-08)
+#
+# Hasta esta versión el diagnóstico de piernas viajaba con un solo ángulo —el de
+# la rodilla izquierda— y sin decir qué postura se había reconocido. Guardado
+# así, un Kokutsu y un Zenkutsu quedaban indistinguibles en la base, y corregir
+# un umbral no se podía aplicar a lo ya medido: faltaba la mitad del criterio.
+# Estas pruebas fijan que el analizador emita los MISMOS argumentos con los que
+# consultó la regla.
+# ---------------------------------------------------------------------------
+
+def test_la_postura_declara_con_que_tecnica_se_juzgo(analizador):
+    """Sin la clave, la fila guardada no dice si fue Zenkutsu, Kokutsu o Kiba."""
+    pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=170,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+    resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+    assert resultado["tecnica"] == "zenkutsu_dachi"
+
+
+def test_la_postura_lleva_los_dos_angulos_con_que_la_regla_la_juzgo(analizador):
+    """
+    Kokutsu se juzga contra rodilla frontal Y trasera. La medición debe cargar
+    ambos, en el mismo orden en que la regla los consume, o recalcular el
+    veredicto con otro umbral sería imposible.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=160, angulo_rodilla_der=105,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+    resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+    assert resultado["tecnica"] == "kokutsu_dachi"
+    frontal, trasera = resultado["angulos_regla"]
+    assert frontal == pytest.approx(160, abs=1.5)
+    assert trasera == pytest.approx(105, abs=1.5)
+
+
+def test_los_angulos_de_la_regla_siguen_a_la_guardia_no_al_lado_de_la_pantalla(analizador):
+    """
+    Con la pierna DERECHA adelante, el primer argumento debe ser la rodilla
+    derecha. Guardar siempre la izquierda —como se hacía— mezclaba la rodilla
+    frontal de unas ejecuciones con la trasera de otras.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=105, angulo_rodilla_der=160,
+                          z_tobillo_izq=0.3, z_tobillo_der=-0.3)
+    resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+    assert resultado["tecnica"] == "kokutsu_dachi"
+    frontal, _trasera = resultado["angulos_regla"]
+    assert frontal == pytest.approx(160, abs=1.5), "la frontal es la derecha en esta guardia"
+
+
+def test_una_transicion_no_declara_tecnica_ni_angulos_de_regla(analizador):
+    """No se juzgó contra ningún umbral, así que no hay nada que re-juzgar."""
+    pose = pose_sintetica(angulo_rodilla_izq=145, angulo_rodilla_der=175,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+    resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+    assert "TRANSICION" in resultado["mensaje"]
+    assert resultado["tecnica"] is None
+    assert resultado["angulos_regla"] is None
+
+
+def test_un_tsuki_declara_su_tecnica_y_su_unico_angulo(analizador):
+    pose = pose_sintetica(angulo_codo_izq=168)
+    resultado = _por_categoria(analizador.analyze_tsuki(pose, ANCHO, ALTO), "codo_izq")
+
+    assert resultado["tecnica"] == "tsuki"
+    assert resultado["angulos_regla"][0] == pytest.approx(168, abs=1.5)

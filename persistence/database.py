@@ -65,6 +65,16 @@ class Database:
                 diagnostico       TEXT NOT NULL,
                 correcto          INTEGER,
                 id_umbral         INTEGER,
+                -- Con que se juzgo esta medicion, en los terminos de la regla.
+                -- `id_umbral` ya deja el historial AUDITABLE (se sabe que
+                -- criterio regia). Estas tres columnas lo dejan ademas
+                -- RE-EVALUABLE: guardan la clave de la tecnica reconocida y los
+                -- argumentos exactos que consumio el evaluador, de modo que
+                -- corregir un umbral se pueda contrastar contra lo ya medido sin
+                -- repetir la toma de datos. Ver expert_system/reevaluacion.py.
+                tecnica_clave     TEXT,
+                angulo_regla_1    REAL,
+                angulo_regla_2    REAL,
                 FOREIGN KEY (id_sesion) REFERENCES sesion(id_sesion),
                 FOREIGN KEY (id_umbral) REFERENCES umbral_referencia(id_umbral)
             );
@@ -115,6 +125,13 @@ class Database:
         "tecnica_evaluada": {
             "correcto": "INTEGER",          # 13-ago-2026
             "id_umbral": "INTEGER",         # 26-ago-2026
+            # 19-sep-2026: mediciones re-evaluables. Las filas anteriores quedan
+            # con estas columnas vacias, que es lo correcto: no se puede inventar
+            # retroactivamente que postura se reconocio ni cual era el segundo
+            # angulo. `mediciones_reevaluables()` las excluye por eso mismo.
+            "tecnica_clave": "TEXT",
+            "angulo_regla_1": "REAL",
+            "angulo_regla_2": "REAL",
         },
         "atleta": {
             "edad": "INTEGER",              # 14-sep-2026, ficha del alumno
@@ -231,17 +248,23 @@ class Database:
     # ---------------- Mediciones de técnicas ----------------
 
     def guardar_medicion(self, id_sesion, nombre_tecnica, angulo_promedio, diagnostico, timestamp_ms,
-                         correcto=None, id_umbral=None):
+                         correcto=None, id_umbral=None,
+                         tecnica_clave=None, angulo_regla_1=None, angulo_regla_2=None):
         # correcto: True/False si el diagnóstico es una evaluación cerrada
         # (ej. "TSUKI: EXCELENTE"), None si es un estado transitorio sin
         # calificar (ej. "EN TRANSICION...", "MAE GERI: CARGA").
         # id_umbral: version del umbral que emitio este diagnostico. Sin el,
         # recalibrar dejaria el historial sin criterio verificable.
+        # tecnica_clave / angulo_regla_*: con que regla y con que argumentos se
+        # emitio el veredicto. Sin ellos la medicion es auditable pero no
+        # re-evaluable: corregir un umbral obligaria a repetir la medicion.
         self.conn.execute(
             "INSERT INTO tecnica_evaluada (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, "
-            "diagnostico, correcto, id_umbral) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "diagnostico, correcto, id_umbral, tecnica_clave, angulo_regla_1, angulo_regla_2) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (id_sesion, nombre_tecnica, timestamp_ms, angulo_promedio, diagnostico,
-             None if correcto is None else int(correcto), id_umbral),
+             None if correcto is None else int(correcto), id_umbral,
+             tecnica_clave, angulo_regla_1, angulo_regla_2),
         )
         self.conn.commit()
 
@@ -671,6 +694,84 @@ class Database:
             (nombre_tecnica, articulacion),
         ).fetchall()
         return [dict(f) for f in filas]
+
+    # ---------------- Mediciones re-evaluables (RF-08) ----------------
+
+    def mediciones_reevaluables(self, tecnica_clave=None, id_atleta=None, id_sesion=None):
+        """
+        Mediciones que traen lo necesario para volver a juzgarse con otro umbral.
+
+        El filtro es de COMPLETITUD, no una lista de técnicas permitidas: se
+        exige que la fila declare qué técnica se reconoció y que traiga al menos
+        el primer ángulo que consumió la regla. Eso deja fuera, por su propio
+        dato y sin nombrarlas:
+
+          * las transiciones, que no se juzgaron contra ningún umbral;
+          * el Mae Geri, cuyo veredicto depende también de la velocidad angular
+            pico y que por eso se registra sin ángulos de regla;
+          * todo lo medido antes del 19-sep-2026, cuando la fila aún no
+            guardaba estos campos.
+
+        Que las viejas queden fuera es correcto y no un defecto a reparar: no se
+        puede deducir a posteriori qué postura reconoció el clasificador ni cuál
+        era el ángulo de la otra rodilla. Contarlas como re-evaluables produciría
+        un informe de recalibración que parece completo y no lo está.
+        """
+        condiciones = ["t.tecnica_clave IS NOT NULL", "t.angulo_regla_1 IS NOT NULL"]
+        parametros = []
+        if tecnica_clave is not None:
+            condiciones.append("t.tecnica_clave = ?")
+            parametros.append(tecnica_clave)
+        if id_sesion is not None:
+            condiciones.append("t.id_sesion = ?")
+            parametros.append(id_sesion)
+        if id_atleta is not None:
+            condiciones.append("s.id_atleta = ?")
+            parametros.append(id_atleta)
+
+        filas = self.conn.execute(f"""
+            SELECT t.id_medicion, t.id_sesion, t.nombre_tecnica, t.tecnica_clave,
+                   t.angulo_regla_1, t.angulo_regla_2, t.correcto, t.diagnostico,
+                   t.id_umbral, s.fecha, s.id_atleta
+            FROM tecnica_evaluada t
+            JOIN sesion s ON s.id_sesion = t.id_sesion
+            WHERE {' AND '.join(condiciones)}
+            ORDER BY t.id_medicion
+        """, parametros).fetchall()
+        return [dict(f) for f in filas]
+
+    def cobertura_reevaluable(self, tecnica_clave=None, id_atleta=None, id_sesion=None):
+        """
+        Cuántas de las mediciones juzgadas se pueden volver a juzgar.
+
+        Acompaña al informe de recalibración para que no se lea de más: "no
+        cambia ninguna" significa algo muy distinto si se pudo re-juzgar el 90 %
+        del historial que si se pudo el 4 %. Devuelve
+        {'juzgadas': n, 'reevaluables': n}, contando como juzgadas solo las que
+        emitieron un veredicto cerrado (`correcto IS NOT NULL`).
+        """
+        condiciones = ["t.correcto IS NOT NULL"]
+        parametros = []
+        if tecnica_clave is not None:
+            condiciones.append("t.tecnica_clave = ?")
+            parametros.append(tecnica_clave)
+        if id_sesion is not None:
+            condiciones.append("t.id_sesion = ?")
+            parametros.append(id_sesion)
+        if id_atleta is not None:
+            condiciones.append("s.id_atleta = ?")
+            parametros.append(id_atleta)
+
+        fila = self.conn.execute(f"""
+            SELECT COUNT(*) AS juzgadas,
+                   SUM(CASE WHEN t.tecnica_clave IS NOT NULL
+                             AND t.angulo_regla_1 IS NOT NULL
+                            THEN 1 ELSE 0 END) AS reevaluables
+            FROM tecnica_evaluada t
+            JOIN sesion s ON s.id_sesion = t.id_sesion
+            WHERE {' AND '.join(condiciones)}
+        """, parametros).fetchone()
+        return {"juzgadas": fila["juzgadas"] or 0, "reevaluables": fila["reevaluables"] or 0}
 
     def close(self):
         self.conn.close()
