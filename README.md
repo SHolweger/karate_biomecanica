@@ -106,14 +106,15 @@ medición.
 La suite cubre la lógica biomecánica, las reglas del sistema experto, la máquina
 de estados de las patadas, la persistencia y el flujo completo de la interfaz.
 
-**564 casos · 38 documentados con ficha formal · 93 % de cobertura**
+**692 casos · 48 documentados con ficha formal · 92 % de cobertura**
 
 La cifra depende del entorno, y la diferencia es deliberada: con cámara y
-entorno gráfico corren 564 casos; sin ellos (integración continua) corren 466 y
-8 módulos de interfaz se omiten solos. Por eso toda regla de presentación que
+entorno gráfico corren los 692; sin ellos (integración continua) corren 577 y
+los módulos de interfaz se omiten solos. Por eso toda regla de presentación que
 pueda expresarse sin CustomTkinter vive en un módulo aparte —`gui/panel_vivo.py`,
 `gui/coaching.py`, `gui/navegacion.py`, `gui/validacion_umbrales.py`,
-`vision/fuentes.py`—, de modo que CI la verifique igual.
+`gui/impacto_umbrales.py`, `vision/fuentes.py`, `vision/grabacion.py`—, de modo
+que CI la verifique igual.
 
 ## Instalación de las dependencias de prueba
 
@@ -177,9 +178,9 @@ de pruebas sin ningún caso documentado, IDs repetidos y huecos en la serie
 
 | Carpeta | Contenido | Casos |
 |---|---|:--:|
-| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, fuentes de video, validación de la calibración, panel en vivo, correcciones del sensei, prevención de lesiones, inscripción de alumnos, mapa de navegación, punto de entrada y plantilla de reportes | 330 |
-| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales, configuración y consultas de progreso | 143 |
-| `tests/e2e/` | Flujo completo de la GUI: acceso, panel de inicio, análisis en vivo, calibración de umbrales, cámara, historial, reportes, biblioteca de técnicas y auditoría de navegación (RNF-04) | 91 |
+| `tests/unit/` | Geometría articular, filtro anti-jitter, reglas de karate, instrumentación de latencia, fuentes de video, validación de la calibración, panel en vivo, correcciones del sensei, prevención de lesiones, inscripción de alumnos, mapa de navegación, punto de entrada, plantilla de reportes, reevaluación de mediciones, reglas de grabación e informe de impacto | 410 |
+| `tests/integration/` | Analizador, máquina de estados, SQLite, logger, reportes, renderizador, consola, umbrales, configuración, consultas de progreso, grabador de sesión y recalibración retroactiva | 167 |
+| `tests/e2e/` | Flujo completo de la GUI: acceso, panel de inicio, análisis en vivo, calibración de umbrales e impacto de recalibrar, cámara y video grabado, historial, reportes, biblioteca de técnicas y auditoría de navegación (RNF-04) | 115 |
 | `tests/helpers/` | Dobles de prueba: cámara y poses sintéticas | — |
 | `tests/reporte/` | Plantilla formal de los casos y complemento de pytest que emite los reportes | — |
 | `tests/conftest.py` | Fixtures compartidas (base de datos temporal, cámara sintética) | — |
