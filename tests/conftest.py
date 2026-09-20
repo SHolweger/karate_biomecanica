@@ -5,6 +5,8 @@ Centralizar aquí la creación de bases de datos temporales y de poses
 sintéticas evita que cada archivo de prueba repita el mismo andamiaje
 (principio de reusabilidad de scripts exigido por el plan de automatización).
 """
+import os
+
 import pytest
 
 from persistence.database import Database
@@ -42,6 +44,15 @@ def db(ruta_db_temporal):
     ejecución nunca cambia el resultado (pruebas independientes y repetibles).
     """
     conexion = Database(ruta_db_temporal)
+    # Las grabaciones de sesión van al directorio temporal de la prueba.
+    #
+    # No es cosmético. Sin esta línea, cualquier prueba que abra el análisis en
+    # vivo escribe un .mp4 en `grabaciones/` DENTRO del repositorio, y una
+    # corrida completa deja dos docenas de videos que nadie pidió. Se configura
+    # aquí, en la base, porque es la misma vía por la que el sensei apuntaría la
+    # grabación a un disco externo del dojo: la prueba usa el camino real.
+    conexion.guardar_config("directorio_grabaciones",
+                            os.path.join(os.path.dirname(ruta_db_temporal), "grabaciones"))
     yield conexion
     conexion.close()
 

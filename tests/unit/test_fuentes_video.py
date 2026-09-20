@@ -9,7 +9,7 @@ haberlas separado de la clase `Camera`.
 import pytest
 
 from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
-                            normalizar)
+                            normalizar, validar_grabacion)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
@@ -147,3 +147,66 @@ def test_el_mensaje_de_error_menciona_las_tres_formas_validas():
 
     mensaje = str(error.value)
     assert "índice" in mensaje and "IP" in mensaje and "archivo de video" in mensaje
+
+
+# ---------------------------------------------------------------------------
+# Elegir una grabación como fuente de análisis (RF-01)
+#
+# `es_archivo` decide qué se pidió, por extensión y sin tocar el disco, para
+# poder verificarse en integración continua. `validar_grabacion` decide si eso
+# que se pidió sirve, y para eso sí mira el disco: enterarse de que la grabación
+# no está al elegirla es muy distinto a enterarse con la sesión ya arrancada.
+# ---------------------------------------------------------------------------
+
+def _video(tmp_path, nombre="sesion.mp4", contenido=b"\x00" * 64):
+    ruta = tmp_path / nombre
+    ruta.write_bytes(contenido)
+    return str(ruta)
+
+
+def test_una_grabacion_existente_sirve_como_fuente(tmp_path):
+    sirve, motivo = validar_grabacion(_video(tmp_path))
+    assert sirve is True
+    assert motivo == ""
+
+
+def test_un_archivo_que_no_esta_lo_dice_en_castellano(tmp_path):
+    """"Errno 2" no le dice nada a un sensei."""
+    sirve, motivo = validar_grabacion(str(tmp_path / "no_existe.mp4"))
+    assert sirve is False
+    assert "no_existe.mp4" in motivo
+    assert "disco desconectado" in motivo
+
+
+def test_un_archivo_vacio_se_rechaza_como_grabacion_interrumpida(tmp_path):
+    sirve, motivo = validar_grabacion(_video(tmp_path, contenido=b""))
+    assert sirve is False
+    assert "vacío" in motivo
+
+
+def test_una_carpeta_no_es_una_grabacion(tmp_path):
+    carpeta = tmp_path / "sesiones.mp4"
+    carpeta.mkdir()
+    sirve, motivo = validar_grabacion(str(carpeta))
+    assert sirve is False
+    assert "carpeta" in motivo
+
+
+def test_un_archivo_que_no_es_video_se_rechaza_nombrando_lo_aceptado(tmp_path):
+    sirve, motivo = validar_grabacion(_video(tmp_path, nombre="apuntes.txt"))
+    assert sirve is False
+    assert ".mp4" in motivo
+
+
+def test_una_url_se_redirige_a_la_opcion_correcta():
+    """El error debe decir qué hacer, no solo que está mal."""
+    sirve, motivo = validar_grabacion("http://192.168.1.50:8080/video")
+    assert sirve is False
+    assert "cámara IP" in motivo
+
+
+@pytest.mark.parametrize("vacio", [None, "", "   "])
+def test_sin_archivo_elegido_no_se_inventa_un_error_tecnico(vacio):
+    sirve, motivo = validar_grabacion(vacio)
+    assert sirve is False
+    assert motivo == "No se eligió ningún archivo de video."

@@ -4,6 +4,11 @@ __pycache__/
 *.pyc
 *.db
 
+# Videos de sesion. Se versiona la ruta en la base de datos, no el archivo:
+# una sesion de quince minutos pesa cientos de megabytes y el repositorio no es
+# el lugar donde respaldarla.
+/grabaciones/
+
 # Artefactos de las pruebas automatizadas
 .pytest_cache/
 .coverage

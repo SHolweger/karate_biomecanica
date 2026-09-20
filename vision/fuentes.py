@@ -83,3 +83,45 @@ def describir(fuente):
     if es_archivo(fuente):
         return f"Video grabado ({fuente})"
     return f"Cámara del sistema (índice {fuente})"
+
+
+def validar_grabacion(ruta):
+    """
+    ¿Sirve esta ruta como fuente de análisis? Devuelve (sirve, motivo).
+
+    `es_archivo` responde otra pregunta —qué se pidió— y lo hace por extensión,
+    sin tocar el disco, porque debe poder verificarse en integración continua.
+    Esta función es la que se usa cuando el entrenador elige un archivo en la
+    pantalla de cámara, y ahí sí conviene mirar si existe: enterarse de que la
+    grabación no está en el momento de elegirla es muy distinto a enterarse
+    cuando la sesión ya arrancó.
+
+    El motivo se redacta para quien lo va a leer. "Errno 2" no le dice nada a un
+    sensei; "el archivo ya no está en esa carpeta" sí.
+    """
+    if ruta is None or not str(ruta).strip():
+        return False, "No se eligió ningún archivo de video."
+
+    texto = str(ruta).strip()
+
+    if es_url(texto):
+        return False, ("Eso es una dirección de red, no un archivo. "
+                       "Usa la opción de cámara IP para un flujo en vivo.")
+
+    if not es_archivo(texto):
+        extensiones = ", ".join(EXTENSIONES_VIDEO)
+        return False, (f"'{os.path.basename(texto)}' no tiene una extensión de video "
+                       f"reconocida. Se aceptan: {extensiones}.")
+
+    if not os.path.exists(texto):
+        return False, (f"No se encontró '{os.path.basename(texto)}'. "
+                       f"Puede haberse movido o estar en un disco desconectado.")
+
+    if not os.path.isfile(texto):
+        return False, f"'{os.path.basename(texto)}' es una carpeta, no un archivo de video."
+
+    if os.path.getsize(texto) == 0:
+        return False, (f"'{os.path.basename(texto)}' está vacío. "
+                       f"Puede ser una grabación que se interrumpió al escribirse.")
+
+    return True, ""

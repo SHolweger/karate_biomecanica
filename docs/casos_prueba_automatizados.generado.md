@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 40
+**Casos documentados:** 45
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -11,9 +11,9 @@
 
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
-| Unitaria | 17 | 41 |
-| API/Integración | 15 | 25 |
-| Interfaz (UI/E2E) | 8 | 16 |
+| Unitaria | 18 | 42 |
+| API/Integración | 17 | 27 |
+| Interfaz (UI/E2E) | 10 | 18 |
 
 ---
 
@@ -1195,6 +1195,150 @@
 
 ---
 
+## TC-AUTO-041 — La velocidad de grabación se deduce del análisis real y no de la que declara la cámara
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-041 |
+| **Nombre de la Prueba** | La velocidad de grabación se deduce del análisis real y no de la que declara la cámara |
+| **Tipo de Prueba** | **[X]** Unitaria [ ] API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — el bucle corre a la velocidad que permite la estimación de pose, no a la de captura; declarar 30 fps sobre un flujo real de 10 produce un video que se reproduce al triple y deja de coincidir con los tiempos de las mediciones guardadas |
+| **Componente bajo prueba** | `vision/grabacion.py (fps_estimado)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | Ninguna. El módulo no importa OpenCV |
+| **Datos de Entrada (Test Data)** | Once marcas de tiempo separadas 100 ms: [0, 100, ..., 1000] |
+| **Archivo / Clase del Script** | `tests/unit/test_grabacion.py::test_la_velocidad_se_mide_por_intervalos_no_por_fotogramas` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Invocar fps_estimado() con las marcas observadas | Se miden los intervalos, no los fotogramas |
+| 2 | Comparar contra la velocidad real del flujo | assert fps == 10.0, no 11.0 ni la nominal de la cámara |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** 10.0 fps: diez intervalos de 100 ms entre once fotogramas
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-042 — Una sesión analizada deja un archivo de video reproducible con todos sus fotogramas
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-042 |
+| **Nombre de la Prueba** | Una sesión analizada deja un archivo de video reproducible con todos sus fotogramas |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — sin la grabación, una ejecución medida en el dojo no se puede volver a analizar; repetirla no es equivalente porque sería otra ejecución, de otro día |
+| **Componente bajo prueba** | `vision/grabador.py (GrabadorSesion)` |
+| **Requisito asociado** | RF-01, RF-07 |
+| **Precondiciones** | OpenCV disponible con al menos un códec de la lista CODECS |
+| **Datos de Entrada (Test Data)** | 30 fotogramas sintéticos de 320x240 separados 100 ms |
+| **Archivo / Clase del Script** | `tests/integration/test_grabador.py::test_una_sesion_deja_un_video_reproducible_con_todos_sus_fotogramas` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Escribir los 30 fotogramas con GrabadorSesion.escribir() | Los primeros 12 se retienen para medir la velocidad real |
+| 2 | Cerrar la grabación | El archivo queda en disco |
+| 3 | Reabrir el archivo con cv2.VideoCapture y contar los fotogramas | assert se recuperan los 30, ninguno perdido en el tramo de estimación |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** Un .mp4 legible con los 30 fotogramas y la velocidad medida
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-043 — Un fallo al escribir el video no interrumpe la sesión de medición
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-043 |
+| **Nombre de la Prueba** | Un fallo al escribir el video no interrumpe la sesión de medición |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — se graba sobre el equipo de un dojo, no sobre un servidor vigilado: un disco lleno o un códec ausente no puede costar las mediciones de toda una tarde |
+| **Componente bajo prueba** | `vision/grabador.py (GrabadorSesion.escribir)` |
+| **Requisito asociado** | RF-01, RF-07 |
+| **Precondiciones** | OpenCV disponible |
+| **Datos de Entrada (Test Data)** | Un escritor que levanta excepción al escribir, tras 12 fotogramas normales |
+| **Archivo / Clase del Script** | `tests/integration/test_grabador.py::test_un_fallo_al_escribir_apaga_la_grabacion_pero_no_levanta` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Grabar hasta que el archivo se abra | El escritor real queda creado |
+| 2 | Sustituirlo por uno que falla y seguir escribiendo 10 fotogramas | escribir() no levanta |
+| 3 | Consultar el estado | assert grabando is False y error explica el motivo |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** La grabación se apaga con su motivo registrado; el bucle sigue corriendo
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-044 — Una sesión de análisis en vivo deja un video atado a la sesión en la base de datos
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-044 |
+| **Nombre de la Prueba** | Una sesión de análisis en vivo deja un video atado a la sesión en la base de datos |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — sin video, una toma de datos en el dojo es irrepetible: si el criterio de evaluación cambia, la ejecución medida ya no se puede volver a analizar |
+| **Componente bajo prueba** | `gui/live_screen.py + vision/grabador.py + persistence/database.py` |
+| **Requisito asociado** | RF-01, RF-07 |
+| **Precondiciones** | Entorno gráfico, CustomTkinter, OpenCV y MediaPipe disponibles; cámara sintética inyectada y carpeta de grabaciones temporal |
+| **Datos de Entrada (Test Data)** | Veinte fotogramas de la cámara sintética |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_vivo.py::test_una_sesion_en_vivo_deja_video_atado_a_la_sesion` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Avanzar el ciclo de video 20 veces con _actualizar_frame() | El grabador retiene, estima la velocidad y escribe |
+| 2 | Cerrar la pantalla | Se cierra el archivo y se anota la ruta en la sesión |
+| 3 | Consultar la columna ruta_video de la sesión | assert el archivo existe en disco y la fila lo apunta |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** Un .mp4 en la carpeta configurada, referenciado por la sesión
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
+## TC-AUTO-045 — Una sesión grabada se puede elegir como fuente y queda configurada para volver a analizarse
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-045 |
+| **Nombre de la Prueba** | Una sesión grabada se puede elegir como fuente y queda configurada para volver a analizarse |
+| **Tipo de Prueba** | [ ] Unitaria [ ] API/Integración **[X]** Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — si la grabación no se puede volver a analizar desde la interfaz, el video de una sesión solo sirve para mirarlo, y corregir un umbral seguiría exigiendo repetir la medición en el dojo |
+| **Componente bajo prueba** | `gui/camara_screen.py (CamaraScreen) + vision/fuentes.py (validar_grabacion)` |
+| **Requisito asociado** | RF-01 |
+| **Precondiciones** | CustomTkinter, OpenCV, MediaPipe y Pillow instalados; entorno gráfico; un archivo de video existente |
+| **Datos de Entrada (Test Data)** | Ruta de un .mp4 con contenido |
+| **Archivo / Clase del Script** | `tests/e2e/test_gui_camara.py::test_una_grabacion_se_elige_y_queda_configurada` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Elegir la opción de video grabado y escribir la ruta | fuente_elegida() devuelve la ruta |
+| 2 | Pulsar «Usar esta cámara» | La fuente se verifica y se guarda |
+| 3 | Consultar fuente_configurada() | assert devuelve la ruta del video |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** La grabación queda como fuente del próximo análisis
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1239,3 +1383,8 @@
 | TC-AUTO-038 | `gui/ (App, BarraLateral y las nueve pantallas), gui/navegacion.py` | RNF-04 | Interfaz (UI/E2E) |
 | TC-AUTO-039 | `expert_system/reevaluacion.py (reevaluar)` | RF-08 | Unitaria |
 | TC-AUTO-040 | `expert_system/analyzer.py + persistence/medicion_logger.py + expert_system/reevaluacion.py` | RF-08 | API/Integración |
+| TC-AUTO-041 | `vision/grabacion.py (fps_estimado)` | RF-01 | Unitaria |
+| TC-AUTO-042 | `vision/grabador.py (GrabadorSesion)` | RF-01, RF-07 | API/Integración |
+| TC-AUTO-043 | `vision/grabador.py (GrabadorSesion.escribir)` | RF-01, RF-07 | API/Integración |
+| TC-AUTO-044 | `gui/live_screen.py + vision/grabador.py + persistence/database.py` | RF-01, RF-07 | Interfaz (UI/E2E) |
+| TC-AUTO-045 | `gui/camara_screen.py (CamaraScreen) + vision/fuentes.py (validar_grabacion)` | RF-01 | Interfaz (UI/E2E) |

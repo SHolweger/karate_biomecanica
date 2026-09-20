@@ -201,3 +201,108 @@ def test_abrir_la_pantalla_con_una_camara_ip_ya_configurada_no_inventa_un_error(
     assert pantalla.url_var.get() == "http://192.168.1.50:8080/video", \
         "la dirección guardada debe precargarse para poder corregirla"
     assert pantalla.fuente_elegida() == "http://192.168.1.50:8080/video"
+
+
+# ---------------------------------------------------------------------------
+# Analizar una grabación (RF-01)
+#
+# Es la contraparte de grabar la sesión: el video de una tarde en el dojo se
+# vuelve a pasar por el mismo encadenamiento, con los umbrales que rijan ese
+# día. Sin esta opción, la grabación solo serviría para mirarla.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def grabacion(tmp_path):
+    """Un archivo con extensión de video y contenido, que es lo que se valida."""
+    ruta = tmp_path / "20261003_180542_ana_gomez_s14.mp4"
+    ruta.write_bytes(b"\x00" * 128)
+    return str(ruta)
+
+
+@ficha(
+    id_caso="TC-AUTO-045",
+    nombre="Una sesión grabada se puede elegir como fuente y queda configurada para volver a "
+           "analizarse",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "si la grabación no se puede volver a analizar desde la interfaz, el video de una "
+        "sesión solo sirve para mirarlo, y corregir un umbral seguiría exigiendo repetir la "
+        "medición en el dojo"
+    ),
+    componente="gui/camara_screen.py (CamaraScreen) + vision/fuentes.py (validar_grabacion)",
+    requisitos="RF-01",
+    precondiciones="CustomTkinter, OpenCV, MediaPipe y Pillow instalados; entorno gráfico; "
+                   "un archivo de video existente",
+    datos_entrada="Ruta de un .mp4 con contenido",
+    pasos=[
+        Paso("Elegir la opción de video grabado y escribir la ruta",
+             "fuente_elegida() devuelve la ruta"),
+        Paso("Pulsar «Usar esta cámara»", "La fuente se verifica y se guarda"),
+        Paso("Consultar fuente_configurada()", "assert devuelve la ruta del video"),
+    ],
+    resultado_esperado="La grabación queda como fuente del próximo análisis",
+)
+def test_una_grabacion_se_elige_y_queda_configurada(pantalla_camara, db, grabacion):
+    pantalla_camara.seleccion.set("__archivo__")
+    pantalla_camara.archivo_var.set(grabacion)
+
+    assert pantalla_camara.fuente_elegida() == grabacion
+    assert pantalla_camara.guardar_seleccion() is True
+    assert fuente_configurada(db) == grabacion
+
+
+def test_la_grabacion_configurada_se_precarga_al_volver_a_la_pantalla(app, db,
+                                                                      entrenador_registrado,
+                                                                      camaras_simuladas,
+                                                                      grabacion):
+    """Configurar la fuente es una tarea de instalación, no algo que repetir cada sesión."""
+    db.guardar_config(CLAVE_FUENTE, grabacion)
+
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("camara")
+    pantalla = app.pantalla_actual
+
+    assert pantalla.seleccion.get() == "__archivo__"
+    assert pantalla.archivo_var.get() == grabacion
+
+
+def test_un_archivo_que_no_esta_se_rechaza_antes_de_intentar_abrirlo(pantalla_camara, tmp_path):
+    """
+    OpenCV responde lo mismo ante un archivo ausente que ante una cámara
+    ocupada: "no se pudo abrir". Revisar el archivo primero permite decir cuál
+    es el problema real.
+    """
+    pantalla_camara.seleccion.set("__archivo__")
+    pantalla_camara.archivo_var.set(str(tmp_path / "se_borro.mp4"))
+
+    assert pantalla_camara.guardar_seleccion() is False
+    assert "se_borro.mp4" in pantalla_camara.error_var.get()
+    assert "disco desconectado" in pantalla_camara.error_var.get()
+
+
+def test_una_grabacion_a_medio_escribir_se_rechaza_nombrando_la_causa(pantalla_camara, tmp_path):
+    vacio = tmp_path / "interrumpida.mp4"
+    vacio.write_bytes(b"")
+
+    pantalla_camara.seleccion.set("__archivo__")
+    pantalla_camara.archivo_var.set(str(vacio))
+
+    assert pantalla_camara.probar_seleccion() is False
+    assert "vacío" in pantalla_camara.error_var.get()
+
+
+def test_sin_archivo_escrito_el_aviso_menciona_las_tres_opciones(pantalla_camara):
+    pantalla_camara.seleccion.set("__archivo__")
+    pantalla_camara.archivo_var.set("")
+
+    assert pantalla_camara.probar_seleccion() is False
+    assert "video" in pantalla_camara.error_var.get()
+
+
+def test_elegir_una_camara_del_sistema_sigue_funcionando(pantalla_camara, db):
+    """La opción nueva no puede haber desplazado a la que ya existía."""
+    pantalla_camara.seleccion.set("1")
+
+    assert pantalla_camara.guardar_seleccion() is True
+    assert fuente_configurada(db) == "1"

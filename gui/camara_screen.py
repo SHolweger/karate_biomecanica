@@ -1,7 +1,10 @@
+from tkinter import filedialog
+
 import customtkinter as ctk
 
 from gui import theme
 from vision.camera import CamaraNoDisponible, Camera, describir, es_url, listar_camaras
+from vision.fuentes import EXTENSIONES_VIDEO, es_archivo, validar_grabacion
 
 # Clave con la que se recuerda la fuente elegida en la tabla `configuracion`.
 CLAVE_FUENTE = "fuente_video"
@@ -16,10 +19,15 @@ class CamaraScreen(ctk.CTkFrame):
     En cualquier otra máquina —la del aula donde se defienda el proyecto, o la
     del dojo— ese índice no existe, y el sistema fallaba sin decir por qué.
 
-    Ofrece las dos vías que un dojo necesita: los dispositivos que el sistema
+    Ofrece las tres vías que un dojo necesita: los dispositivos que el sistema
     operativo ya expone (webcam integrada, cámara USB, OBS o Camo, que macOS
-    presenta como cámaras normales) y una cámara IP por red local, que es como
-    se conecta un teléfono sin cables ni aplicaciones propietarias.
+    presenta como cámaras normales), una cámara IP por red local —que es como se
+    conecta un teléfono sin cables ni aplicaciones propietarias— y una grabación
+    ya hecha.
+
+    La tercera es la contraparte de grabar la sesión: el video de una tarde en
+    el dojo se vuelve a pasar por el mismo encadenamiento, con los umbrales que
+    rijan ese día. Sin ella, la grabación solo serviría para mirarla.
 
     La elección se guarda en la base de datos y se reutiliza en el siguiente
     arranque: configurar la cámara es una tarea de instalación, no algo que el
@@ -45,6 +53,7 @@ class CamaraScreen(ctk.CTkFrame):
         self.miniaturas = []
         self.seleccion = ctk.StringVar(value=str(db.leer_config(CLAVE_FUENTE, "")))
         self.url_var = ctk.StringVar()
+        self.archivo_var = ctk.StringVar()
         self.error_var = ctk.StringVar(value="")
         self.estado_var = ctk.StringVar(value="")
 
@@ -208,6 +217,7 @@ class CamaraScreen(ctk.CTkFrame):
                          font=(theme.FUENTE, 12.5), text_color=theme.TEXTO_MUTED).pack(pady=16)
 
         self._tarjeta_ip()
+        self._tarjeta_archivo()
 
         # Si el dispositivo guardado ya no existe (se desconectó la cámara USB),
         # se avisa en vez de dejar seleccionada en silencio una fuente que va a
@@ -258,6 +268,68 @@ class CamaraScreen(ctk.CTkFrame):
                      font=(theme.FUENTE_MONO, 11), text_color=theme.TEXTO_TENUE).pack(
             anchor="w", padx=(44, 14), pady=(4, 14))
 
+    def _tarjeta_archivo(self):
+        """
+        Analizar una grabación en vez de una cámara en vivo.
+
+        Es la contraparte de grabar la sesión: el video que queda de una tarde
+        en el dojo se vuelve a pasar por el mismo encadenamiento, con los
+        umbrales que rijan ese día. Sin esta opción la grabación solo serviría
+        para mirarla, y lo que la hace valiosa es poder volver a analizarla.
+
+        También es lo que hace repetible la medición de rendimiento: sobre una
+        grabación la entrada es idéntica en cada corrida, así que una diferencia
+        en el resultado solo puede venir del código (ver vision/fuentes.py).
+        """
+        caja = ctk.CTkFrame(self.lista, fg_color=theme.CARD, border_color=theme.BORDE,
+                            border_width=1, corner_radius=10)
+        caja.pack(fill="x", pady=3)
+
+        cabecera = ctk.CTkFrame(caja, fg_color="transparent")
+        cabecera.pack(fill="x", padx=14, pady=(12, 2))
+        ctk.CTkRadioButton(cabecera, text="", variable=self.seleccion, value="__archivo__",
+                           width=24, radiobutton_width=18, radiobutton_height=18,
+                           fg_color=theme.ACENTO_ROJO,
+                           border_color=theme.BORDE_CLARO).pack(side="left", padx=(0, 6))
+        ctk.CTkLabel(cabecera, text="Video grabado", font=(theme.FUENTE, 13, "bold"),
+                     text_color=theme.TEXTO).pack(side="left")
+
+        ctk.CTkLabel(caja, text="Vuelve a analizar una sesión ya grabada. Útil para revisar una "
+                               "ejecución con umbrales corregidos, sin repetir la medición.",
+                     font=(theme.FUENTE, 11.5), text_color=theme.TEXTO_MUTED,
+                     wraplength=620, justify="left").pack(anchor="w", padx=(44, 14), pady=(0, 8))
+
+        # Si lo guardado era un archivo, se precarga para poder cambiarlo.
+        if es_archivo(self.fuente_guardada):
+            self.archivo_var.set(self.fuente_guardada)
+            self.seleccion.set("__archivo__")
+
+        ctk.CTkLabel(caja, text="Archivo de video", font=(theme.FUENTE, 11),
+                     text_color=theme.TEXTO_MUTED).pack(anchor="w", padx=(44, 14), pady=(0, 2))
+
+        fila = ctk.CTkFrame(caja, fg_color="transparent")
+        fila.pack(anchor="w", fill="x", padx=(44, 14), pady=(0, 14))
+        ctk.CTkEntry(fila, textvariable=self.archivo_var, width=420).pack(side="left")
+        # El botón no reemplaza al campo: pegar una ruta con el teclado sigue
+        # siendo válido, y en una demostración es más rápido que navegar
+        # carpetas. El campo es el dato; el botón, una comodidad para llenarlo.
+        ctk.CTkButton(fila, text="Elegir archivo…", width=140, fg_color="transparent",
+                      border_width=1, border_color=theme.BORDE_CLARO,
+                      text_color=theme.TEXTO_MUTED, hover_color=theme.CARD_HOVER,
+                      command=self._elegir_archivo).pack(side="left", padx=(8, 0))
+
+    def _elegir_archivo(self):
+        """Abre el diálogo del sistema y deja la ruta en el campo."""
+        ruta = filedialog.askopenfilename(
+            title="Elegir video de una sesión",
+            filetypes=[("Videos", " ".join(f"*{e}" for e in EXTENSIONES_VIDEO)),
+                       ("Todos los archivos", "*.*")])
+        if ruta:
+            self.archivo_var.set(ruta)
+            self.seleccion.set("__archivo__")
+            self.error_var.set("")
+            self.estado_var.set("")
+
     # ---------------- acciones ----------------
 
     def fuente_elegida(self):
@@ -266,6 +338,9 @@ class CamaraScreen(ctk.CTkFrame):
         if valor == "__ip__":
             url = self.url_var.get().strip()
             return url or None
+        if valor == "__archivo__":
+            ruta = self.archivo_var.get().strip()
+            return ruta or None
         return valor or None
 
     def probar_seleccion(self):
@@ -278,8 +353,20 @@ class CamaraScreen(ctk.CTkFrame):
         fuente = self.fuente_elegida()
         if fuente is None:
             self.estado_var.set("")
-            self.error_var.set("Elige una cámara o escribe la dirección de la cámara IP.")
+            self.error_var.set(
+                "Elige una cámara, escribe la dirección de la cámara IP o elige un video.")
             return False
+
+        # Una grabación se revisa antes de abrirla. OpenCV, ante un archivo que
+        # no está o que se escribió a medias, responde lo mismo que ante una
+        # cámara ocupada: "no se pudo abrir". Mirar el archivo primero permite
+        # decir cuál es el problema real.
+        if self.seleccion.get() == "__archivo__":
+            sirve, motivo = validar_grabacion(fuente)
+            if not sirve:
+                self.estado_var.set("")
+                self.error_var.set(motivo)
+                return False
 
         try:
             camara = Camera(fuente)
@@ -310,8 +397,12 @@ class CamaraScreen(ctk.CTkFrame):
         if not self.probar_seleccion():
             return False
 
-        self.db.guardar_config(CLAVE_FUENTE, self.fuente_elegida())
-        self.estado_var.set("Cámara configurada. Se usará en la próxima sesión de análisis.")
+        fuente = self.fuente_elegida()
+        self.db.guardar_config(CLAVE_FUENTE, fuente)
+        if es_archivo(fuente):
+            self.estado_var.set("Video configurado. Se analizará en la próxima sesión.")
+        else:
+            self.estado_var.set("Cámara configurada. Se usará en la próxima sesión de análisis.")
         return True
 
     def _volver(self):

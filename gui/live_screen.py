@@ -15,6 +15,9 @@ from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
+from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, directorio_configurado,
+                              grabacion_activada)
+from vision.grabador import GrabadorSesion
 from vision.tracker import PoseTracker
 
 
@@ -72,6 +75,11 @@ class LiveScreen(ctk.CTkFrame):
         self.cam = None
         self.tracker = None
         self.analyzer = None
+        self.grabador = None
+        # Qué pasó con el video, en una frase. Se conserva tras cerrar la sesión
+        # para poder decírselo al sensei: enterarse de que no hubo grabación al
+        # ir a buscar el archivo, semanas después, no sirve de nada.
+        self.resumen_grabacion = None
         self.start_time = time.time()
         self._activo = False
         self._after_id = None
@@ -303,6 +311,20 @@ class LiveScreen(ctk.CTkFrame):
         self.id_sesion = self.db.iniciar_sesion(self.atleta["id_atleta"],
                                                 self.entrenador["id_entrenador"])
         self.logger_mediciones = MedicionLogger(self.db, self.id_sesion)
+        # Grabación del video crudo de la sesión. Es lo que permite volver a
+        # analizar la ejecución cuando el criterio cambie, en vez de tener que
+        # repetirla —y una ejecución repetida es otra ejecución, de otro día.
+        # Si la grabación falla, la sesión sigue midiendo (ver vision/grabador.py).
+        # Apagable por equipo: en un dojo se entrena con menores, y filmar a un
+        # menor requiere el consentimiento de quien lo tiene a cargo. Apagada,
+        # la sesión se mide igual; solo deja de quedar el video.
+        if grabacion_activada(self.db.leer_config(CLAVE_GRABAR)):
+            self.grabador = GrabadorSesion(
+                self.id_sesion, self.atleta["nombre"],
+                directorio=directorio_configurado(self.db.leer_config(CLAVE_DIRECTORIO)))
+        else:
+            self.grabador = None
+            self.resumen_grabacion = "La grabación de video está desactivada en este equipo."
         self.start_time = time.time()
         self._activo = True
         self._actualizar_frame()
@@ -315,6 +337,13 @@ class LiveScreen(ctk.CTkFrame):
         if frame is not None:
             timestamp_ms = int((time.time() - self.start_time) * 1000)
             h, w, _ = frame.shape
+
+            # Antes de dibujar nada: lo que se graba es el fotograma crudo. El
+            # video anotado se regenera del crudo cuando se quiera; al revés no
+            # se puede, y grabar el anotado dejaría las conclusiones de hoy
+            # cocidas dentro de la evidencia.
+            if self.grabador is not None:
+                self.grabador.escribir(frame, timestamp_ms)
 
             result = self.tracker.process_frame(frame, timestamp_ms)
             frame = self.renderer.draw(frame, result.pose_landmarks)
@@ -452,6 +481,15 @@ class LiveScreen(ctk.CTkFrame):
         if self._after_id is not None:
             self.after_cancel(self._after_id)
             self._after_id = None
+        # El orden importa: primero se cierra el video, porque la ruta solo se
+        # conoce cuando la escritura termina, y esa ruta hay que anotarla en la
+        # sesión antes de soltar su identificador.
+        if self.grabador is not None:
+            self.resumen_grabacion = self.grabador.cerrar()
+            if self.id_sesion is not None and self.grabador.ruta_si_existe:
+                self.db.registrar_video_de_sesion(self.id_sesion,
+                                                  self.grabador.ruta_si_existe)
+            self.grabador = None
         if self.id_sesion is not None:
             self.db.cerrar_sesion(self.id_sesion)
             self.id_sesion = None

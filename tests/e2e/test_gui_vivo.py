@@ -8,6 +8,8 @@ toca en vez de imponer su resolución al resto de la ventana.
 Como el resto de la carpeta, el módulo se omite entero si no hay entorno gráfico
 o faltan las dependencias de la GUI.
 """
+import os
+
 import pytest
 
 pytest.importorskip("customtkinter", reason="CustomTkinter no está instalado")
@@ -241,3 +243,160 @@ def test_sin_alumnos_inscritos_el_desplegable_lo_declara(app, db, entrenador_reg
 
     assert pantalla.alumno_var.get() == SIN_ALUMNOS
     assert pantalla.selector_alumno.cget("state") == "disabled"
+
+
+# ---------------------------------------------------------------------------
+# Grabación de la sesión (RF-01, RF-07)
+#
+# El encadenamiento completo: la pantalla en vivo analiza, y al terminar deja un
+# archivo de video atado a la sesión que lo produjo. Es lo que permite volver a
+# analizar una ejecución del dojo cuando el criterio cambie, en vez de tener que
+# repetirla —y repetirla no es equivalente: sería otra ejecución, de otro día.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def vivo_grabando(app, db, entrenador_registrado, dos_alumnos, camara_sintetica, tmp_path):
+    """
+    Igual que `vivo`, pero escribiendo en una carpeta temporal.
+
+    La carpeta se configura en la base, no se pasa por argumento: es la misma
+    vía por la que el sensei apuntaría la grabación a un disco externo del dojo,
+    así que la prueba ejercita el camino real y no uno de laboratorio.
+    """
+    db.guardar_config("directorio_grabaciones", str(tmp_path))
+    app.on_login_exitoso(entrenador_registrado)
+    app._limpiar_pantalla()
+    app._montar_marco("vivo")
+    pantalla = LiveScreen(app.contenido, db, entrenador_registrado, dos_alumnos[0],
+                          cam=camara_sintetica, app=app)
+    app.pantalla_actual = pantalla
+    pantalla.pack(expand=True, fill="both")
+    yield pantalla, tmp_path
+    pantalla.cerrar()
+
+
+@ficha(
+    id_caso="TC-AUTO-044",
+    nombre="Una sesión de análisis en vivo deja un video atado a la sesión en la base de datos",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "sin video, una toma de datos en el dojo es irrepetible: si el criterio de evaluación "
+        "cambia, la ejecución medida ya no se puede volver a analizar"
+    ),
+    componente="gui/live_screen.py + vision/grabador.py + persistence/database.py",
+    requisitos="RF-01, RF-07",
+    precondiciones="Entorno gráfico, CustomTkinter, OpenCV y MediaPipe disponibles; "
+                   "cámara sintética inyectada y carpeta de grabaciones temporal",
+    datos_entrada="Veinte fotogramas de la cámara sintética",
+    pasos=[
+        Paso("Avanzar el ciclo de video 20 veces con _actualizar_frame()",
+             "El grabador retiene, estima la velocidad y escribe"),
+        Paso("Cerrar la pantalla", "Se cierra el archivo y se anota la ruta en la sesión"),
+        Paso("Consultar la columna ruta_video de la sesión",
+             "assert el archivo existe en disco y la fila lo apunta"),
+    ],
+    resultado_esperado="Un .mp4 en la carpeta configurada, referenciado por la sesión",
+)
+def test_una_sesion_en_vivo_deja_video_atado_a_la_sesion(vivo_grabando, db):
+    pantalla, carpeta = vivo_grabando
+    id_sesion = pantalla.id_sesion
+    assert id_sesion is not None, "precondición: la sesión debía abrirse"
+
+    for _ in range(20):
+        pantalla._actualizar_frame()
+
+    pantalla.cerrar()
+
+    fila = db.conn.execute("SELECT ruta_video FROM sesion WHERE id_sesion = ?",
+                           (id_sesion,)).fetchone()
+    assert fila["ruta_video"], "la sesión debe apuntar al video que la registró"
+
+    ruta = fila["ruta_video"]
+    assert os.path.exists(ruta), f"el archivo anotado debe existir: {ruta}"
+    assert os.path.getsize(ruta) > 0, "un archivo vacío no es una grabación"
+    assert ruta.startswith(str(carpeta)), "debe escribir en la carpeta configurada"
+
+
+def test_el_video_lleva_el_nombre_del_alumno_medido(vivo_grabando):
+    """En el dojo, 'sesion_014.mp4' obliga a abrir el sistema para saber de quién es."""
+    pantalla, _ = vivo_grabando
+    for _ in range(20):
+        pantalla._actualizar_frame()
+    pantalla.cerrar()
+
+    assert "diego_morales" in pantalla.resumen_grabacion
+
+
+def test_el_video_grabado_se_puede_volver_a_abrir_como_fuente_de_analisis(vivo_grabando, db):
+    """
+    Es la razón de ser de la grabación: el archivo tiene que servir de entrada
+    al mismo encadenamiento que lo produjo (ver vision/fuentes.py).
+    """
+    import cv2
+
+    from vision.fuentes import es_archivo
+
+    pantalla, _ = vivo_grabando
+    id_sesion = pantalla.id_sesion
+    for _ in range(20):
+        pantalla._actualizar_frame()
+    pantalla.cerrar()
+
+    ruta = db.conn.execute("SELECT ruta_video FROM sesion WHERE id_sesion = ?",
+                           (id_sesion,)).fetchone()["ruta_video"]
+
+    assert es_archivo(ruta), "la resolución de fuentes debe reconocerlo como grabación"
+
+    captura = cv2.VideoCapture(ruta)
+    try:
+        assert captura.isOpened()
+        hay, frame = captura.read()
+        assert hay and frame is not None, "debe entregar fotogramas al reabrirse"
+    finally:
+        captura.release()
+
+
+def test_con_la_grabacion_apagada_la_sesion_se_mide_igual_y_lo_dice(app, db,
+                                                                    entrenador_registrado,
+                                                                    dos_alumnos,
+                                                                    camara_sintetica, tmp_path):
+    """
+    En un dojo se entrena con menores. Apagar la grabación no puede costar el
+    análisis, y el sistema debe declarar que está apagada en vez de callarlo.
+    """
+    db.guardar_config("directorio_grabaciones", str(tmp_path))
+    db.guardar_config("grabar_sesiones", "0")
+    app.on_login_exitoso(entrenador_registrado)
+    app._limpiar_pantalla()
+    app._montar_marco("vivo")
+    pantalla = LiveScreen(app.contenido, db, entrenador_registrado, dos_alumnos[0],
+                          cam=camara_sintetica, app=app)
+    pantalla.pack(expand=True, fill="both")
+    id_sesion = pantalla.id_sesion
+
+    for _ in range(15):
+        pantalla._actualizar_frame()
+
+    assert pantalla.grabador is None
+    assert "desactivada" in pantalla.resumen_grabacion
+
+    pantalla.cerrar()
+
+    fila = db.conn.execute("SELECT ruta_video FROM sesion WHERE id_sesion = ?",
+                           (id_sesion,)).fetchone()
+    assert fila["ruta_video"] is None
+    assert not list(tmp_path.glob("*.mp4")), "no debió escribirse ningún video"
+
+    # Que la sesión "se midió igual" se afirma por el ciclo de análisis, no por
+    # el contenido de `tecnica_evaluada`: la cámara sintética entrega un
+    # fotograma liso, MediaPipe no reconoce a nadie en él y no hay técnica que
+    # registrar. Lo que esta prueba puede sostener —y es lo que importa— es que
+    # apagar la grabación no interrumpió el ciclo: se consumieron los quince
+    # fotogramas y la sesión llegó abierta hasta el cierre.
+    # `>=` y no `==`: `_comenzar()` ya analiza un fotograma al montar la
+    # pantalla, así que el total incluye ese. Fijar el número exacto ataría la
+    # prueba a ese detalle del arranque sin ganar nada; lo que se afirma es que
+    # los quince fotogramas que esta prueba impulsó se consumieron.
+    assert camara_sintetica.frames_entregados >= 15
+    assert id_sesion is not None

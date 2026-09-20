@@ -133,6 +133,13 @@ class Database:
             "angulo_regla_1": "REAL",
             "angulo_regla_2": "REAL",
         },
+        "sesion": {
+            # 19-sep-2026: ruta del video crudo de la sesion, para poder volver
+            # a analizarla. Se guarda la ruta y no el video: la base es un
+            # archivo que el dojo respalda, y meterle cientos de megabytes por
+            # sesion la volveria inmanejable.
+            "ruta_video": "TEXT",
+        },
         "atleta": {
             "edad": "INTEGER",              # 14-sep-2026, ficha del alumno
             "peso_kg": "REAL",
@@ -237,6 +244,18 @@ class Database:
         )
         self.conn.commit()
         return cursor.lastrowid
+
+    def registrar_video_de_sesion(self, id_sesion, ruta_video):
+        """
+        Ata el archivo de video a la sesion que lo produjo.
+
+        Se llama al cerrar la sesion y no al abrirla: hasta que la grabacion
+        termina no se sabe si hubo video —el codec puede faltar, el disco
+        llenarse— y anotar una ruta que no existe es peor que no anotar nada.
+        """
+        self.conn.execute("UPDATE sesion SET ruta_video = ? WHERE id_sesion = ?",
+                          (ruta_video, id_sesion))
+        self.conn.commit()
 
     def cerrar_sesion(self, id_sesion):
         self.conn.execute(
