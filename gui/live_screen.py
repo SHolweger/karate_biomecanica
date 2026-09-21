@@ -1,3 +1,4 @@
+import os
 import tkinter
 
 import cv2
@@ -14,8 +15,9 @@ from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
-from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, aviso_en_vivo,
-                              directorio_configurado, grabacion_activada)
+from vision.fuentes import es_archivo
+from vision.grabacion import (ANALIZANDO_GRABACION, CLAVE_DIRECTORIO, CLAVE_GRABAR,
+                              aviso_en_vivo, directorio_configurado, grabacion_activada)
 from vision.grabador import GrabadorSesion
 from vision.tracker import PoseTracker
 
@@ -88,8 +90,9 @@ class LiveScreen(ctk.CTkFrame):
         self.veredicto_var = ctk.StringVar(value=SIN_DATO)
         # Grabando o solo midiendo, a la vista durante toda la sesión. Nadie
         # debería descubrir que lo estaban filmando después.
-        self.grabacion_var = ctk.StringVar(
-            value=aviso_en_vivo(grabacion_activada(db.leer_config(CLAVE_GRABAR))))
+        self.grabacion_var = ctk.StringVar(value=(
+            ANALIZANDO_GRABACION if es_archivo(fuente_configurada(db))
+            else aviso_en_vivo(grabacion_activada(db.leer_config(CLAVE_GRABAR)))))
 
         self._encabezado()
         self._controles()
@@ -169,8 +172,21 @@ class LiveScreen(ctk.CTkFrame):
         ctk.CTkLabel(fila, textvariable=self.estado_var, font=(theme.FUENTE, 11.5),
                      text_color=theme.ACENTO_AMARILLO).pack(side="right")
 
+    def _fuente_es_grabacion(self):
+        """¿Se está analizando un archivo en vez de una cámara en vivo?"""
+        return es_archivo(fuente_configurada(self.db))
+
     def _graba(self):
-        """¿Este equipo está configurado para grabar? Se consulta a la base, no se recuerda."""
+        """
+        ¿Hay que escribir video de esta sesión?
+
+        No, cuando la fuente ya es una grabación: la ejecución ya está
+        conservada, y volver a escribirla produciría un duplicado —diez minutos
+        en Full HD no son poca cosa— y un segundo archivo compitiendo con el
+        original como evidencia de la misma sesión.
+        """
+        if self._fuente_es_grabacion():
+            return False
         return grabacion_activada(self.db.leer_config(CLAVE_GRABAR))
 
     def _cuerpo(self):
@@ -336,6 +352,14 @@ class LiveScreen(ctk.CTkFrame):
             self.grabador = GrabadorSesion(
                 self.id_sesion, self.atleta["nombre"],
                 directorio=directorio_configurado(self.db.leer_config(CLAVE_DIRECTORIO)))
+        elif self._fuente_es_grabacion():
+            # El video de esta sesión es el archivo que se analizó. Dejar la
+            # columna vacía haría que el reporte dijera «Sin video» sobre una
+            # sesión que nació precisamente de uno.
+            self.grabador = None
+            fuente = fuente_configurada(self.db)
+            self.db.registrar_video_de_sesion(self.id_sesion, fuente)
+            self.resumen_grabacion = f"Se analizó la grabación {os.path.basename(fuente)}."
         else:
             self.grabador = None
             self.resumen_grabacion = "La grabación de video está desactivada en este equipo."

@@ -232,3 +232,10 @@ def aviso_en_vivo(activada):
     de un vistazo desde el otro lado del tatami.
     """
     return GRABANDO if activada else SOLO_MIDIENDO
+
+
+# Estado que se anuncia cuando la fuente ya es una grabación. No es «Grabando»
+# —no se escribe nada— ni «Solo midiendo» —sí queda video, el de origen—: es una
+# tercera situación, y nombrarla con cualquiera de las otras dos convertiría el
+# aviso en ruido.
+ANALIZANDO_GRABACION = "▸ Analizando grabación"

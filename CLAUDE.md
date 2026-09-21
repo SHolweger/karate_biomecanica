@@ -144,7 +144,7 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 706 passed |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 709 passed |
 | CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso

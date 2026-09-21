@@ -426,3 +426,86 @@ def test_con_la_grabacion_apagada_la_pantalla_lo_dice_en_vez_de_callarlo(app, db
         assert pantalla.grabacion_var.get() == "○ Solo midiendo"
     finally:
         pantalla.cerrar()
+
+
+# ---------------------------------------------------------------------------
+# Analizar una grabación no la vuelve a grabar (RF-01, RF-07)
+#
+# La grabación existe para conservar la ejecución. Cuando la fuente YA es una
+# grabación, la ejecución ya está conservada: volver a escribirla produciría un
+# duplicado —diez minutos en Full HD no son poca cosa— y, peor, un segundo
+# archivo que compite con el original como evidencia de la misma sesión.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def grabacion_como_fuente(db, tmp_path, camara_sintetica):
+    """
+    Un archivo de video configurado como fuente del análisis.
+
+    La cámara se inyecta igual, porque lo que se verifica aquí no es la lectura
+    del archivo —eso lo cubre test_marca_de_tiempo.py— sino la decisión de no
+    volver a grabarlo.
+    """
+    ruta = tmp_path / "sesion_del_dojo.mp4"
+    ruta.write_bytes(b"\x00" * 256)
+    db.guardar_config("fuente_video", str(ruta))
+    db.guardar_config("directorio_grabaciones", str(tmp_path / "salida"))
+    return str(ruta)
+
+
+def _montar_vivo(app, db, entrenador, alumno, cam):
+    app.on_login_exitoso(entrenador)
+    app._limpiar_pantalla()
+    app._montar_marco("vivo")
+    pantalla = LiveScreen(app.contenido, db, entrenador, alumno, cam=cam, app=app)
+    pantalla.pack(expand=True, fill="both")
+    return pantalla
+
+
+def test_analizar_una_grabacion_no_produce_un_duplicado(app, db, entrenador_registrado,
+                                                        dos_alumnos, camara_sintetica,
+                                                        grabacion_como_fuente, tmp_path):
+    pantalla = _montar_vivo(app, db, entrenador_registrado, dos_alumnos[0], camara_sintetica)
+    try:
+        for _ in range(20):
+            pantalla._actualizar_frame()
+        assert pantalla.grabador is None, "no debe abrirse un grabador sobre una grabación"
+    finally:
+        pantalla.cerrar()
+
+    assert not list((tmp_path / "salida").glob("*.mp4")) if (tmp_path / "salida").exists() \
+        else True, "no debió escribirse ningún video nuevo"
+
+
+def test_la_sesion_apunta_al_archivo_que_se_analizo(app, db, entrenador_registrado,
+                                                    dos_alumnos, camara_sintetica,
+                                                    grabacion_como_fuente):
+    """
+    El video de la sesión es el archivo analizado. Dejar la columna vacía haría
+    que el reporte dijera «Sin video» sobre una sesión que nació de uno.
+    """
+    pantalla = _montar_vivo(app, db, entrenador_registrado, dos_alumnos[0], camara_sintetica)
+    id_sesion = pantalla.id_sesion
+    try:
+        for _ in range(10):
+            pantalla._actualizar_frame()
+    finally:
+        pantalla.cerrar()
+
+    fila = db.conn.execute("SELECT ruta_video FROM sesion WHERE id_sesion = ?",
+                           (id_sesion,)).fetchone()
+    assert fila["ruta_video"] == grabacion_como_fuente
+
+
+def test_la_pantalla_dice_que_esta_analizando_una_grabacion(app, db, entrenador_registrado,
+                                                            dos_alumnos, camara_sintetica,
+                                                            grabacion_como_fuente):
+    """
+    Ni «Grabando» ni «Solo midiendo» describen lo que ocurre: el estado tiene
+    que decir la verdad o el aviso deja de ser informativo.
+    """
+    pantalla = _montar_vivo(app, db, entrenador_registrado, dos_alumnos[0], camara_sintetica)
+    try:
+        assert "grabación" in pantalla.grabacion_var.get().lower()
+    finally:
+        pantalla.cerrar()
