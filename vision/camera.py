@@ -152,7 +152,11 @@ class Camera:
         # De dónde sale el tiempo de cada fotograma. Ver marca_de_tiempo_ms().
         self._es_grabacion = es_archivo(source)
         self._inicio = time.monotonic()
-        self._marca_ms = 0.0
+        # None mientras no se haya entregado ningún fotograma. No se inicializa
+        # en cero porque el primer fotograma de una grabación vale cero de forma
+        # legítima, y confundir ambos casos haría que la guardia de monotonía
+        # de get_frame() lo tomara por un fotograma que no avanzó.
+        self._marca_ms = None
 
         if verificar and not self.cap.isOpened():
             self.cap.release()
@@ -176,15 +180,29 @@ class Camera:
             #
             # `POS_FRAMES` queda apuntando al SIGUIENTE fotograma, de ahí el -1
             # para el respaldo por índice.
+            fps = self.cap.get(cv2.CAP_PROP_FPS)
             marca = marca_de_grabacion_ms(
                 self.cap.get(cv2.CAP_PROP_POS_MSEC),
                 self.cap.get(cv2.CAP_PROP_POS_FRAMES) - 1,
-                self.cap.get(cv2.CAP_PROP_FPS))
-            # Si el contenedor no informa ninguna de las dos referencias se
-            # conserva la marca anterior antes que inventar uno nuevo: un salto
-            # hacia atrás produciría una velocidad angular negativa o enorme.
-            if marca is not None:
-                self._marca_ms = marca
+                fps)
+
+            # La marca tiene que CRECER siempre, y no es una formalidad:
+            # MediaPipe rechaza un timestamp que no supere al anterior
+            # («Input timestamp must be monotonically increasing») y aborta el
+            # análisis. Sobre una grabación larga basta que el contenedor
+            # repita una posición —cosa que este backend hace cuando no puede
+            # resolver la de un fotograma— para perder el trabajo entero a
+            # mitad de camino.
+            #
+            # Cuando la posición no avanza se rellena con la duración nominal
+            # de un fotograma, y no con un incremento mínimo: el intervalo real
+            # entre dos fotogramas consecutivos ES un fotograma, de modo que
+            # esto no es un parche para cumplir la exigencia sino la inferencia
+            # correcta. Un epsilon arbitrario la cumpliría igual y dispararía
+            # la velocidad angular de ese fotograma a un valor absurdo.
+            if self._marca_ms is not None and (marca is None or marca <= self._marca_ms):
+                marca = self._marca_ms + (1000.0 / fps if fps and fps > 0 else 1.0)
+            self._marca_ms = marca if marca is not None else 0.0
         else:
             self._marca_ms = (time.monotonic() - self._inicio) * 1000.0
 
@@ -196,19 +214,18 @@ class Camera:
 
         La referencia depende de la fuente, y la distinción no es cosmética.
         Con una cámara en vivo el reloj de pared mide el intervalo real entre
-        fotogramas y es la única referencia disponible. Con una grabación no: el
-        análisis avanza a la velocidad que permite la estimación de pose
-        —alrededor de 100 ms por fotograma— mientras el archivo puede contener
-        un fotograma cada 33 ms.
+        fotogramas y es la única referencia disponible. Con una grabación mide
+        otra cosa: cuánto tarda ESTE equipo en analizar, que no guarda relación
+        con cuánto duró la ejecución.
 
-        De ahí que el tiempo de una grabación lo dicte el video y no la máquina
-        que lo procesa. La máquina de estados del Mae Geri deriva la velocidad
-        angular dividiendo el cambio de ángulo entre este intervalo, de modo que
-        usar el reloj de pared sobre un archivo dividiría toda velocidad por el
-        factor entre ambos ritmos, e informaría «FALTA EXPLOSIVIDAD» en patadas
-        correctas. El error no sería aleatorio sino sistemático.
+        La máquina de estados del Mae Geri deriva la velocidad angular
+        dividiendo el cambio de ángulo entre este intervalo. Usar el reloj de
+        pared sobre un archivo introduciría por tanto un error sistemático cuyo
+        tamaño y cuyo signo dependen del equipo, de modo que la misma grabación
+        daría veredictos distintos en dos computadoras. Ver el desarrollo del
+        argumento en `marca_de_grabacion_ms` (vision/fuentes.py).
         """
-        return self._marca_ms
+        return self._marca_ms if self._marca_ms is not None else 0.0
 
     @property
     def resolucion(self):

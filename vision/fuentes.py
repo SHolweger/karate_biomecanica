@@ -133,18 +133,25 @@ def marca_de_grabacion_ms(pos_msec, indice_frame, fps):
 
     Por qué existe
     --------------
-    Con una cámara en vivo, el tiempo transcurrido en el reloj de pared es el
-    tiempo real entre fotogramas y sirve para derivar velocidades angulares.
-    Con una grabación no: el análisis avanza a la velocidad que permite la
-    estimación de pose —alrededor de 100 ms por fotograma— mientras que el video
-    puede contener un fotograma cada 33 ms. Medir con el reloj de pared
-    atribuiría a la ejecución un tiempo tres veces mayor del que realmente tomó,
-    y toda velocidad angular saldría dividida por tres.
+    Con una cámara en vivo, el tiempo transcurrido en el reloj de pared ES el
+    tiempo real entre fotogramas, y sirve para derivar velocidades angulares.
 
-    La consecuencia concreta: un Mae Geri ejecutado a 600 °/s se registraría a
-    200 °/s y el sistema informaría «FALTA EXPLOSIVIDAD» en una patada correcta.
-    El error no sería aleatorio sino sistemático, y afectaría a todas las
-    patadas de la grabación en el mismo sentido.
+    Con una grabación no mide nada de eso: mide cuánto tarda ESTE equipo en
+    analizar, que no guarda relación con cuánto duró la ejecución. El cociente
+    entre ambos ritmos depende de la máquina, de la resolución y de la velocidad
+    del archivo, y puede caer de cualquiera de los dos lados —un video de 60 fps
+    se analiza algo más lento que su propia duración; uno de 30 fps, más rápido—.
+
+    Lo que importa no es el tamaño del error sino su naturaleza: es sistemático,
+    y cambia de un equipo a otro. La velocidad angular del Kime se deriva de este
+    intervalo, de modo que la MISMA grabación analizada en dos computadoras
+    distintas produciría velocidades distintas y, cruzando el umbral de los
+    400 °/s, veredictos distintos sobre la misma patada.
+
+    Eso destruiría exactamente la propiedad por la que este módulo acepta
+    archivos: sobre una grabación la entrada es idéntica en cada corrida, así
+    que una diferencia en el resultado solo puede provenir del código. Con el
+    reloj de pared, también podría provenir de la computadora.
 
     Cómo se calcula
     ---------------

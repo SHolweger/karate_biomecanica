@@ -85,9 +85,9 @@ def main_consola():
         if frame is None: break
             
         # La marca la da la fuente y no el reloj de pared: sobre una grabación
-        # el análisis avanza más lento que el video, y medir con el reloj
-        # dividiría toda velocidad angular por ese factor, informando falta de
-        # explosividad en patadas correctas (ver Camera.marca_de_tiempo_ms).
+        # el reloj mide cuánto tarda este equipo en analizar, no cuánto duró la
+        # ejecución, y la misma grabación daría velocidades angulares distintas
+        # en computadoras distintas (ver Camera.marca_de_tiempo_ms).
         timestamp_ms = int(cam.marca_de_tiempo_ms())
         h, w, _ = frame.shape
         

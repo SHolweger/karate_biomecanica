@@ -349,9 +349,9 @@ class LiveScreen(ctk.CTkFrame):
         frame = self.cam.get_frame()
         if frame is not None:
             # La marca la da la fuente, no el reloj de pared. Con una cámara
-            # en vivo ambas coinciden; con una grabación no, porque el análisis
-            # avanza más lento que el video y toda velocidad angular saldría
-            # dividida por ese factor (ver Camera.marca_de_tiempo_ms).
+            # en vivo ambas coinciden; con una grabación no, y usar el reloj
+            # haría que la misma grabación diera velocidades angulares
+            # distintas en equipos distintos (ver Camera.marca_de_tiempo_ms).
             timestamp_ms = int(self.cam.marca_de_tiempo_ms())
             h, w, _ = frame.shape
 

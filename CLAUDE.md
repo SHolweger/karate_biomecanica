@@ -93,14 +93,33 @@ criterio nuevo sea el correcto — eso lo fija el cuerpo técnico, no el program
 (20-sep-2026). `Camera.marca_de_tiempo_ms()` devuelve la posición dentro del
 archivo cuando la fuente es una grabación, y el reloj transcurrido cuando es
 una cámara en vivo. Importa porque la velocidad angular del Kime se deriva de
-ese intervalo: el análisis avanza a ~100 ms por fotograma y un video de 30 fps
-trae uno cada 33 ms, así que medir con el reloj dividía toda velocidad por tres
-e informaba «FALTA EXPLOSIVIDAD» en patadas correctas — sistemáticamente, en
-todas las del archivo. La posición se consulta **después** de `read()`: este
-backend la informa con un fotograma de retraso y consultarla antes deja el
-primer intervalo en cero. Los dobles de cámara de las pruebas cumplen el mismo
-contrato con un intervalo declarado, no con el reloj, para que las pruebas no
-dependan de la velocidad del equipo.
+ese intervalo: sobre un archivo el reloj mide cuánto tarda *este equipo* en
+analizar, no cuánto duró la ejecución, así que la **misma grabación daría
+veredictos distintos en dos computadoras** — y eso destruye justo la propiedad
+por la que `vision/fuentes.py` acepta archivos (entrada idéntica en cada
+corrida, luego toda diferencia viene del código).
+
+Dos detalles que costaron un intento cada uno:
+
+- La posición se consulta **después** de `read()`. Este backend la informa con
+  un fotograma de retraso: consultada antes, el primero y el segundo declaran
+  ambos el milisegundo cero.
+- **MediaPipe exige marcas estrictamente crecientes** («Input timestamp must be
+  monotonically increasing») y **aborta** si no. Cuando el contenedor repite una
+  posición se rellena con la duración nominal de un fotograma —que es el
+  intervalo real— y no con un epsilon, que dispararía la velocidad de ese
+  fotograma. Sin esto, una grabación larga pierde el trabajo a mitad de camino.
+
+**Cifras medidas el 20-sep** (no recordadas): la estimación de pose cuesta
+**~10 ms por fotograma** y es prácticamente independiente de la resolución de
+entrada —MediaPipe reescala al tamaño de su modelo—, de 640×360 a 1920×1080.
+La cifra de «~100 ms por fotograma» que este archivo citaba en la sección de
+`update()` no coincide con lo medido; conviene revisarla antes de usarla en la
+tesis.
+
+Los dobles de cámara de las pruebas cumplen el mismo contrato con un intervalo
+declarado, no con el reloj, para que las pruebas no dependan de la velocidad
+del equipo.
 
 **Se graba el fotograma crudo, nunca el anotado** (19-sep-2026). El video con
 esqueleto se regenera del crudo; al revés no. Grabar el anotado dejaría las
@@ -125,7 +144,7 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 703 passed |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 706 passed |
 | CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso

@@ -141,7 +141,7 @@ def test_una_fuente_en_vivo_sigue_usando_el_reloj_de_pared():
     cam.cap = CapturaFalsa()
     cam._es_grabacion = False
     cam._inicio = time.monotonic()
-    cam._marca_ms = 0.0
+    cam._marca_ms = None
 
     cam.get_frame()
     primera = cam.marca_de_tiempo_ms()
@@ -150,3 +150,100 @@ def test_una_fuente_en_vivo_sigue_usando_el_reloj_de_pared():
     segunda = cam.marca_de_tiempo_ms()
 
     assert segunda - primera >= 40, "en vivo, el reloj de pared es la referencia correcta"
+
+
+# ---------------------------------------------------------------------------
+# La marca debe crecer siempre (RF-01)
+#
+# MediaPipe rechaza una marca que no supere a la anterior: levanta
+# «Input timestamp must be monotonically increasing» y aborta el análisis. Sobre
+# una grabación larga eso no es una hipótesis: basta que el contenedor repita
+# una posición —cosa que este backend hace— para que el proceso muera a mitad
+# de camino, después de veinte minutos de cómputo.
+# ---------------------------------------------------------------------------
+
+class CapturaConPosicionRepetida:
+    """
+    Contenedor que informa la misma posición dos veces seguidas.
+
+    Reproduce lo que hace el backend real cuando no puede resolver la marca de
+    un fotograma: en vez de fallar, repite la última que conoce.
+    """
+
+    def __init__(self, posiciones, fps=30.0):
+        self._posiciones = list(posiciones)
+        self._fps = fps
+        self._i = 0
+
+    def isOpened(self):
+        return True
+
+    def read(self):
+        if self._i >= len(self._posiciones):
+            return False, None
+        self._i += 1
+        return True, np.zeros((ALTO, ANCHO, 3), dtype=np.uint8)
+
+    def get(self, prop):
+        if prop == cv2.CAP_PROP_POS_MSEC:
+            return self._posiciones[self._i - 1]
+        if prop == cv2.CAP_PROP_POS_FRAMES:
+            return float(self._i)
+        if prop == cv2.CAP_PROP_FPS:
+            return self._fps
+        return 0.0
+
+
+def _camara_sobre(captura):
+    cam = Camera.__new__(Camera)
+    cam.fuente = "grabacion.mp4"
+    cam.espejo = False
+    cam.cap = captura
+    cam._es_grabacion = True
+    cam._inicio = 0.0
+    cam._marca_ms = None
+    return cam
+
+
+def test_una_posicion_repetida_no_detiene_la_marca(  ):
+    """
+    El contenedor informa 0, 33.3, 33.3, 66.7. La tercera marca no puede
+    quedarse en 33.3: MediaPipe abortaría el análisis completo.
+    """
+    cam = _camara_sobre(CapturaConPosicionRepetida([0.0, 33.33, 33.33, 66.67]))
+
+    marcas = []
+    while cam.get_frame() is not None:
+        marcas.append(cam.marca_de_tiempo_ms())
+
+    assert len(marcas) == 4
+    assert all(b > a for a, b in zip(marcas, marcas[1:])), \
+        f"las marcas deben crecer siempre; se obtuvo {marcas}"
+
+
+def test_una_posicion_que_retrocede_tampoco_detiene_la_marca():
+    """Un contenedor dañado puede informar una posición anterior."""
+    cam = _camara_sobre(CapturaConPosicionRepetida([0.0, 100.0, 50.0, 200.0]))
+
+    marcas = []
+    while cam.get_frame() is not None:
+        marcas.append(cam.marca_de_tiempo_ms())
+
+    assert all(b > a for a, b in zip(marcas, marcas[1:])), \
+        f"las marcas deben crecer siempre; se obtuvo {marcas}"
+
+
+def test_al_rellenar_se_avanza_un_intervalo_de_fotograma_y_no_un_epsilon():
+    """
+    Cuando la posición no avanza, el intervalo real ES un fotograma. Avanzar
+    por un valor arbitrariamente pequeño cumpliría la exigencia de MediaPipe
+    pero inflaría la velocidad angular de ese fotograma hasta un valor absurdo.
+    """
+    cam = _camara_sobre(CapturaConPosicionRepetida([0.0, 33.33, 33.33], fps=30.0))
+
+    marcas = []
+    while cam.get_frame() is not None:
+        marcas.append(cam.marca_de_tiempo_ms())
+
+    intervalo_rellenado = marcas[2] - marcas[1]
+    assert intervalo_rellenado == pytest.approx(1000.0 / 30.0, abs=0.5)
