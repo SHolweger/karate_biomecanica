@@ -25,8 +25,7 @@ import sys
 
 def main_consola():
     # Importamos nuestros módulos (Nuestra Arquitectura Modular)
-    import time
-
+    
     import cv2
 
     from vision.camera import Camera, CamaraNoDisponible, describir, listar_camaras
@@ -79,14 +78,17 @@ def main_consola():
     reglas = KarateRules(db.cargar_umbrales_vigentes())
     analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65, reglas=reglas)
 
-    start_time = time.time()
     
     # 2. Bucle Principal
     while True:
         frame = cam.get_frame()
         if frame is None: break
             
-        timestamp_ms = int((time.time() - start_time) * 1000)
+        # La marca la da la fuente y no el reloj de pared: sobre una grabación
+        # el análisis avanza más lento que el video, y medir con el reloj
+        # dividiría toda velocidad angular por ese factor, informando falta de
+        # explosividad en patadas correctas (ver Camera.marca_de_tiempo_ms).
+        timestamp_ms = int(cam.marca_de_tiempo_ms())
         h, w, _ = frame.shape
         
         # A. Visión: Extraer el esqueleto

@@ -1,4 +1,3 @@
-import time
 import tkinter
 
 import cv2
@@ -80,7 +79,6 @@ class LiveScreen(ctk.CTkFrame):
         # para poder decírselo al sensei: enterarse de que no hubo grabación al
         # ir a buscar el archivo, semanas después, no sirve de nada.
         self.resumen_grabacion = None
-        self.start_time = time.time()
         self._activo = False
         self._after_id = None
         self._cam_inyectada = cam
@@ -341,7 +339,6 @@ class LiveScreen(ctk.CTkFrame):
         else:
             self.grabador = None
             self.resumen_grabacion = "La grabación de video está desactivada en este equipo."
-        self.start_time = time.time()
         self._activo = True
         self._actualizar_frame()
 
@@ -351,7 +348,11 @@ class LiveScreen(ctk.CTkFrame):
 
         frame = self.cam.get_frame()
         if frame is not None:
-            timestamp_ms = int((time.time() - self.start_time) * 1000)
+            # La marca la da la fuente, no el reloj de pared. Con una cámara
+            # en vivo ambas coinciden; con una grabación no, porque el análisis
+            # avanza más lento que el video y toda velocidad angular saldría
+            # dividida por ese factor (ver Camera.marca_de_tiempo_ms).
+            timestamp_ms = int(self.cam.marca_de_tiempo_ms())
             h, w, _ = frame.shape
 
             # Antes de dibujar nada: lo que se graba es el fotograma crudo. El

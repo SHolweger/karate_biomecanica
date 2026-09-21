@@ -15,10 +15,12 @@ en el entorno de integración continua. Aquí queda solo lo que necesita hardwar
 import contextlib
 import os
 import sys
+import time
 
 import cv2
 
-from vision.fuentes import CamaraNoDisponible, describir, es_url, normalizar
+from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
+                            marca_de_grabacion_ms, normalizar)
 from vision.nombres_camara import nombres_del_sistema
 
 # Cuántos índices se sondean al enumerar. Seis cubre con holgura un equipo con
@@ -147,6 +149,11 @@ class Camera:
         self.espejo = espejo
         self.cap = cv2.VideoCapture(self.fuente)
 
+        # De dónde sale el tiempo de cada fotograma. Ver marca_de_tiempo_ms().
+        self._es_grabacion = es_archivo(source)
+        self._inicio = time.monotonic()
+        self._marca_ms = 0.0
+
         if verificar and not self.cap.isOpened():
             self.cap.release()
             raise CamaraNoDisponible(
@@ -158,7 +165,50 @@ class Camera:
         leido, frame = self.cap.read()
         if not leido:
             return None
+
+        if self._es_grabacion:
+            # La posición se consulta DESPUÉS de leer, y no antes, porque este
+            # backend la informa con un fotograma de retraso: consultada antes,
+            # el primer y el segundo fotograma declaran ambos el milisegundo
+            # cero y el intervalo entre ellos sale nulo. Medido sobre un archivo
+            # de 30 fps, consultarla después devuelve 0, 33.3, 66.7…, que es
+            # exactamente el instante del fotograma recién entregado.
+            #
+            # `POS_FRAMES` queda apuntando al SIGUIENTE fotograma, de ahí el -1
+            # para el respaldo por índice.
+            marca = marca_de_grabacion_ms(
+                self.cap.get(cv2.CAP_PROP_POS_MSEC),
+                self.cap.get(cv2.CAP_PROP_POS_FRAMES) - 1,
+                self.cap.get(cv2.CAP_PROP_FPS))
+            # Si el contenedor no informa ninguna de las dos referencias se
+            # conserva la marca anterior antes que inventar uno nuevo: un salto
+            # hacia atrás produciría una velocidad angular negativa o enorme.
+            if marca is not None:
+                self._marca_ms = marca
+        else:
+            self._marca_ms = (time.monotonic() - self._inicio) * 1000.0
+
         return cv2.flip(frame, 1) if self.espejo else frame
+
+    def marca_de_tiempo_ms(self):
+        """
+        Instante del último fotograma entregado, en milisegundos.
+
+        La referencia depende de la fuente, y la distinción no es cosmética.
+        Con una cámara en vivo el reloj de pared mide el intervalo real entre
+        fotogramas y es la única referencia disponible. Con una grabación no: el
+        análisis avanza a la velocidad que permite la estimación de pose
+        —alrededor de 100 ms por fotograma— mientras el archivo puede contener
+        un fotograma cada 33 ms.
+
+        De ahí que el tiempo de una grabación lo dicte el video y no la máquina
+        que lo procesa. La máquina de estados del Mae Geri deriva la velocidad
+        angular dividiendo el cambio de ángulo entre este intervalo, de modo que
+        usar el reloj de pared sobre un archivo dividiría toda velocidad por el
+        factor entre ambos ritmos, e informaría «FALTA EXPLOSIVIDAD» en patadas
+        correctas. El error no sería aleatorio sino sistemático.
+        """
+        return self._marca_ms
 
     @property
     def resolucion(self):

@@ -143,13 +143,19 @@ class CamaraSintetica:
     GUI y el pipeline de video sin hardware conectado.
     """
 
-    def __init__(self, ancho=640, alto=480, frames_disponibles=None):
+    def __init__(self, ancho=640, alto=480, frames_disponibles=None, intervalo_ms=100):
         self.ancho = ancho
         self.alto = alto
         self.frames_entregados = 0
         self.liberada = False
         # None = flujo infinito; un entero simula que el video se corta.
         self.frames_disponibles = frames_disponibles
+        # Cuánto avanza el reloj entre fotogramas. Se declara en vez de leer el
+        # reloj de pared para que las pruebas sean deterministas: una prueba que
+        # dependiera de cuánto tarda la máquina en ejecutarla afirmaría cosas
+        # distintas en equipos distintos. Cien milisegundos es el orden de lo que
+        # cuesta un fotograma con MediaPipe real.
+        self.intervalo_ms = intervalo_ms
 
     def get_frame(self):
         if self.frames_disponibles is not None and self.frames_entregados >= self.frames_disponibles:
@@ -158,6 +164,18 @@ class CamaraSintetica:
         frame = np.zeros((self.alto, self.ancho, 3), dtype=np.uint8)
         frame[:, :, 1] = 120  # tinte verdoso: confirma que el frame trae contenido real
         return frame
+
+    def marca_de_tiempo_ms(self):
+        """
+        Instante del último fotograma entregado.
+
+        Cumple el mismo contrato que `vision.camera.Camera`: el analizador y la
+        máquina de estados del Mae Geri derivan de aquí la velocidad angular, de
+        modo que un doble que no lo ofreciera dejaría ese cálculo sin ejercitar.
+        """
+        if self.frames_entregados == 0:
+            return 0.0
+        return float((self.frames_entregados - 1) * self.intervalo_ms)
 
     def release(self):
         self.liberada = True

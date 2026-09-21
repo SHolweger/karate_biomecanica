@@ -89,6 +89,19 @@ número tranquilizador y falso. No escribe nada. La redacción vive en
 `gui/impacto_umbrales.py` (puro, corre en CI) y ninguna frase afirma que el
 criterio nuevo sea el correcto — eso lo fija el cuerpo técnico, no el programa.
 
+**El tiempo de una grabación lo dicta el video, no el reloj de pared**
+(20-sep-2026). `Camera.marca_de_tiempo_ms()` devuelve la posición dentro del
+archivo cuando la fuente es una grabación, y el reloj transcurrido cuando es
+una cámara en vivo. Importa porque la velocidad angular del Kime se deriva de
+ese intervalo: el análisis avanza a ~100 ms por fotograma y un video de 30 fps
+trae uno cada 33 ms, así que medir con el reloj dividía toda velocidad por tres
+e informaba «FALTA EXPLOSIVIDAD» en patadas correctas — sistemáticamente, en
+todas las del archivo. La posición se consulta **después** de `read()`: este
+backend la informa con un fotograma de retraso y consultarla antes deja el
+primer intervalo en cero. Los dobles de cámara de las pruebas cumplen el mismo
+contrato con un intervalo declarado, no con el reloj, para que las pruebas no
+dependan de la velocidad del equipo.
+
 **Se graba el fotograma crudo, nunca el anotado** (19-sep-2026). El video con
 esqueleto se regenera del crudo; al revés no. Grabar el anotado dejaría las
 conclusiones de hoy cocidas en la evidencia. La velocidad de escritura **se
@@ -112,7 +125,7 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 692 passed |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 703 passed |
 | CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
@@ -123,7 +136,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-049**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-050**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

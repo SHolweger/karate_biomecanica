@@ -9,7 +9,7 @@ haberlas separado de la clase `Camera`.
 import pytest
 
 from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
-                            normalizar, validar_grabacion)
+                            marca_de_grabacion_ms, normalizar, validar_grabacion)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
@@ -210,3 +210,33 @@ def test_sin_archivo_elegido_no_se_inventa_un_error_tecnico(vacio):
     sirve, motivo = validar_grabacion(vacio)
     assert sirve is False
     assert motivo == "No se eligió ningún archivo de video."
+
+
+# ---------------------------------------------------------------------------
+# El tiempo de una grabación no es el del reloj de pared (RF-01, RF-05)
+#
+# El análisis avanza a la velocidad de la estimación de pose, no a la del video.
+# Medir con el reloj de pared le atribuiría a la ejecución un tiempo varias
+# veces mayor del real, y toda velocidad angular saldría dividida por ese mismo
+# factor: un Mae Geri correcto se reportaría como falto de explosividad.
+# ---------------------------------------------------------------------------
+
+def test_se_prefiere_la_marca_que_declara_el_contenedor():
+    """Respeta la velocidad real del archivo, incluida la variable."""
+    assert marca_de_grabacion_ms(pos_msec=1333.0, indice_frame=40, fps=30.0) == 1333.0
+
+
+def test_sin_marca_del_contenedor_se_deduce_del_indice_y_la_velocidad():
+    """Algunos formatos y backends devuelven cero en CAP_PROP_POS_MSEC."""
+    assert marca_de_grabacion_ms(pos_msec=0, indice_frame=30, fps=30.0) == pytest.approx(1000.0)
+
+
+def test_el_primer_fotograma_esta_legitimamente_en_cero():
+    """Índice 0 y marca 0 no es un fallo: es el inicio de la grabación."""
+    assert marca_de_grabacion_ms(pos_msec=0, indice_frame=0, fps=30.0) == 0.0
+
+
+@pytest.mark.parametrize("indice, fps", [(None, 30.0), (10, None), (10, 0), (-1, 30.0)])
+def test_sin_informacion_utilizable_se_devuelve_none_y_no_un_cero(indice, fps):
+    """Un cero parecería una marca válida; None obliga a quien llama a decidir."""
+    assert marca_de_grabacion_ms(pos_msec=0, indice_frame=indice, fps=fps) is None

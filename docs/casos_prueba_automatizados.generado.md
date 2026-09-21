@@ -1,7 +1,7 @@
 # Casos de prueba automatizados
 
 **Sistema:** Shotokan AI — Sistema experto de análisis biomecánico del Karate-Do Shotokan
-**Casos documentados:** 48
+**Casos documentados:** 49
 
 > **Documento generado automáticamente.** Lo produce el complemento `tests/reporte/plugin.py` a partir de las fichas declaradas en el código con el decorador `@ficha(...)` de `tests/reporte/plantilla.py`. No editar a mano: cualquier cambio se pierde en la siguiente corrida. Para modificar una ficha hay que editar la prueba correspondiente.
 
@@ -12,7 +12,7 @@
 | Nivel | Casos documentados | Pruebas que los ejecutan |
 |---|---|---|
 | Unitaria | 19 | 43 |
-| API/Integración | 17 | 27 |
+| API/Integración | 18 | 28 |
 | Interfaz (UI/E2E) | 12 | 20 |
 
 ---
@@ -1425,6 +1425,35 @@
 
 ---
 
+## TC-AUTO-049 — El tiempo de una grabación lo dicta el video y no la velocidad a la que se analiza
+
+| Campo | Descripción / Detalle |
+|---|---|
+| **ID del Caso de Prueba** | TC-AUTO-049 |
+| **Nombre de la Prueba** | El tiempo de una grabación lo dicta el video y no la velocidad a la que se analiza |
+| **Tipo de Prueba** | [ ] Unitaria **[X]** API/Integración [ ] Interfaz (UI/E2E) [ ] Desempeño |
+| **Prioridad / Riesgo** | **[X]** Alta [ ] Media [ ] Baja — la velocidad angular del Kime se deriva del intervalo entre fotogramas; medirlo con el reloj de pared sobre una grabación lo infla varias veces y reporta como falta de explosividad toda patada correcta del video, de forma sistemática |
+| **Componente bajo prueba** | `vision/camera.py (Camera.marca_de_tiempo_ms) + vision/fuentes.py` |
+| **Requisito asociado** | RF-01, RF-05 |
+| **Precondiciones** | OpenCV disponible; una grabación de 30 fotogramas a 30 fps |
+| **Datos de Entrada (Test Data)** | La misma grabación leída dos veces: de corrido y con una pausa de 50 ms entre lecturas |
+| **Archivo / Clase del Script** | `tests/integration/test_marca_de_tiempo.py::test_una_pausa_en_el_analisis_no_altera_el_tiempo_de_la_grabacion` |
+
+**Pasos de Ejecución Automatizada y Aserciones**
+
+| Paso | Acción del Script | Resultado Esperado / Aserción (Assert) |
+|---|---|---|
+| 1 | Leer la grabación completa registrando la marca de cada fotograma | Las marcas avanzan a razón de 1000/30 ms |
+| 2 | Repetir la lectura intercalando una pausa artificial entre fotogramas | El reloj de pared avanza mucho más que el video |
+| 3 | Comparar ambas secuencias de marcas | assert son idénticas: la pausa no altera el tiempo del video |
+
+**Criterios de Salida y Manejo de Errores**
+- **Resultado Esperado Global:** Las marcas dependen del contenido y no de la velocidad del análisis
+- **Evidencia de Ejecución:** Reporte de consola de pytest y `reporte-pruebas.xml` (JUnit XML) publicado como artefacto en GitHub Actions.
+- **Resultado Obtenido en la última corrida:** PASSED
+
+---
+
 ## Trazabilidad: casos de prueba contra requisitos y componentes
 
 | Caso | Componente bajo prueba | Requisito asociado | Tipo |
@@ -1477,3 +1506,4 @@
 | TC-AUTO-046 | `gui/camara_screen.py (CamaraScreen) + vision/grabacion.py (grabacion_activada)` | RF-01 | Interfaz (UI/E2E) |
 | TC-AUTO-047 | `gui/impacto_umbrales.py (titular)` | RF-08 | Unitaria |
 | TC-AUTO-048 | `gui/umbrales_screen.py + expert_system/reevaluacion.py + gui/impacto_umbrales.py` | RF-08 | Interfaz (UI/E2E) |
+| TC-AUTO-049 | `vision/camera.py (Camera.marca_de_tiempo_ms) + vision/fuentes.py` | RF-01, RF-05 | API/Integración |

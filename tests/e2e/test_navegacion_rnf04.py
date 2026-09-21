@@ -218,9 +218,15 @@ class CamaraDoble:
         self.fuente = fuente
         self._frame = np.zeros((alto, ancho, 3), dtype=np.uint8)
         self.liberada = False
+        self._frames = 0
 
     def get_frame(self):
+        self._frames += 1
         return self._frame
+
+    def marca_de_tiempo_ms(self):
+        """Mismo contrato que `vision.camera.Camera`: de aquí sale la velocidad angular."""
+        return float(max(0, self._frames - 1) * 100)
 
     def release(self):
         self.liberada = True

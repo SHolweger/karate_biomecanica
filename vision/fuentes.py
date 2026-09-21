@@ -125,3 +125,43 @@ def validar_grabacion(ruta):
                        f"Puede ser una grabación que se interrumpió al escribirse.")
 
     return True, ""
+
+
+def marca_de_grabacion_ms(pos_msec, indice_frame, fps):
+    """
+    Instante de un fotograma DENTRO de la grabación, en milisegundos.
+
+    Por qué existe
+    --------------
+    Con una cámara en vivo, el tiempo transcurrido en el reloj de pared es el
+    tiempo real entre fotogramas y sirve para derivar velocidades angulares.
+    Con una grabación no: el análisis avanza a la velocidad que permite la
+    estimación de pose —alrededor de 100 ms por fotograma— mientras que el video
+    puede contener un fotograma cada 33 ms. Medir con el reloj de pared
+    atribuiría a la ejecución un tiempo tres veces mayor del que realmente tomó,
+    y toda velocidad angular saldría dividida por tres.
+
+    La consecuencia concreta: un Mae Geri ejecutado a 600 °/s se registraría a
+    200 °/s y el sistema informaría «FALTA EXPLOSIVIDAD» en una patada correcta.
+    El error no sería aleatorio sino sistemático, y afectaría a todas las
+    patadas de la grabación en el mismo sentido.
+
+    Cómo se calcula
+    ---------------
+    Se prefiere la marca que declara el contenedor de video (`CAP_PROP_POS_MSEC`)
+    porque respeta la velocidad real del archivo, incluida la velocidad variable.
+    Cuando el contenedor no la informa —algunos formatos y algunos backends
+    devuelven cero— se deduce del número de fotograma y la velocidad declarada.
+
+    Devuelve None si ninguna de las dos vías da un valor utilizable, para que
+    quien llama decida qué hacer en vez de recibir un cero que parecería válido.
+    """
+    if pos_msec is not None and pos_msec > 0:
+        return float(pos_msec)
+
+    # El primer fotograma de una grabación está legítimamente en el milisegundo
+    # cero, así que un índice 0 con pos_msec 0 no es un fallo.
+    if indice_frame is not None and indice_frame >= 0 and fps and fps > 0:
+        return indice_frame * 1000.0 / fps
+
+    return None
