@@ -552,21 +552,33 @@ conviene tenerlo firmado antes de la primera visita.
   una rodilla delantera real es 135–141°. Con la derecha adelante solo pasa
   la cola de la distribución; con la izquierda no pasa nunca.
 
-  Y el criterio de evaluación está aún más lejos: `zenkutsu_dachi /
-  rodilla_frontal` vale **90–115°**, así que una ejecución medida en 135° se
-  juzga «CORREGIR ALTURA» aunque el sensei la dé por buena.
+  **Los umbrales de evaluación, en cambio, están bien.** De las 637 posturas
+  reconocidas, **el 90 % se juzga CORRECTO** (delantera dentro de 90–115°,
+  trasera dentro de 165–180°). Llegué a escribir aquí que el criterio
+  reprobaría una ejecución buena; era falso, y salió de mirar la mediana
+  global (135°) en vez de la distribución condicionada. Los fotogramas que
+  se reconocen son justo los que se miden bien, y ahí el criterio acierta.
+  **El Zenkutsu no necesita recalibración; el Kokutsu sigue pendiente del
+  sensei por otro motivo.**
 
-  Esto no se arregla tocando constantes hasta que pase —eso sería calibrar
-  contra el resultado deseado, indefendible ante la terna—. **Los umbrales
-  son datos versionados (RF-08) precisamente para esto**: se recalibran con
-  medición y con el criterio del cuerpo técnico. Es el mismo pendiente que
-  ya existía para el Kokutsu, ahora extendido al Zenkutsu y con números.
+  Lo que falla es la MEDICIÓN, no el criterio ni la guardia. El cruce
+  encuadre × guardia lo localiza:
 
-  Falta separar cuánto del 141 contra 135 es sesgo de pierna y cuánto es
-  ángulo de cámara: el cruce guardia × encuadre ya está en la herramienta,
-  sin correr.
+  | Encuadre | IZQ adelante | DER adelante |
+  |---|---|---|
+  | de frente | 166,7 | 169,1 |
+  | a 45° | 146,1 | 148,2 |
+  | **de perfil** | **141,1** | **107,4** |
 
-- **ABIERTO: el sistema reconoce una guardia y es ciego a la otra**
+  De frente y a 45° las dos guardias coinciden. **Solo de perfil divergen, y
+  en 34°.** Eso descarta el encuadre como explicación del sesgo por pierna:
+  la causa está en qué pierna queda escondida detrás de la otra. La
+  hipótesis a contrastar —ya medible con la herramienta, sin correr— es que
+  la pierna **lejana al sensor** se mide sistemáticamente más estirada de lo
+  que está, y que la puntuación de visibilidad de MediaPipe no lo delata
+  (0,958 en la pierna peor medida).
+
+- **ABIERTO: de perfil, la pierna lejana se mide mal**
   (29-sep-2026). Sobre el mismo video, en el que Sebastián confirma haber
   alternado las dos piernas, los 639 Zenkutsu reconocidos salen **todos** con
   la derecha adelante: **0 con la izquierda, 100 % con la derecha**. La

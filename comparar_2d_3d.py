@@ -190,6 +190,10 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # Los angulos con que se juzgaria cada postura reconocida, para contestar
     # algo que el informe no contestaba: reconocerla no es aprobarla.
     juzgados = []
+    # La rodilla delantera, separada segun si esa pierna es la CERCANA a la
+    # camara o la lejana. En una toma de perfil la lejana queda detras de la
+    # cercana, y MediaPipe la infiere sin bajar su puntuacion de visibilidad.
+    delantera_por_cercania = {"cercana": [], "lejana": []}
     # Visibilidad media de cada pierna, y cuantos fotogramas se descartan por
     # no verse. Una pierna sistematicamente menos visible que la otra explica
     # que solo se reconozca una guardia.
@@ -268,6 +272,15 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
             if guardia_2d is not None:
                 frontal = a2_izq if guardia_2d == IZQ_ADELANTE else a2_der
                 cruce.setdefault((_tramo(orientacion), guardia_2d), []).append(frontal)
+                # Menor z = mas cerca del sensor. Se compara la rodilla, que es
+                # la articulacion cuyo angulo esta en juego.
+                izq_es_la_cercana = landmarks[RODILLA_IZQ].z < landmarks[RODILLA_DER].z
+                delantera_es_cercana = (izq_es_la_cercana
+                                        if guardia_2d == IZQ_ADELANTE
+                                        else not izq_es_la_cercana)
+                if _tramo(orientacion) == "de perfil":
+                    delantera_por_cercania[
+                        "cercana" if delantera_es_cercana else "lejana"].append(frontal)
             angulos_por_guardia.setdefault(
                 guardia_2d or "indefinida", []).append((a2_izq, a2_der))
             if guardia_2d is not None:
@@ -302,6 +315,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "guardia_global": guardia_global,
         "angulos_por_guardia": angulos_por_guardia,
         "cruce": cruce, "juzgados": juzgados,
+        "delantera_por_cercania": delantera_por_cercania,
         "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
         "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
@@ -374,6 +388,21 @@ def informar(r):
                       f"{e['mediana']:9.1f} {e['p5']:8.1f}")
         print("  Si la diferencia entre guardias desaparece dentro de cada tramo,")
         print("  no habia sesgo de pierna sino de encuadre.")
+
+        cercania = r["delantera_por_cercania"]
+        if cercania["cercana"] and cercania["lejana"]:
+            print(f"\n=== SOLO DE PERFIL: LA DELANTERA, CERCA O LEJOS DEL SENSOR ===")
+            for donde in ("cercana", "lejana"):
+                e = _estadisticas(cercania[donde])
+                print(f"  pierna delantera {donde:8s} {len(cercania[donde]):6d} "
+                      f"mediana {e['mediana']:6.1f}   P5 {e['p5']:6.1f}")
+            mc = _estadisticas(cercania["cercana"])["mediana"]
+            ml = _estadisticas(cercania["lejana"])["mediana"]
+            if ml - mc > 15:
+                print("  La pierna lejana se mide mucho mas estirada de lo que esta:")
+                print("  en perfil queda detras de la cercana y el modelo la infiere,")
+                print("  sin que su puntuacion de visibilidad lo delate. El sesgo no")
+                print("  es de izquierda contra derecha, es de cerca contra lejos.")
 
     print("  Con una guardia declarada, la rodilla DELANTERA tiene que ser la")
     print("  flexionada. Si con IZQ ADELANTE la que se dobla es la derecha, la")
