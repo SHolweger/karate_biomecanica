@@ -102,6 +102,10 @@ class LiveScreen(ctk.CTkFrame):
 
         # Guardia de reentrada del bucle de análisis. Ver _actualizar_frame.
         self._en_curso = False
+        # Por qué se detuvo el bucle, si se detuvo. None mientras corre.
+        self._motivo_detencion = None
+        # Fotogramas nulos seguidos. Cero mientras la fuente entrega.
+        self._sin_fotograma = 0
 
         self.filas_metricas = {}
         self.estado_var = ctk.StringVar(value="")
@@ -418,6 +422,15 @@ class LiveScreen(ctk.CTkFrame):
         frame = self.cam.get_frame()
         if self.monitor is not None:
             self.monitor.marcar("captura")
+        if frame is None:
+            # Sobre una grabación esto es el final del archivo; con una cámara,
+            # que dejó de entregar. El bucle sigue reprogramándose —una cámara
+            # puede recuperarse— pero deja constancia desde el primer fallo.
+            self._sin_fotograma += 1
+            if self._motivo_detencion is None:
+                self._motivo_detencion = "la fuente dejó de entregar fotogramas"
+        else:
+            self._sin_fotograma = 0
         if frame is not None:
             # La marca la da la fuente, no el reloj de pared. Con una cámara
             # en vivo ambas coinciden; con una grabación no, y usar el reloj
@@ -468,6 +481,13 @@ class LiveScreen(ctk.CTkFrame):
                 self.monitor.marcar("panel")
 
             if not self._mostrar_frame(frame):
+                # El bucle se detiene aquí y no se reprograma. Antes eso no
+                # dejaba rastro: la imagen quedaba congelada, la sesión seguía
+                # abierta y nadie sabía que el análisis había parado. Dejar
+                # dicho el motivo es lo que permite distinguir «se detuvo» de
+                # «está lento», que desde fuera se ven igual.
+                self._motivo_detencion = ("la ventana dejó de aceptar el fotograma "
+                                          "(TclError al volcarlo)")
                 return
             if self.monitor is not None:
                 self.monitor.marcar("despliegue")

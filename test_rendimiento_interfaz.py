@@ -31,6 +31,7 @@ Sobre una grabación conviene que empiece con el ejecutante ya colocado: los
 primeros segundos de un video casero son la persona caminando hacia su sitio.
 """
 import sys
+import time
 
 from biomechanics.metrics import PerformanceMonitor
 from test_rendimiento import fuente_por_defecto, reportar
@@ -38,6 +39,10 @@ from test_rendimiento import fuente_por_defecto, reportar
 # Las mismas etapas que marca `gui/live_screen.py`, en su orden. `grabacion`,
 # `persistencia` y `panel` no existen en la medición de consola: son
 # precisamente lo que este script viene a poner sobre la mesa.
+# Sin avance durante este tiempo, la medición se da por atascada y se corta
+# informando el estado, en vez de dejar la terminal callada para siempre.
+SEGUNDOS_DE_ATASCO = 20.0
+
 ETAPAS_INTERFAZ = ["captura", "grabacion", "estimacion_pose", "analisis",
                    "renderizado", "persistencia", "panel", "despliegue"]
 
@@ -80,10 +85,38 @@ def medir_interfaz(fuente, n_fotogramas):
 
     print(f"Midiendo {n_fotogramas} fotogramas sobre la interfaz real...")
 
+    # Vigilancia con informe de avance y corte por atasco. Sin esto, una
+    # medición detenida y una lenta se ven exactamente igual desde fuera: la
+    # terminal callada. Costó una tarde averiguar cuál de las dos era.
+    estado = {"ultimo": 0, "quieto_desde": time.monotonic()}
+
     def vigilar():
-        if len(monitor.totales) >= n_fotogramas or not pantalla._activo:
+        medidos = len(monitor.totales)
+        ahora = time.monotonic()
+
+        if medidos != estado["ultimo"]:
+            estado["ultimo"] = medidos
+            estado["quieto_desde"] = ahora
+            if medidos and medidos % 50 == 0:
+                print(f"  {medidos}/{n_fotogramas} fotogramas", flush=True)
+
+        if medidos >= n_fotogramas:
             app.quit()
             return
+
+        quieto = ahora - estado["quieto_desde"]
+        if quieto > SEGUNDOS_DE_ATASCO:
+            print(f"\nEl análisis lleva {quieto:.0f} s sin avanzar. Se corta.")
+            print(f"  fotogramas medidos:    {medidos} de {n_fotogramas}")
+            print(f"  bucle activo:          {pantalla._activo}")
+            print(f"  procesando un cuadro:  {pantalla._en_curso}")
+            print(f"  fotogramas nulos:      {pantalla._sin_fotograma}")
+            print(f"  motivo de detención:   {pantalla._motivo_detencion or 'ninguno'}")
+            etapas = {e: len(v) for e, v in monitor.etapas.items()}
+            print(f"  etapas cronometradas:  {etapas}")
+            app.quit()
+            return
+
         app.after(200, vigilar)
 
     app.after(200, vigilar)
