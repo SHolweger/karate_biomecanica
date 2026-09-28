@@ -537,6 +537,21 @@ conviene tenerlo firmado antes de la primera visita.
 
   Esto desbloquea la **sección 4.3**: describe un sistema 2D con su
   limitación medida y mitigada por protocolo de cámara, no uno 3D.
+
+- **ABIERTO Y GRAVE: el sistema reconoce una guardia y es ciego a la otra**
+  (29-sep-2026). Sobre el mismo video, en el que Sebastián confirma haber
+  alternado las dos piernas, los 639 Zenkutsu reconocidos salen **todos** con
+  la derecha adelante: **0 con la izquierda, 100 % con la derecha**. La
+  rodilla «izquierda visual» no baja de 138,9° (P5) en 3190 fotogramas
+  mientras la derecha llega a 105,2°, y la asimetría aparece **igual en 2D y
+  en 3D**, así que no es de proyección sino de los landmarks.
+  En un dojo esto significa que la mitad de los alumnos se mediría mal, según
+  con qué pierna guarden. **Bloquea la campaña de recolección.**
+  Las dos hipótesis, y la medición que las separa (ya en `comparar_2d_3d.py`,
+  sin correr todavía): si la guardia IZQ no aparece nunca en ningún
+  fotograma, el fallo está en deducirla; si aparece pero la postura no se
+  reconoce con ella, está en medir esa pierna —y entonces la visibilidad
+  media por pierna dirá si es oclusión.
 - **Conectar el aviso de plano** (`orientacion_frente_a_camara`) junto con el
   aviso de encuadre: hoy la función existe y nadie la llama.
 - **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla

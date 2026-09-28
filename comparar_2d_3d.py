@@ -167,6 +167,15 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # Con que guardia se reconocio cada postura. Si una postura solo aparece
     # con una de las dos, el sistema esta viendo un lado y no el otro.
     guardia_de_la_postura = Counter()
+    # La guardia sobre TODOS los fotogramas, no solo sobre los reconocidos. Si
+    # una de las dos no aparece nunca, el problema esta en deducirla; si
+    # aparece pero la postura no se reconoce, esta en medir esa pierna.
+    guardia_global = Counter()
+    # Visibilidad media de cada pierna, y cuantos fotogramas se descartan por
+    # no verse. Una pierna sistematicamente menos visible que la otra explica
+    # que solo se reconozca una guardia.
+    visibilidad_izq, visibilidad_der = [], []
+    descartados_visibilidad = 0
     # x de las dos caderas, para leer sobre datos REALES cuál landmark cae a la
     # izquierda de la pantalla. El doble de prueba lo supone al revés que
     # MediaPipe, y de ese supuesto salió el signo del eje sagital.
@@ -198,9 +207,14 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                 sin_mundo += 1
                 continue
 
-            articulaciones = (CADERA_IZQ, RODILLA_IZQ, TOBILLO_IZQ,
-                              CADERA_DER, RODILLA_DER, TOBILLO_DER)
-            if any(landmarks[i].visibility <= umbral_visibilidad for i in articulaciones):
+            pierna_izq = (CADERA_IZQ, RODILLA_IZQ, TOBILLO_IZQ)
+            pierna_der = (CADERA_DER, RODILLA_DER, TOBILLO_DER)
+            v_izq = min(landmarks[i].visibility for i in pierna_izq)
+            v_der = min(landmarks[i].visibility for i in pierna_der)
+            visibilidad_izq.append(v_izq)
+            visibilidad_der.append(v_der)
+            if v_izq <= umbral_visibilidad or v_der <= umbral_visibilidad:
+                descartados_visibilidad += 1
                 continue
 
             alto, ancho = frame.shape[:2]
@@ -223,6 +237,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
             orientacion = orientacion_frente_a_camara(
                 (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z))
+            guardia_global[guardia_2d or "indefinida"] += 1
             if guardia_2d is not None:
                 guardia_de_la_postura[
                     (_clasificar(a2_izq, a2_der, guardia_2d), guardia_2d)] += 1
@@ -252,6 +267,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "clasifica_invertida": clasifica_invertida,
         "orientaciones": orientaciones, "por_angulo": por_angulo,
         "guardia_de_la_postura": guardia_de_la_postura,
+        "guardia_global": guardia_global,
+        "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
+        "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
         "esperado": esperado,
     }
@@ -276,6 +294,30 @@ def informar(r):
     print(f"  fotogramas de perfil (<0,50): {de_perfil:5d} ({100*de_perfil/total:3.0f}%)")
     print("  Zenkutsu, Kokutsu, Tsuki y Mae Geri ocurren en el plano sagital y")
     print("  quieren perfil. Heiko y Kiba son frontales.")
+
+    print(f"\n=== QUE SE DESCARTO Y POR QUE ===")
+    print(f"  fotogramas leidos del video:        {r['leidos']:6d}")
+    print(f"  sin pose detectada:                 {r['sin_pose']:6d}")
+    print(f"  descartados por poca visibilidad:   {r['descartados_visibilidad']:6d}")
+    print(f"  comparados:                         {total:6d}")
+    vi = _estadisticas(r["visibilidad_izq"])
+    vd = _estadisticas(r["visibilidad_der"])
+    if vi and vd:
+        print(f"  visibilidad media pierna izq: {vi['media']:.3f}   (P5 {vi['p5']:.3f})")
+        print(f"  visibilidad media pierna der: {vd['media']:.3f}   (P5 {vd['p5']:.3f})")
+        if abs(vi["media"] - vd["media"]) > 0.10:
+            peor = "izquierda" if vi["media"] < vd["media"] else "derecha"
+            print(f"  La pierna {peor} se ve notablemente peor. Eso basta para que")
+            print( "  el sistema reconozca una guardia y no la otra.")
+
+    g = r["guardia_global"]
+    print(f"\n=== GUARDIA DEDUCIDA EN TODOS LOS FOTOGRAMAS ===")
+    for clave in (IZQ_ADELANTE, DER_ADELANTE, "indefinida"):
+        n = g[clave]
+        print(f"  {clave:16s} {n:6d} ({100*n/total if total else 0:3.0f}%)")
+    print("  Si una de las dos guardias no aparece NUNCA, el fallo esta en")
+    print("  deducirla. Si aparece pero la postura no se reconoce con ella, el")
+    print("  fallo esta en medir esa pierna.")
 
     x24 = _estadisticas(r["x_cadera_24"])["mediana"]
     x23 = _estadisticas(r["x_cadera_23"])["mediana"]
