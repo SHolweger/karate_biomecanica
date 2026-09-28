@@ -498,14 +498,26 @@ conviene tenerlo firmado antes de la primera visita.
 
 **Abierto tras la prueba en vivo del 28-sep** (ver `docs/bitacora_28sep2026.md`):
 
-- **Medir `pose_world_landmarks`** contra las grabaciones y decidir con el dato
-  en la mano si los ángulos deben calcularse en 3D. La herramienta ya está
-  (`comparar_2d_3d.py`) y `BiomechanicsMath.calculate_angle_3d` también, pero
-  **nadie la ha corrido todavía sobre una grabación real**: MediaPipe no está
-  instalado en el contenedor, así que la parte de visión de esa herramienta
-  está escrita y no ejecutada. Su matemática sí está verificada en CI.
-  **Hasta que esa medición exista, la sección 4.3 queda en espera**: determina
-  si el capítulo describe un sistema 2D con una limitación declarada o uno 3D.
+- **El sistema se queda en 2D** (medido el 29-sep-2026, `comparar_2d_3d.py`
+  sobre 3190 fotogramas de Zenkutsu Dachi, ya con el eje sagital corregido):
+
+  | | 2D | 3D |
+  |---|---|---|
+  | Zenkutsu reconocido | 20,0 % | 22,8 % |
+  | Heiko Dachi | 45 % | 12 % |
+  | Kiba Dachi | 1 % | **33 %** |
+
+  El 2,8 % de ventaja del 3D no paga el cambio, y la fila de Kiba dice por
+  qué **no** conviene: el 3D lee las rodillas 15,3° más flexionadas de
+  mediana, así que convierte en «postura de jinete» un tercio de los
+  fotogramas en que el ejecutante simplemente está de pie. Heiko y Kiba son
+  justamente las dos posturas que se verificaron correctas en el dojo con la
+  medida 2D. **El 3D tiene un sesgo sistemático hacia la flexión.**
+  `BiomechanicsMath.calculate_angle_3d` y la herramienta quedan para poder
+  repetir la comparación; el sistema no las usa.
+
+  Esto desbloquea la **sección 4.3**: describe un sistema 2D con su
+  limitación medida y mitigada por protocolo de cámara, no uno 3D.
 - **Conectar el aviso de plano** (`orientacion_frente_a_camara`) junto con el
   aviso de encuadre: hoy la función existe y nadie la llama.
 - **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla

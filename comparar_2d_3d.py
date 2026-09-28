@@ -51,6 +51,20 @@ from expert_system.guardia import (DER_ADELANTE, IZQ_ADELANTE,
 CADERA_IZQ, RODILLA_IZQ, TOBILLO_IZQ = 24, 26, 28
 CADERA_DER, RODILLA_DER, TOBILLO_DER = 23, 25, 27
 
+# Tramos de angulo de camara. El intermedio existe porque la eleccion real no
+# es "de frente o de perfil": el perfil resuelve el escorzo pero esconde la
+# pierna mas lejana detras de la cercana, y el punto dulce puede estar enmedio.
+TRAMOS = ("de frente", "a 45 grados", "de perfil")
+
+
+def _tramo(orientacion):
+    if orientacion > 0.80:
+        return "de frente"
+    if orientacion < 0.50:
+        return "de perfil"
+    return "a 45 grados"
+
+
 POSTURAS = ("heiko_dachi", "kiba_dachi", "zenkutsu_dachi", "kokutsu_dachi",
             "guardia_indefinida", "transicion")
 
@@ -147,6 +161,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # clasificación normal, el fallo no es de medida sino de signo.
     clasifica_invertida = Counter()
     orientaciones = []
+    # La misma cuenta, separada por el angulo de camara. Es lo que convierte
+    # el informe en un protocolo: dice desde donde hay que grabar cada tecnica.
+    por_angulo = {tramo: [] for tramo in TRAMOS}
     # x de las dos caderas, para leer sobre datos REALES cuál landmark cae a la
     # izquierda de la pantalla. El doble de prueba lo supone al revés que
     # MediaPipe, y de ese supuesto salió el signo del eje sagital.
@@ -200,6 +217,12 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
             clasifica_3d[_clasificar(a3_izq, a3_der, _guardia_de(mundo))] += 1
             clasifica_invertida[_clasificar(a2_izq, a2_der, _invertir(guardia_2d))] += 1
 
+            orientacion = orientacion_frente_a_camara(
+                (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
+                (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z))
+            por_angulo[_tramo(orientacion)].append(
+                (_clasificar(a2_izq, a2_der, guardia_2d),
+                 _clasificar(a3_izq, a3_der, _guardia_de(mundo))))
             orientaciones.append(orientacion_frente_a_camara(
                 (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z)))
@@ -221,7 +244,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "diferencias": diferencias,
         "clasifica_2d": clasifica_2d, "clasifica_3d": clasifica_3d,
         "clasifica_invertida": clasifica_invertida,
-        "orientaciones": orientaciones,
+        "orientaciones": orientaciones, "por_angulo": por_angulo,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
         "esperado": esperado,
     }
@@ -314,6 +337,20 @@ def informar(r):
         else:
             print("\n  Empate entre 2D y 3D. Con esta grabación el cambio no se")
             print("  justifica.")
+
+        print(f"\n=== ACIERTO SEGÚN EL ÁNGULO DE CÁMARA ({esperado}) ===")
+        print(f"{'Ángulo':14s} {'fotogramas':>11s} {'2D':>8s} {'3D':>8s}")
+        for tramo in TRAMOS:
+            muestras = r["por_angulo"][tramo]
+            if not muestras:
+                continue
+            n = len(muestras)
+            a2 = 100 * sum(1 for c2, _ in muestras if c2 == esperado) / n
+            a3 = 100 * sum(1 for _, c3 in muestras if c3 == esperado) / n
+            print(f"{tramo:14s} {n:11d} {a2:7.1f}% {a3:7.1f}%")
+        print("  Esto es lo que fija el protocolo de grabación del dojo: desde qué")
+        print("  ángulo conviene filmar cada técnica. Ojo, un tramo con pocos")
+        print("  fotogramas no decide nada.")
 
         print("\n  Cuidado: esto compara contra lo DECLARADO en --esperado, así que")
         print("  solo vale si el video contiene esa postura y poco más. Sobre una")
