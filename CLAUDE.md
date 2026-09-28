@@ -167,6 +167,25 @@ Dos banderas nuevas, y las dos nacieron de mediciones equivocadas:
   cifras diciendo cuál es cuál — y medir la interfaz aparte antes de afirmar
   nada sobre el RF-01.
 
+**El bucle del análisis en vivo lleva guardia de reentrada, y es obligatoria**
+(28-sep-2026). Desde que el refresco se reprograma descontando lo ya gastado, el
+temporizador del siguiente fotograma está vencido casi siempre: el trabajo de
+uno supera el intervalo. CustomTkinter llama a `update_idletasks()` por su
+cuenta al dibujar widgets, y **en macOS esa llamada atiende los temporizadores
+vencidos**, así que dibujar el fotograma reentraba en `_actualizar_frame`, que
+volvía a dibujar, hasta agotar la pila con `RecursionError`. En Linux no ocurre.
+
+Es exactamente la diferencia entre sistemas que ya está documentada más abajo,
+en la sección de `update()` — estaba escrita y no se aplicó al cambiar el ritmo
+del bucle. Si alguna vez se toca el intervalo, la guardia se queda.
+
+Lo fija `test_el_bucle_no_se_reentra_a_si_mismo`, que provoca la reentrada desde
+`_mostrar_frame` —donde macOS la provoca— y reproduce el mismo `RecursionError`
+sin la guardia. Ojo: una primera versión de esa prueba la provocaba desde
+`_pintar_correcciones` y **pasaba sin la guardia**, porque la cámara sintética
+no produce pose detectada y ese camino nunca se ejecuta. Toda prueba nueva sobre
+el bucle en vivo tiene que verificarse quitando el arreglo.
+
 **Dos fugas de rendimiento de la interfaz, medidas y corregidas**
 (28-sep-2026). La medición sobre la interfaz real en la Mac dio 18,1 fps, pero
 las etapas sumaban 39,8 ms —25 fps—. Los 15,3 ms de diferencia eran exactamente

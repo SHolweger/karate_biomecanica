@@ -509,3 +509,51 @@ def test_la_pantalla_dice_que_esta_analizando_una_grabacion(app, db, entrenador_
         assert "grabación" in pantalla.grabacion_var.get().lower()
     finally:
         pantalla.cerrar()
+
+
+def test_el_bucle_no_se_reentra_a_si_mismo(app, db, entrenador_registrado, dos_alumnos,
+                                           camara_sintetica, monkeypatch):
+    """
+    Regresión del 28-sep-2026: RecursionError en la Mac al medir la interfaz.
+
+    Desde que el refresco se reprograma descontando lo ya gastado, el
+    temporizador del siguiente fotograma está vencido casi siempre —el trabajo
+    de uno supera el intervalo—. CustomTkinter llama a `update_idletasks()` por
+    su cuenta al dibujar widgets, y en macOS esa llamada atiende los
+    temporizadores vencidos: dibujar una corrección reentraba en el bucle, que
+    volvía a dibujar, hasta agotar la pila.
+
+    Aquí se provoca la reentrada a propósito, en el punto donde macOS la
+    provocaba: mientras se pinta el panel de correcciones. Sin la guardia esto
+    recurre hasta el RecursionError; con ella, la llamada de dentro vuelve en
+    el acto y el fotograma se procesa una sola vez.
+    """
+    app.on_login_exitoso(entrenador_registrado)
+    app._limpiar_pantalla()
+    app._montar_marco("vivo")
+    pantalla = LiveScreen(app.contenido, db, entrenador_registrado, dos_alumnos[0],
+                          cam=camara_sintetica, app=app)
+    app.pantalla_actual = pantalla
+    try:
+        entradas = []
+        original = pantalla._mostrar_frame
+
+        def mostrar_y_reentrar(frame):
+            entradas.append(1)
+            resultado = original(frame)
+            # Lo que macOS hace por su cuenta: `configure` sobre un widget de
+            # CustomTkinter acaba en `update_idletasks()`, que allí atiende el
+            # temporizador ya vencido del siguiente fotograma.
+            pantalla._actualizar_frame()
+            return resultado
+
+        monkeypatch.setattr(pantalla, "_mostrar_frame", mostrar_y_reentrar)
+
+        antes = camara_sintetica.frames_entregados
+        pantalla._actualizar_frame()
+
+        assert camara_sintetica.frames_entregados - antes == 1, \
+            "la reentrada procesó un fotograma extra: la guardia no la detuvo"
+        assert len(entradas) == 1, "el fotograma se dibujó más de una vez"
+    finally:
+        pantalla.cerrar()

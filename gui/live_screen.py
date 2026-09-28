@@ -100,6 +100,9 @@ class LiveScreen(ctk.CTkFrame):
         self._after_id = None
         self._cam_inyectada = cam
 
+        # Guardia de reentrada del bucle de análisis. Ver _actualizar_frame.
+        self._en_curso = False
+
         self.filas_metricas = {}
         self.estado_var = ctk.StringVar(value="")
         self.veredicto_var = ctk.StringVar(value=SIN_DATO)
@@ -382,9 +385,32 @@ class LiveScreen(ctk.CTkFrame):
         self._actualizar_frame()
 
     def _actualizar_frame(self):
-        if not self._activo:
+        """
+        Un fotograma: capturar, estimar, analizar, registrar y dibujar.
+
+        La guardia de reentrada no es defensiva por si acaso: sin ella esto se
+        desborda en macOS. CustomTkinter llama a `update_idletasks()` por su
+        cuenta al dibujar widgets —y `_pintar_correcciones` crea varios—, y en
+        macOS esa llamada atiende los temporizadores ya vencidos. Como el
+        siguiente refresco se programa con el tiempo que falta, y el trabajo de
+        un fotograma ya supera el intervalo, ese temporizador está vencido
+        siempre: dibujar una corrección reentraba aquí, que volvía a dibujar,
+        hasta agotar la pila con un RecursionError.
+
+        En Linux no ocurre, porque allí `update_idletasks()` no llega a
+        atenderlo. Es la misma diferencia entre sistemas que ya costó dos
+        intentos en las pruebas de navegación (ver CLAUDE.md).
+        """
+        if not self._activo or self._en_curso:
             return
 
+        self._en_curso = True
+        try:
+            self._procesar_fotograma()
+        finally:
+            self._en_curso = False
+
+    def _procesar_fotograma(self):
         inicio = time.perf_counter()
         if self.monitor is not None:
             self.monitor.iniciar_frame()
