@@ -133,6 +133,91 @@ jamás tumba la sesión**: se apaga la grabación, se anota el motivo y se sigue
 midiendo. La grabación se puede apagar por equipo (`grabar_sesiones` en
 `configuracion`) porque en un dojo se entrena con menores.
 
+**La guardia puede abstenerse, y tiene que poder** (28-sep-2026). Zenkutsu y
+Kokutsu son, para el clasificador, **la misma postura con las piernas
+intercambiadas**: lo único que las distingue es cuál va adelante. Eso se
+decidía con `z_diff = tobillo_izq.z - tobillo_der.z` y un `if z_diff < 0`, sin
+zona muerta, de modo que un ruido de 0,0001 decidía igual que una separación
+real. Y como las dos posturas son simétricas, equivocarse no daba «no
+reconocido» sino **la otra postura con veredicto positivo**. Reproducido con la
+misma geometría corporal, cambiando solo el signo de Z:
+
+```
+Z correcta  ->  ZENKUTSU (IZQ ADELANTE): POSTURA: FIRME   correcto=True
+Z invertida ->  KOKUTSU  (DER ADELANTE): POSTURA: ESTABLE correcto=True
+```
+
+Esa fila entraba a la base con la técnica equivocada y contaminaba el historial
+y la gráfica de evolución del alumno. Es el único defecto conocido que
+**corrompe datos** en vez de limitarse a fallar. Lo encontró una prueba en vivo
+de Sebastián, no la suite.
+
+`expert_system/guardia.py` (puro, corre en CI) lo corrige con dos cambios:
+
+- La separación de los tobillos se proyecta sobre el **eje sagital del cuerpo**,
+  deducido de la línea de caderas, en vez de mirar el eje Z de la cámara. Así la
+  decisión usa el eje que mejor la informa: **X cuando la toma es de perfil** —la
+  magnitud más fiable de MediaPipe, y justo la toma que estas posturas
+  requieren—, Z cuando es frontal. Antes se usaba siempre el peor dato
+  disponible.
+- Por debajo de **medio ancho de cadera** de separación, devuelve `None`. El
+  umbral se expresa en anchos de cadera de la propia persona, no en unidades de
+  MediaPipe, para que no dependa de la resolución ni de la distancia al sensor.
+  El valor sale de la definición de las posturas —un Zenkutsu tiene por
+  construcción un pie claramente adelantado—, pero **conviene contrastarlo
+  contra grabaciones reales antes de fijarlo en la tesis**.
+
+Con `guardia is None`, las ramas de Zenkutsu y Kokutsu no se pueden tomar y el
+sistema informa «GUARDIA INDEFINIDA», que es distinto de «EN TRANSICION»: el
+ejecutante no se está moviendo, es la toma la que no permite decidir. Heiko y
+Kiba no dependen de la guardia y siguen evaluándose — es exactamente lo que
+Sebastián observó en el dojo: esas dos salían perfectas mientras Zenkutsu
+fallaba.
+
+**Lo que esto NO arregla:** si la toma es frontal y MediaPipe estima la
+profundidad con el signo cambiado de forma sostenida, la proyección saldrá
+grande y con el sentido incorrecto. El remedio de ese caso es de protocolo, no
+numérico. Ver el punto siguiente.
+
+**Los ángulos son 2D y eso tiene un coste medible** (28-sep-2026).
+`calculate_angle` usa solo `(x, y)`. Cuando el plano de la técnica no es
+paralelo al sensor, el ángulo proyectado no es el real, y **la proyección
+arrastra todo ángulo hacia 90°**:
+
+| giro | real 90° | real 120° | real 160° | real 175° |
+|---|---|---|---|---|
+| 0° | 90,0 | 120,0 | 160,0 | 175,0 |
+| 45° | 90,0 | 112,2 | 152,8 | 172,9 |
+| 75° | 90,0 | 98,5 | 125,4 | 161,3 |
+| 90° | 90,0 | 90,0 | 90,0 | 90,0 |
+
+A 90° de giro —técnica lanzada de frente a la cámara— *cualquier* ángulo real
+mide 90°. Por eso un tsuki perfecto de 175° se reporta **«TSUKI: FLEXIONADO»**
+cuando se graba de frente: no es que no se detecte, es que se mide con un
+número sin relación con el codo real, y la visibilidad sigue alta, así que
+ninguna guarda lo atrapa.
+
+**Consecuencia de protocolo, y es un hallazgo de tesis, no un defecto:** cada
+técnica se filma perpendicular a su plano.
+
+| Técnica | Plano | Cámara |
+|---|---|---|
+| Heiko Dachi, Kiba Dachi | frontal | **de frente** |
+| Zenkutsu, Kokutsu, Tsuki, Mae Geri | sagital | **de perfil** |
+
+`guardia.orientacion_frente_a_camara()` mide esto (0 = de perfil, 1 = de
+frente) y está listo para el aviso de encuadre; **todavía no está conectado a
+la interfaz**.
+
+**MediaPipe ya calcula coordenadas 3D y se están descartando** (28-sep-2026).
+`vision/tracker.py` devuelve el resultado completo, pero `live_screen.py` y
+`main.py` usan solo `result.pose_landmarks`. `result.pose_world_landmarks`
+—coordenadas en metros relativas al centro de las caderas— sale del mismo paso
+de inferencia, así que su coste ya está pagado. Calcular los ángulos ahí
+atacaría a la vez la guardia y el arrastre hacia 90°. **No está comprobado que
+funcione mejor**: la Z de un modelo monocular es estimada. Hay que medirlo
+contra las grabaciones antes de afirmarlo.
+
 **El texto técnico del diagnóstico es el registro; la instrucción es aparte.**
 `gui/coaching.py` traduce «TSUKI: HIPEREXTENDIDO» a «No bloquees el codo al
 impacto». El texto técnico no se cambia porque es la clave con la que la base
@@ -140,7 +225,7 @@ agrupa los errores frecuentes.
 
 ---
 
-**Más resolución no mejora el análisis** (medido el 29-sep-2026). MediaPipe
+**Más resolución no mejora el análisis** (medido el 28-sep-2026). MediaPipe
 redimensiona el fotograma a la entrada fija de su modelo, así que la etapa de
 estimación de pose cuesta prácticamente lo mismo a 1080×1920 (13,4 ms), a
 1280×720 (11,7 ms) y a 640×480 (12,0 ms). Los píxeles de más no llegan al
@@ -151,7 +236,7 @@ que la interfaz no usa. Grabar a la máxima calidad no ayuda; grabar con el
 cuerpo entero en cuadro, sí.
 
 **La medición de rendimiento se configura, no se corre a ciegas**
-(29-sep-2026). `test_rendimiento.py` tomaba la marca de tiempo como
+(28-sep-2026). `test_rendimiento.py` tomaba la marca de tiempo como
 `procesados * 1000 / 30`, suponiendo 30 fps. Las grabaciones de prueba son de
 **60 fps**, así que cada marca salía al doble: de ahí se derivan la velocidad
 angular del Kime y los plazos de la máquina de estados del Mae Geri. Ahora usa
@@ -230,7 +315,7 @@ herramienta ya permite medirlo donde importa.
 ejecuta. Antes de tocar el requisito conviene mirar si la grabación de sesión
 —que se puede apagar por equipo— es lo que lo hunde.
 
-**Encuadre bueno medido el 29-sep**: sobre una grabación con el ejecutante de
+**Encuadre bueno medido el 28-sep**: sobre una grabación con el ejecutante de
 cuerpo completo, la detección de pose es del **98 %** y la visibilidad media de
 las rodillas de **0,95–0,98**; el codo derecho baja a 0,75 (79 % sobre el
 umbral) porque el hikite lo oculta en parte. Esos son los números de referencia
@@ -238,7 +323,7 @@ para elegir el umbral del aviso de encuadre: un encuadre malo da 0,00, así que
 la separación es limpia.
 
 **Una herramienta de diagnóstico muestrea el video entero, no su principio**
-(29-sep-2026). La primera versión de `diagnostico_video.py` leía los primeros
+(28-sep-2026). La primera versión de `diagnostico_video.py` leía los primeros
 sesenta fotogramas y concluyó que las rodillas no se veían nunca en una
 grabación donde se ven perfectamente. Dos segundos de un video que uno se graba
 a sí mismo son el tramo en que la persona todavía camina hacia su sitio después
@@ -254,8 +339,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 715 passed |
-| CI / sin entorno gráfico | igual | 574 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 735 passed |
+| CI / sin entorno gráfico | igual | 593 passed, 10 skipped |
+
+El 593 está medido en el contenedor. El 735 es aritmética sobre dos cifras
+medidas —720 en su Mac el 28-sep más las 15 pruebas de la guardia, que son
+unitarias y de integración y corren en los dos entornos—, **pendiente de
+confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -265,7 +355,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-050**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-052**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -373,6 +463,18 @@ mida ahora se puede volver a juzgar cuando el sensei conteste.
 alumnos del dojo, en particular a los menores. El sistema permite apagar la
 grabación por equipo, pero el permiso en sí es un trámite fuera del código y
 conviene tenerlo firmado antes de la primera visita.
+
+**Abierto tras la prueba en vivo del 28-sep** (ver `docs/bitacora_28sep2026.md`):
+
+- **Medir `pose_world_landmarks`** contra las grabaciones y decidir con el dato
+  en la mano si los ángulos deben calcularse en 3D.
+- **Conectar el aviso de plano** (`orientacion_frente_a_camara`) junto con el
+  aviso de encuadre: hoy la función existe y nadie la llama.
+- **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla
+  está fuera de su rango, pero las reglas siguen emitiendo un único veredicto de
+  postura. El panel muestra ambos.
+- **Calibrar `SEPARACION_MINIMA_EN_CADERAS`** contra grabaciones reales antes de
+  fijar el número en la tesis.
 
 **Pendiente de escritura:**
 

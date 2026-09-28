@@ -113,6 +113,21 @@ class KarateRules:
         minimo, maximo = self.rango(tecnica, articulacion)
         return valor >= minimo and (maximo is None or valor <= maximo)
 
+    def dentro(self, valor, tecnica, articulacion):
+        """
+        Si una articulación suelta cumple su rango, sin emitir veredicto de técnica.
+
+        Las reglas `evaluate_*` responden «¿está bien ejecutada la postura?»
+        mirando todas las articulaciones que la definen. Esto responde algo más
+        pequeño y distinto: «¿esta rodilla concreta está dentro de SU rango?».
+        Es lo que permite que el panel en vivo señale CUÁL de las dos rodillas
+        falla en vez de teñir ambas con el veredicto global — en un Zenkutsu la
+        frontal y la trasera se juzgan contra rangos diferentes, así que un
+        único color para las dos escondería exactamente el dato que el sensei
+        necesita para corregir.
+        """
+        return self._dentro(valor, tecnica, articulacion)
+
     # ---------------- GOLPES ----------------
 
     def evaluate_tsuki(self, elbow_angle):

@@ -169,7 +169,7 @@ def test_la_guardia_se_deduce_de_la_profundidad_de_los_tobillos(analizador):
                                   z_tobillo_izq=0.3, z_tobillo_der=-0.3)
 
     mensaje_izq = _por_categoria(analizador.analyze_stance(izq_adelante, ANCHO, ALTO), "postura")["mensaje"]
-    analizador.filtros["guardia_z"].reset()
+    analizador.filtros["guardia"].reset()
     mensaje_der = _por_categoria(analizador.analyze_stance(der_adelante, ANCHO, ALTO), "postura")["mensaje"]
 
     assert "IZQ ADELANTE" in mensaje_izq
@@ -435,3 +435,167 @@ def test_un_tsuki_declara_su_tecnica_y_su_unico_angulo(analizador):
 
     assert resultado["tecnica"] == "tsuki"
     assert resultado["angulos_regla"][0] == pytest.approx(168, abs=1.5)
+
+
+# --------------------------------------------------------------------------
+# La guardia: cuándo el sistema puede afirmar qué pierna va adelante
+#
+# Zenkutsu y Kokutsu son la misma postura con las piernas intercambiadas. Que
+# el clasificador acierte una u otra depende ENTERAMENTE de la guardia, así
+# que equivocarla no produce un "no reconocido" sino la otra postura con
+# veredicto positivo. Ver expert_system/guardia.py.
+# --------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-051",
+    nombre="Con los tobillos casi a la misma profundidad, el analizador no reporta "
+           "Zenkutsu ni Kokutsu en lugar de elegir uno de los dos",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="es la comprobación de extremo a extremo del defecto que "
+                         "corrompía el historial: el analizador decidía la guardia por "
+                         "el signo de una resta de profundidades, sin zona muerta, de "
+                         "modo que el ruido de la estimación bastaba para que un "
+                         "Zenkutsu correcto se guardara como un Kokutsu correcto. La "
+                         "prueba unitaria TC-AUTO-050 verifica la geometría; esta "
+                         "verifica que el analizador efectivamente se abstiene y no "
+                         "persiste técnica ni ángulos de regla",
+    componente="expert_system/analyzer.py (analyze_stance) sobre expert_system/guardia.py",
+    requisitos="RF-03, RF-08",
+    precondiciones="Analizador con ventana de filtro 1 y pose sintética de piernas visibles",
+    datos_entrada="Pose con rodilla izquierda a 100° y derecha a 175° (la firma de una "
+                  "postura adelantada) y los dos tobillos separados 0,02 en profundidad, "
+                  "muy por debajo del medio ancho de cadera exigido",
+    pasos=[
+        Paso("Analizar la postura con la separación ambigua",
+             "El diagnóstico de categoría `postura` sale con correcto=None"),
+        Paso("Leer el mensaje emitido",
+             "assert 'GUARDIA INDEFINIDA' in mensaje: se nombra la causa, no se "
+             "confunde con una transición entre posturas"),
+        Paso("Comprobar qué se persistiría",
+             "assert tecnica is None y angulos_regla is None: no entra al historial "
+             "con una técnica que el sistema no pudo determinar"),
+        Paso("Repetir con la misma geometría y la profundidad invertida",
+             "assert vuelve a abstenerse: la ambigüedad no se resuelve por el lado "
+             "hacia el que apunte el ruido"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_una_guardia_ambigua_no_se_inventa(analizador):
+    """
+    El cuerpo dibuja una postura asimétrica —una rodilla flexionada y la otra
+    extendida— pero los tobillos están casi a la misma profundidad.
+
+    Antes, el signo de esa diferencia minúscula bastaba para reportar
+    "ZENKUTSU: POSTURA FIRME" con correcto=True. Invirtiéndolo, la MISMA
+    geometría corporal salía "KOKUTSU: POSTURA ESTABLE", también correcta. Una
+    de las dos filas era siempre falsa, y ninguna se podía distinguir después
+    en el historial.
+    """
+    for z_izq, z_der in ((-0.01, 0.01), (0.01, -0.01)):
+        analizador.filtros["guardia"].reset()
+        pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=175,
+                              z_tobillo_izq=z_izq, z_tobillo_der=z_der)
+
+        resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+        assert resultado["correcto"] is None, (
+            f"con z={z_izq}/{z_der} el sistema emitió un veredicto sobre una guardia "
+            f"que no puede distinguir: {resultado['mensaje']}")
+        assert "GUARDIA INDEFINIDA" in resultado["mensaje"]
+        assert resultado["tecnica"] is None
+        assert resultado["angulos_regla"] is None
+
+
+def test_con_separacion_real_la_guardia_si_se_decide(analizador):
+    """
+    Sin esta prueba la anterior podría pasar por un analizador que nunca
+    reconoce una postura adelantada, y la abstención sería vacua.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=175,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    resultado = _por_categoria(analizador.analyze_stance(pose, ANCHO, ALTO), "postura")
+
+    assert "ZENKUTSU (IZQ ADELANTE)" in resultado["mensaje"]
+    assert resultado["correcto"] is True
+
+
+def test_una_postura_simetrica_no_necesita_guardia(analizador):
+    """
+    Heiko y Kiba se evalúan por los dos ángulos de rodilla y no por cuál pierna
+    va adelante, así que la abstención de la guardia no debe impedirlas. Es
+    justo lo que Sebastián observó en el dojo: esas dos salían perfectas
+    mientras Zenkutsu fallaba.
+    """
+    kiba = pose_sintetica(angulo_rodilla_izq=140, angulo_rodilla_der=140,
+                          z_tobillo_izq=0.0, z_tobillo_der=0.0)
+    resultado = _por_categoria(analizador.analyze_stance(kiba, ANCHO, ALTO), "postura")
+    assert "KIBA DACHI" in resultado["mensaje"]
+    assert resultado["correcto"] is True
+
+    analizador.filtros["guardia"].reset()
+    heiko = pose_sintetica(angulo_rodilla_izq=172, angulo_rodilla_der=172,
+                           z_tobillo_izq=0.0, z_tobillo_der=0.0)
+    resultado = _por_categoria(analizador.analyze_stance(heiko, ANCHO, ALTO), "postura")
+    assert "POSTURA NATURAL" in resultado["mensaje"]
+    assert resultado["correcto"] is True
+
+
+# --------------------------------------------------------------------------
+# Una fila por rodilla para el panel en vivo
+# --------------------------------------------------------------------------
+
+def test_cada_rodilla_se_informa_por_separado(analizador):
+    """
+    El panel declaraba "Rodilla izquierda" y "Rodilla derecha" desde siempre,
+    pero los diagnósticos de postura viajaban bajo la categoría `postura`, que
+    nunca coincide con esas dos: las filas mostraban un guion aunque los
+    ángulos se midieran y se usaran para clasificar.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=175,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    resultados = analizador.analyze_stance(pose, ANCHO, ALTO)
+
+    assert _por_categoria(resultados, "rodilla_izq")["angulo"] == pytest.approx(100, abs=1.5)
+    assert _por_categoria(resultados, "rodilla_der")["angulo"] == pytest.approx(175, abs=1.5)
+
+
+def test_el_veredicto_de_cada_rodilla_usa_el_rango_que_le_toca(analizador):
+    """
+    En un Zenkutsu la frontal y la trasera se juzgan contra rangos distintos
+    (90–115° y 165–180°). Un único veredicto para las dos escondería cuál hay
+    que corregir, que es precisamente lo que el sensei necesita saber.
+
+    Aquí la frontal está bien (100°) y la trasera corta (160°): la postura
+    entera es incorrecta, pero solo una de las dos piernas lo es.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=160,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    resultados = analizador.analyze_stance(pose, ANCHO, ALTO)
+
+    assert _por_categoria(resultados, "postura")["correcto"] is False
+    assert _por_categoria(resultados, "rodilla_izq")["correcto"] is True, \
+        "la rodilla frontal a 100° está dentro de su rango"
+    assert _por_categoria(resultados, "rodilla_der")["correcto"] is False, \
+        "la trasera a 160° se queda corta del 165–180 que le exige el Zenkutsu"
+
+
+def test_las_filas_por_rodilla_no_se_persisten_dos_veces(analizador):
+    """
+    Llevan `mensaje` vacío a propósito: el registro de la postura ya lo lleva
+    la entrada `postura`, y `MedicionLogger` ignora los diagnósticos sin
+    mensaje. Duplicarlos llenaría la base y el panel de correcciones con la
+    misma medición repetida.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=100, angulo_rodilla_der=175,
+                          z_tobillo_izq=-0.3, z_tobillo_der=0.3)
+
+    resultados = analizador.analyze_stance(pose, ANCHO, ALTO)
+
+    for categoria in ("rodilla_izq", "rodilla_der"):
+        assert _por_categoria(resultados, categoria)["mensaje"] == ""
