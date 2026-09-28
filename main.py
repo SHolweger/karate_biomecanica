@@ -23,7 +23,53 @@ import sys
 # entorno de integración continua, que no tiene ninguna de las dos.
 
 
-def main_consola():
+def _resumir_sesion(db, id_sesion, atleta):
+    """
+    Qué concluyó el sistema, impreso al terminar.
+
+    Analizar una grabación de tres minutos y no ver nada al final obligaría a
+    abrir la interfaz solo para saber si sirvió de algo. El resumen responde en
+    el acto la pregunta con la que se corre el análisis: ¿qué vio y qué juzgó?
+
+    Cuenta solo evaluaciones cerradas (`correcto IS NOT NULL`): los estados
+    transitorios y las articulaciones no visibles no son aciertos ni fallos.
+    """
+    detalle = db.detalle_sesion(id_sesion)
+    print(f"\n=== SESIÓN {id_sesion} · {atleta['nombre']} ===")
+
+    if detalle is None or not detalle["evaluaciones"]:
+        print("Sin evaluaciones cerradas: el sistema no llegó a juzgar ninguna técnica.")
+        print("  · Si las etapas de análisis y renderizado salieron en cero, no se")
+        print("    detectó pose en ningún fotograma. Revisa que el ejecutante aparezca")
+        print("    de cuerpo completo y que el video no venga rotado.")
+        print("  · Una articulación por debajo del umbral de visibilidad no se evalúa.")
+        return
+
+    print(f"Evaluaciones cerradas: {detalle['evaluaciones']}  "
+          f"(aciertos: {detalle['aciertos']}, precisión: {detalle['precision']:.0f} %)")
+
+    print(f"\n{'Técnica':<22}{'Evaluaciones':>14}{'Aciertos':>10}{'Precisión':>11}{'Áng. medio':>12}")
+    for fila in db.resumen_por_tecnica(atleta["id_atleta"], id_sesion):
+        angulo = f"{fila['angulo_medio']:.0f}°" if fila["angulo_medio"] is not None else "—"
+        print(f"{fila['nombre_tecnica']:<22}{fila['evaluaciones']:>14}"
+              f"{fila['aciertos']:>10}{fila['precision']:>10.0f} %{angulo:>12}")
+
+    errores = db.errores_frecuentes(id_sesion)
+    if errores:
+        print("\nErrores más repetidos:")
+        for fila in errores:
+            print(f"  {fila['veces']:>3} ×  {fila['diagnostico']}")
+
+
+def main_consola(fuente_pedida=None):
+    """
+    Análisis por terminal. `fuente_pedida` gana sobre la fuente configurada.
+
+    Poder apuntar a un archivo desde la línea de comandos es lo que convierte
+    una grabación en una sesión analizada y registrada —con sus veredictos por
+    técnica y su reporte— sin tener que reconfigurar la cámara en la interfaz
+    para luego devolverla a su sitio.
+    """
     # Importamos nuestros módulos (Nuestra Arquitectura Modular)
     
     import cv2
@@ -57,7 +103,7 @@ def main_consola():
     # La fuente de video es la que quedó configurada desde la interfaz gráfica
     # (RF-01). Si no abre, se informa qué cámaras sí están disponibles en vez
     # de dejar la ventana en negro sin explicación.
-    fuente = db.leer_config("fuente_video", 0)
+    fuente = fuente_pedida if fuente_pedida is not None else db.leer_config("fuente_video", 0)
     try:
         cam = Camera(fuente)
     except CamaraNoDisponible as error:
@@ -125,6 +171,7 @@ def main_consola():
 
     # 3. Limpieza
     db.cerrar_sesion(id_sesion)
+    _resumir_sesion(db, id_sesion, atleta)
     db.close()
     cam.release()
     tracker.close()
@@ -148,10 +195,20 @@ def main():
     analizador.add_argument(
         "--consola", action="store_true",
         help="usa la versión de terminal con ventana de OpenCV, en vez de la interfaz gráfica")
+    analizador.add_argument(
+        "--fuente", metavar="FUENTE",
+        help="índice de cámara, dirección de cámara IP o ruta de un video grabado. "
+             "Solo con --consola; sin este argumento se usa la fuente que quedó "
+             "configurada desde la interfaz gráfica")
     argumentos = analizador.parse_args()
 
+    if argumentos.fuente is not None and not argumentos.consola:
+        # Fallar aquí, y no ignorarlo en silencio, evita que alguien crea que la
+        # interfaz gráfica está analizando el video que le pasó por la terminal.
+        analizador.error("--fuente solo se puede usar junto con --consola")
+
     if argumentos.consola:
-        main_consola()
+        main_consola(argumentos.fuente)
         return
 
     try:

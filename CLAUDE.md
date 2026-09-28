@@ -16,6 +16,8 @@ noviembre de 2026**.
 ```bash
 python3 main.py              # interfaz gráfica
 python3 main.py --consola    # el encadenamiento sin GUI, por terminal
+python3 main.py --consola --fuente "grabacion.mp4"   # analiza un video y lo registra
+python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta pose
 python3 -m pytest -q         # suite completa
 ```
 
@@ -144,8 +146,8 @@ agrupa los errores frecuentes.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 709 passed |
-| CI / sin entorno gráfico | igual | 466 passed, 8 skipped *(cifra del 18-sep; no revalidada tras el 19-sep)* |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 715 passed |
+| CI / sin entorno gráfico | igual | 574 passed, 10 skipped |
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
