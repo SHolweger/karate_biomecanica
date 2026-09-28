@@ -33,7 +33,7 @@ primeros segundos de un video casero son la persona caminando hacia su sitio.
 import sys
 import time
 
-from biomechanics.metrics import PerformanceMonitor
+from biomechanics.metrics import MonitorConTope
 from test_rendimiento import fuente_por_defecto, reportar
 
 # Las mismas etapas que marca `gui/live_screen.py`, en su orden. `grabacion`,
@@ -42,6 +42,7 @@ from test_rendimiento import fuente_por_defecto, reportar
 # Sin avance durante este tiempo, la medición se da por atascada y se corta
 # informando el estado, en vez de dejar la terminal callada para siempre.
 SEGUNDOS_DE_ATASCO = 20.0
+
 
 ETAPAS_INTERFAZ = ["captura", "grabacion", "estimacion_pose", "analisis",
                    "renderizado", "persistencia", "panel", "despliegue"]
@@ -68,8 +69,19 @@ def medir_interfaz(fuente, n_fotogramas):
     entrenador, atleta = entrenadores[0], atletas[0]
     print(f"Midiendo con {entrenador['nombre']} y {atleta['nombre']}.")
 
-    monitor = PerformanceMonitor(descartar_iniciales=5)
     app = App(db=db)
+
+    def detener():
+        """
+        Corta el bucle y sale del ciclo de eventos.
+
+        `cerrar()` es idempotente —todo lo que libera queda en None— así que la
+        llamada que hay después de `mainloop()` sigue siendo correcta.
+        """
+        pantalla.cerrar()
+        app.quit()
+
+    monitor = MonitorConTope(n_fotogramas, detener, descartar_iniciales=5)
     app.entrenador = entrenador
 
     # La cámara se construye aquí para poder apuntarla a la fuente pedida sin
@@ -85,9 +97,11 @@ def medir_interfaz(fuente, n_fotogramas):
 
     print(f"Midiendo {n_fotogramas} fotogramas sobre la interfaz real...")
 
-    # Vigilancia con informe de avance y corte por atasco. Sin esto, una
-    # medición detenida y una lenta se ven exactamente igual desde fuera: la
-    # terminal callada. Costó una tarde averiguar cuál de las dos era.
+    # Vigilancia con informe de avance y corte por atasco. Ya NO le corresponde
+    # detener la medición al alcanzar la cuota —de eso se encarga el monitor,
+    # que cuenta dentro del bucle— sino solo informar del avance y rescatar el
+    # caso en que el análisis se detenga del todo. Sin esto, una medición
+    # detenida y una lenta se ven igual desde fuera: la terminal callada.
     estado = {"ultimo": 0, "quieto_desde": time.monotonic()}
 
     def vigilar():
@@ -100,7 +114,10 @@ def medir_interfaz(fuente, n_fotogramas):
             if medidos and medidos % 50 == 0:
                 print(f"  {medidos}/{n_fotogramas} fotogramas", flush=True)
 
-        if medidos >= n_fotogramas:
+        # Red de seguridad: si el monitor ya alcanzó su cuota pero el ciclo de
+        # eventos no llegó a atender su `quit()`, se insiste desde aquí en vez
+        # de esperar a que expire el plazo de atasco.
+        if monitor.completado:
             app.quit()
             return
 

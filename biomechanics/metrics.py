@@ -121,3 +121,39 @@ class PerformanceMonitor:
             "fotogramas": len(inst),
             "duracion_s": inst[-1] - inst[0],
         }
+
+
+class MonitorConTope(PerformanceMonitor):
+    """
+    Un monitor que se detiene solo al alcanzar su cuota de fotogramas.
+
+    La cuenta vive AQUÍ y no en un temporizador de Tk por una razón medida.
+    La primera versión comprobaba el total desde un `after(200 ms)`, pero el
+    bucle de análisis se reprograma con `after(1 ms)` —su trabajo por fotograma
+    supera el intervalo, así que el temporizador siguiente está vencido casi
+    siempre— y dejaba al vigilante sin turno: despertaba cada cuatro segundos
+    en vez de cinco veces por segundo. Cuando por fin vio la cuota superada, su
+    `quit()` ya no alcanzó a cortar la cadena, y una medición de 300 fotogramas
+    proceso los 11 515 del archivo entero: ocho minutos de cómputo.
+
+    `cerrar_frame` se ejecuta DENTRO del bucle de análisis, así que no se le
+    puede negar el turno: la cuota se comprueba exactamente una vez por
+    fotograma medido.
+    """
+
+    def __init__(self, tope, al_completar, **kwargs):
+        super().__init__(**kwargs)
+        self.tope = tope
+        self._al_completar = al_completar
+        self._completado = False
+
+    @property
+    def completado(self):
+        """Si ya se alcanzó la cuota. Lo consulta la red de seguridad externa."""
+        return self._completado
+
+    def cerrar_frame(self):
+        super().cerrar_frame()
+        if not self._completado and len(self.totales) >= self.tope:
+            self._completado = True
+            self._al_completar()

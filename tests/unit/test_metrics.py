@@ -7,7 +7,7 @@ antemano. Que el monitor reciba su fuente de tiempo por parámetro es
 justamente lo que hace verificable una clase que mide tiempo real.
 """
 import pytest
-from biomechanics.metrics import PerformanceMonitor
+from biomechanics.metrics import MonitorConTope, PerformanceMonitor
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 
@@ -145,3 +145,59 @@ def test_sin_datos_suficientes_no_revienta():
     assert m.resumen_total() is None
     assert m.resumen_fps() is None
     assert m.resumen_etapas() == {}
+
+
+# --------------------------------------------------------------------------
+# El monitor que se detiene solo
+#
+# Nace de un defecto medido: una medición de 300 fotogramas procesó los 11 515
+# del archivo entero —ocho minutos de cómputo— porque la cuota se comprobaba
+# desde un temporizador de Tk al que el bucle de análisis dejaba sin turno.
+# --------------------------------------------------------------------------
+
+def test_el_monitor_avisa_exactamente_al_alcanzar_su_cuota():
+    llamadas = []
+    monitor = MonitorConTope(3, lambda: llamadas.append(len(monitor.totales)),
+                             descartar_iniciales=0)
+
+    for _ in range(3):
+        monitor.iniciar_frame()
+        monitor.cerrar_frame()
+
+    assert llamadas == [3], "debe avisar al tercero, ni antes ni después"
+    assert monitor.completado
+
+
+def test_no_avisa_dos_veces_aunque_siga_midiendo():
+    """
+    El aviso detiene el bucle, pero el fotograma en curso puede alcanzar a
+    cerrarse. Avisar de nuevo volvería a llamar a `quit()` sobre una interfaz
+    ya cerrada.
+    """
+    llamadas = []
+    monitor = MonitorConTope(2, lambda: llamadas.append(1), descartar_iniciales=0)
+
+    for _ in range(5):
+        monitor.iniciar_frame()
+        monitor.cerrar_frame()
+
+    assert llamadas == [1]
+
+
+def test_antes_de_la_cuota_no_esta_completado():
+    monitor = MonitorConTope(10, lambda: None, descartar_iniciales=0)
+    monitor.iniciar_frame()
+    monitor.cerrar_frame()
+
+    assert not monitor.completado
+
+
+def test_sigue_siendo_un_monitor_de_rendimiento():
+    """Hereda el cronometraje: la cuota es lo único que añade."""
+    monitor = MonitorConTope(99, lambda: None, descartar_iniciales=0)
+    monitor.iniciar_frame()
+    monitor.marcar("captura")
+    monitor.cerrar_frame()
+
+    assert len(monitor.totales) == 1
+    assert "captura" in monitor.etapas

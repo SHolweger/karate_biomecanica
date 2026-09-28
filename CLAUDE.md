@@ -412,12 +412,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 780 passed |
-| CI / sin entorno gráfico | igual | 638 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 784 passed |
+| CI / sin entorno gráfico | igual | 642 passed, 10 skipped |
 
-El 638 está medido en el contenedor. El 780 es aritmética sobre dos cifras
-medidas —774 confirmadas en su Mac el 30-sep más las 6 pruebas de resolución
-de rutas, unitarias y por tanto válidas en los dos entornos—, **pendiente de
+El 642 está medido en el contenedor. El 784 es aritmética sobre dos cifras
+medidas —780 confirmadas en su Mac el 30-sep más las 4 pruebas del monitor con
+tope, unitarias y por tanto válidas en los dos entornos—, **pendiente de
 confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
