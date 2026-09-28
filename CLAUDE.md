@@ -18,6 +18,7 @@ python3 main.py              # interfaz gráfica
 python3 main.py --consola    # el encadenamiento sin GUI, por terminal
 python3 main.py --consola --fuente "grabacion.mp4"   # analiza un video y lo registra
 python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta pose
+python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3D?
 python3 -m pytest -q         # suite completa
 ```
 
@@ -339,13 +340,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 735 passed |
-| CI / sin entorno gráfico | igual | 593 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 759 passed |
+| CI / sin entorno gráfico | igual | 617 passed, 10 skipped |
 
-El 593 está medido en el contenedor. El 735 es aritmética sobre dos cifras
-medidas —720 en su Mac el 28-sep más las 15 pruebas de la guardia, que son
-unitarias y de integración y corren en los dos entornos—, **pendiente de
-confirmar** en su equipo.
+El 617 está medido en el contenedor. El 759 es aritmética sobre dos cifras
+medidas —735 confirmadas en su Mac el 28-sep más las 24 pruebas de geometría
+3D y de la herramienta de comparación, que son unitarias y corren en los dos
+entornos—, **pendiente de confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -355,7 +356,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-052**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-053**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -437,6 +438,16 @@ Lecciones aprendidas, todas por haberlas sufrido:
 - Decirle que borre los parches viejos de `~/Downloads` antes de aplicar.
 - `zsh` **no** trata `#` como comentario en la línea interactiva: nunca mandarle
   comandos con comentarios al final.
+- **Los commits van sin líneas de atribución** (28-sep-2026). Nada de
+  `Co-Authored-By:` ni `Claude-Session:` al final del mensaje: el repositorio es
+  de Sebastián y los commits son suyos. Los ya publicados se quedan como están
+  —reescribir veinte commits ya empujados para quitar un renglón obligaría a un
+  `push --force` que rompe el clon del otro chat y no arregla nada.
+- **Nunca borrar con globs dentro de `evidencias/`.** Ahí conviven archivos
+  versionados con los que generan las corridas, y un `rm evidencias/*.md` se
+  lleva la evidencia de la tesis por delante. Ha pasado tres veces. Borrar
+  siempre por nombre completo, y comprobar antes con
+  `git ls-files --error-unmatch <archivo>`.
 
 ---
 
@@ -467,7 +478,13 @@ conviene tenerlo firmado antes de la primera visita.
 **Abierto tras la prueba en vivo del 28-sep** (ver `docs/bitacora_28sep2026.md`):
 
 - **Medir `pose_world_landmarks`** contra las grabaciones y decidir con el dato
-  en la mano si los ángulos deben calcularse en 3D.
+  en la mano si los ángulos deben calcularse en 3D. La herramienta ya está
+  (`comparar_2d_3d.py`) y `BiomechanicsMath.calculate_angle_3d` también, pero
+  **nadie la ha corrido todavía sobre una grabación real**: MediaPipe no está
+  instalado en el contenedor, así que la parte de visión de esa herramienta
+  está escrita y no ejecutada. Su matemática sí está verificada en CI.
+  **Hasta que esa medición exista, la sección 4.3 queda en espera**: determina
+  si el capítulo describe un sistema 2D con una limitación declarada o uno 3D.
 - **Conectar el aviso de plano** (`orientacion_frente_a_camara`) junto con el
   aviso de encuadre: hoy la función existe y nadie la llama.
 - **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla

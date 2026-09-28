@@ -186,3 +186,114 @@ def test_puntos_superpuestos_no_lanzan_excepcion():
 
     assert isinstance(resultado, float)
     assert 0.0 <= resultado <= 180.0
+
+
+# --------------------------------------------------------------------------
+# Ángulos en tres dimensiones
+#
+# La razón de ser de `calculate_angle_3d`: la proyección 2D deforma el ángulo
+# cuando el plano de la técnica no es paralelo al sensor, y eso es lo que hace
+# que un tsuki lanzado de frente se informe como flexionado.
+# --------------------------------------------------------------------------
+
+def _brazo_girado(angulo_real, giro_grados):
+    """
+    Hombro, codo y muñeca con un ángulo de codo real conocido, **con el brazo
+    entero girado** `giro` grados sobre el eje vertical.
+
+    El giro es del conjunto, no del antebrazo sobre el codo: girar solo el
+    antebrazo cambiaría el ángulo real en vez de conservarlo, y entonces la
+    prueba no estaría midiendo el error de proyección sino una postura
+    distinta. (Una primera versión de este ayudante hacía justo eso.)
+
+    Con giro=0 el plano del brazo es paralelo al sensor —la vista de perfil
+    perfecta—; conforme crece, el plano se pone de canto.
+    """
+    a, g = math.radians(angulo_real), math.radians(giro_grados)
+    codo = (0.0, 0.0, 0.0)
+    hombro = (math.cos(g), 0.0, -math.sin(g))
+    muneca = (math.cos(a) * math.cos(g), math.sin(a), -math.cos(a) * math.sin(g))
+    return hombro, codo, muneca
+
+
+def test_el_ayudante_conserva_el_angulo_real_al_girar():
+    """
+    Sin esto, las pruebas de abajo podrían estar midiendo el error de un
+    ayudante mal construido en vez del error de proyección del sistema.
+    """
+    for giro in (0, 30, 60, 85):
+        hombro, codo, muneca = _brazo_girado(175.0, giro)
+        assert BiomechanicsMath.calculate_angle_3d(hombro, codo, muneca) == \
+            pytest.approx(175.0, abs=0.01), f"el giro de {giro}° alteró el ángulo real"
+
+
+def test_en_el_plano_del_sensor_las_dos_medidas_coinciden():
+    """Sin giro no hay escorzo, así que 2D y 3D tienen que dar lo mismo."""
+    hombro, codo, muneca = _brazo_girado(120.0, giro_grados=0)
+
+    assert BiomechanicsMath.calculate_angle(
+        hombro[:2], codo[:2], muneca[:2]) == pytest.approx(120.0, abs=0.1)
+    assert BiomechanicsMath.calculate_angle_3d(
+        hombro, codo, muneca) == pytest.approx(120.0, abs=0.1)
+
+
+@pytest.mark.parametrize("angulo_real, giro, esperado_2d", [
+    (175.0, 30, 174.2), (175.0, 60, 170.1), (175.0, 85, 134.9),
+    (160.0, 30, 157.2), (160.0, 60, 143.9), (160.0, 85, 103.5),
+    (120.0, 30, 116.6), (120.0, 60, 106.1), (120.0, 85,  92.9),
+])
+def test_el_error_de_proyeccion_crece_con_el_giro(angulo_real, giro, esperado_2d):
+    """
+    El hallazgo del 28-sep-2026, fijado en números para que no se cite de
+    memoria en la tesis: la terna puede correr pytest.
+
+    Dos lecturas de la tabla. La primera, que el error crece con el giro. La
+    segunda, más incómoda: **la deformación empuja siempre hacia 90°**, así que
+    un codo extendido se lee como flexionado y nunca al revés. Un tsuki
+    correcto a 175° grabado casi de frente se mide en 134,9° y la regla lo
+    corrige como FLEXIONADO, regañando a un alumno que lo hizo bien.
+
+    En los tres casos la medida en tres dimensiones recupera el ángulo real.
+    """
+    hombro, codo, muneca = _brazo_girado(angulo_real, giro)
+
+    assert BiomechanicsMath.calculate_angle(
+        hombro[:2], codo[:2], muneca[:2]) == pytest.approx(esperado_2d, abs=0.1)
+    assert BiomechanicsMath.calculate_angle_3d(
+        hombro, codo, muneca) == pytest.approx(angulo_real, abs=0.1)
+
+
+def test_de_canto_la_medida_2d_pierde_todo_el_angulo():
+    """
+    El límite. Con el plano del brazo exactamente de canto al sensor, el brazo
+    se proyecta sobre una recta: hombro y codo caen en el mismo punto y el
+    ángulo 2D deja de estar definido —el sistema informa 90°, que no es una
+    medición sino el residuo de un cálculo degenerado—. La medida 3D sigue
+    siendo exacta.
+
+    No es un caso de laboratorio: es lo que ocurre al grabar de frente una
+    técnica que avanza hacia la cámara.
+    """
+    hombro, codo, muneca = _brazo_girado(175.0, giro_grados=90)
+
+    assert hombro[:2] == pytest.approx(codo[:2], abs=1e-12), \
+        "de canto, el brazo proyectado colapsa a un punto"
+    assert BiomechanicsMath.calculate_angle_3d(
+        hombro, codo, muneca) == pytest.approx(175.0, abs=0.1)
+
+
+def test_los_extremos_no_rompen_el_calculo():
+    """
+    0° y 180° son justo los ángulos del Kime, y son donde el redondeo de punto
+    flotante puede sacar el coseno de [-1, 1] y hacer estallar `acos`.
+    """
+    recto = BiomechanicsMath.calculate_angle_3d((0, 0, 0), (1, 0, 0), (2, 0, 0))
+    plegado = BiomechanicsMath.calculate_angle_3d((0, 0, 0), (1, 0, 0), (0, 0, 0))
+
+    assert recto == pytest.approx(180.0)
+    assert plegado == pytest.approx(0.0)
+
+
+def test_una_articulacion_degenerada_no_inventa_un_angulo():
+    """Dos puntos estimados en el mismo sitio no definen ninguna dirección."""
+    assert BiomechanicsMath.calculate_angle_3d((1, 1, 1), (1, 1, 1), (2, 0, 0)) == 0.0
