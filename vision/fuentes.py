@@ -127,6 +127,39 @@ def validar_grabacion(ruta):
     return True, ""
 
 
+def motivo_fuente_no_abre(fuente):
+    """
+    Por qué no se pudo abrir una fuente, redactado según lo que era.
+
+    Hasta el 28-sep-2026, `Camera` respondía lo mismo a todo: «Verifica que
+    esté conectada y que ninguna otra aplicación la esté usando». Para una
+    cámara es el consejo correcto; para un archivo que no existe es un consejo
+    absurdo —no hay nada que conectar— y manda a buscar el problema donde no
+    está. Ocurrió con una ruta mal escrita: el mensaje hablaba de una cámara
+    ocupada y el archivo sencillamente no estaba ahí.
+
+    El diagnóstico bueno ya existía en `validar_grabacion`, pero solo lo usaba
+    el selector de archivos de la interfaz. Toda fuente abierta por código
+    —las herramientas de medición, `main.py --fuente`, el re-análisis de una
+    grabación— caía en el mensaje genérico. Esto es lo que lo reparte.
+    """
+    if es_archivo(fuente):
+        sirve, motivo = validar_grabacion(fuente)
+        if not sirve:
+            return motivo
+        # El archivo está y tiene contenido, así que lo que falla es leerlo.
+        return (f"'{os.path.basename(str(fuente).strip())}' existe pero no se pudo "
+                f"leer. Puede estar dañado o venir en un formato que este equipo no "
+                f"abre; prueba a reproducirlo antes de analizarlo.")
+
+    if es_url(fuente):
+        return (f"No se pudo conectar con la cámara IP ({fuente}). Verifica la "
+                f"dirección y que el equipo esté en la misma red.")
+
+    return (f"No se pudo abrir la cámara del sistema (índice {fuente}). Verifica "
+            f"que esté conectada y que ninguna otra aplicación la esté usando.")
+
+
 def marca_de_grabacion_ms(pos_msec, indice_frame, fps):
     """
     Instante de un fotograma DENTRO de la grabación, en milisegundos.

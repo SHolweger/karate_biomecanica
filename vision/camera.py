@@ -20,7 +20,8 @@ import time
 import cv2
 
 from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
-                            marca_de_grabacion_ms, normalizar)
+                            marca_de_grabacion_ms, motivo_fuente_no_abre,
+                            normalizar)
 from vision.nombres_camara import nombres_del_sistema
 
 # Cuántos índices se sondean al enumerar. Seis cubre con holgura un equipo con
@@ -160,9 +161,11 @@ class Camera:
 
         if verificar and not self.cap.isOpened():
             self.cap.release()
-            raise CamaraNoDisponible(
-                f"No se pudo abrir la {describir(source).lower()}. "
-                f"Verifica que esté conectada y que ninguna otra aplicación la esté usando.")
+            # El motivo se redacta según lo que era la fuente. Un archivo que no
+            # existe y una cámara ocupada son problemas distintos y mandan a
+            # mirar sitios distintos; decir lo mismo a los dos hacía perder el
+            # tiempo buscando donde no estaba. Ver vision/fuentes.py.
+            raise CamaraNoDisponible(motivo_fuente_no_abre(source))
 
     def get_frame(self):
         """Un fotograma listo para analizar, o None si la fuente dejó de entregar."""

@@ -340,13 +340,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 759 passed |
-| CI / sin entorno gráfico | igual | 617 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 764 passed |
+| CI / sin entorno gráfico | igual | 622 passed, 10 skipped |
 
-El 617 está medido en el contenedor. El 759 es aritmética sobre dos cifras
-medidas —735 confirmadas en su Mac el 28-sep más las 24 pruebas de geometría
-3D y de la herramienta de comparación, que son unitarias y corren en los dos
-entornos—, **pendiente de confirmar** en su equipo.
+El 622 está medido en el contenedor. El 764 es aritmética sobre dos cifras
+medidas —759 confirmadas en su Mac el 28-sep más las 5 pruebas del motivo de
+apertura, que son unitarias y corren en los dos entornos—, **pendiente de
+confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a

@@ -9,7 +9,8 @@ haberlas separado de la clase `Camera`.
 import pytest
 
 from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
-                            marca_de_grabacion_ms, normalizar, validar_grabacion)
+                            marca_de_grabacion_ms, motivo_fuente_no_abre,
+                            normalizar, validar_grabacion)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
 pytestmark = pytest.mark.unitaria
@@ -240,3 +241,57 @@ def test_el_primer_fotograma_esta_legitimamente_en_cero():
 def test_sin_informacion_utilizable_se_devuelve_none_y_no_un_cero(indice, fps):
     """Un cero parecería una marca válida; None obliga a quien llama a decidir."""
     assert marca_de_grabacion_ms(pos_msec=0, indice_frame=indice, fps=fps) is None
+
+
+# --------------------------------------------------------------------------
+# Por qué no abrió: el mensaje según lo que era la fuente
+#
+# `Camera` respondía lo mismo a todo —"verifica que esté conectada y que
+# ninguna otra aplicación la esté usando"—, consejo correcto para una cámara y
+# absurdo para un archivo inexistente: no hay nada que conectar. Pasó de
+# verdad con una ruta mal escrita el 28-sep-2026.
+# --------------------------------------------------------------------------
+
+def test_un_archivo_que_no_existe_lo_dice_y_no_habla_de_conectar_nada():
+    motivo = motivo_fuente_no_abre("/ruta/que/no/existe/tu_zenkutsu.mp4")
+
+    assert "tu_zenkutsu.mp4" in motivo, "el mensaje nombra el archivo que se buscó"
+    assert "No se encontró" in motivo
+    assert "conectada" not in motivo, \
+        "un archivo ausente no se resuelve conectando nada; ese consejo desorienta"
+
+
+def test_un_archivo_legible_pero_que_no_abre_apunta_al_formato(tmp_path):
+    """
+    Existe, tiene contenido y aun así el backend no lo abre: entonces lo que
+    falla es leerlo, y el consejo útil es otro.
+    """
+    ruta = _video(tmp_path)
+
+    motivo = motivo_fuente_no_abre(ruta)
+
+    assert "existe pero no se pudo leer" in motivo
+    assert "formato" in motivo or "dañado" in motivo
+
+
+def test_una_camara_ip_manda_a_mirar_la_red():
+    motivo = motivo_fuente_no_abre("http://192.168.1.50:8080/video")
+
+    assert "cámara IP" in motivo
+    assert "red" in motivo
+
+
+def test_una_camara_del_sistema_conserva_el_consejo_de_siempre():
+    """Para una cámara, «conectada y no ocupada» sí es el diagnóstico correcto."""
+    motivo = motivo_fuente_no_abre(0)
+
+    assert "índice 0" in motivo
+    assert "conectada" in motivo
+    assert "ninguna otra aplicación" in motivo
+
+
+def test_una_carpeta_no_se_confunde_con_una_grabacion(tmp_path):
+    carpeta = tmp_path / "grabaciones.mp4"
+    carpeta.mkdir()
+
+    assert "es una carpeta" in motivo_fuente_no_abre(str(carpeta))
