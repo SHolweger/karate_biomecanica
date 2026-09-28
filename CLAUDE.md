@@ -571,12 +571,29 @@ conviene tenerlo firmado antes de la primera visita.
   | **de perfil** | **141,1** | **107,4** |
 
   De frente y a 45° las dos guardias coinciden. **Solo de perfil divergen, y
-  en 34°.** Eso descarta el encuadre como explicación del sesgo por pierna:
-  la causa está en qué pierna queda escondida detrás de la otra. La
-  hipótesis a contrastar —ya medible con la herramienta, sin correr— es que
-  la pierna **lejana al sensor** se mide sistemáticamente más estirada de lo
-  que está, y que la puntuación de visibilidad de MediaPipe no lo delata
-  (0,958 en la pierna peor medida).
+  en 34°.** Eso descarta el encuadre como explicación.
+
+  **La oclusión también queda descartada, y al revés de lo esperado**: de
+  perfil, la pierna delantera *lejana* al sensor mide 113,4° de mediana y la
+  *cercana* 135,5°. La lejana se mide mejor.
+
+  Pero esa cifra no concluye nada, y conviene no citarla: en esta grabación
+  la cámara estuvo casi siempre del mismo costado, así que «pierna
+  izquierda» y «pierna cercana» son **el mismo grupo** (419 contra 352
+  fotogramas; 876 contra 943). Los dos criterios están confundidos y esta
+  muestra no puede separarlos.
+
+  **Lo que hace falta es una grabación diseñada, no otro corte de la misma:**
+  la MISMA guardia —por ejemplo derecha adelante— filmada de perfil desde el
+  costado izquierdo y desde el derecho, unos 15 s cada una. Ahí la pierna
+  anatómica se mantiene fija y la cercanía al sensor se invierte, que es lo
+  único que separa las dos explicaciones. El cruce 2×2 que lo lee ya está en
+  `comparar_2d_3d.py`, y avisa cuando faltan celdas con muestra.
+
+  Dato a tener presente en cualquier explicación: la puntuación de
+  visibilidad **no delata** el error. La pierna peor medida marca 0,958 de
+  media. MediaPipe infiere articulaciones ocultas sin bajar esa cifra, así
+  que no sirve como guardia contra este fallo.
 
 - **ABIERTO: de perfil, la pierna lejana se mide mal**
   (29-sep-2026). Sobre el mismo video, en el que Sebastián confirma haber

@@ -194,6 +194,11 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # camara o la lejana. En una toma de perfil la lejana queda detras de la
     # cercana, y MediaPipe la infiere sin bajar su puntuacion de visibilidad.
     delantera_por_cercania = {"cercana": [], "lejana": []}
+    # El cruce 2x2 que hace VISIBLE si los dos criterios estan confundidos.
+    # En una grabacion de perfil rodada siempre desde el mismo lado, "pierna
+    # izquierda" y "pierna cercana" son el mismo grupo, y separarlos exige
+    # filmar la MISMA guardia desde los dos lados.
+    cercania_x_guardia = {}
     # Visibilidad media de cada pierna, y cuantos fotogramas se descartan por
     # no verse. Una pierna sistematicamente menos visible que la otra explica
     # que solo se reconozca una guardia.
@@ -279,8 +284,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                                         if guardia_2d == IZQ_ADELANTE
                                         else not izq_es_la_cercana)
                 if _tramo(orientacion) == "de perfil":
-                    delantera_por_cercania[
-                        "cercana" if delantera_es_cercana else "lejana"].append(frontal)
+                    donde = "cercana" if delantera_es_cercana else "lejana"
+                    delantera_por_cercania[donde].append(frontal)
+                    cercania_x_guardia.setdefault((guardia_2d, donde), []).append(frontal)
             angulos_por_guardia.setdefault(
                 guardia_2d or "indefinida", []).append((a2_izq, a2_der))
             if guardia_2d is not None:
@@ -316,6 +322,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "angulos_por_guardia": angulos_por_guardia,
         "cruce": cruce, "juzgados": juzgados,
         "delantera_por_cercania": delantera_por_cercania,
+        "cercania_x_guardia": cercania_x_guardia,
         "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
         "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
@@ -398,7 +405,27 @@ def informar(r):
                       f"mediana {e['mediana']:6.1f}   P5 {e['p5']:6.1f}")
             mc = _estadisticas(cercania["cercana"])["mediana"]
             ml = _estadisticas(cercania["lejana"])["mediana"]
-            if ml - mc > 15:
+            print(f"\n  Y el cruce de los dos criterios, que es lo que dice si estan")
+            print(f"  confundidos en esta grabacion:")
+            print(f"  {'guardia':16s} {'delantera':10s} {'n':>6s} {'mediana':>9s}")
+            celdas = 0
+            for guardia in (IZQ_ADELANTE, DER_ADELANTE):
+                for donde in ("cercana", "lejana"):
+                    serie = r["cercania_x_guardia"].get((guardia, donde))
+                    if not serie:
+                        continue
+                    celdas += 1
+                    e = _estadisticas(serie)
+                    print(f"  {guardia:16s} {donde:10s} {len(serie):6d} {e['mediana']:9.1f}")
+            if celdas < 4 or min(
+                    len(r["cercania_x_guardia"].get((g, d), []))
+                    for g in (IZQ_ADELANTE, DER_ADELANTE)
+                    for d in ("cercana", "lejana")) < 50:
+                print("  Faltan celdas con muestra suficiente: la camara estuvo casi")
+                print("  siempre del mismo lado, asi que 'pierna izquierda' y 'pierna")
+                print("  cercana' son aqui el mismo grupo y no se pueden distinguir.")
+                print("  Hace falta filmar la MISMA guardia desde los dos costados.")
+            elif ml - mc > 15:
                 print("  La pierna lejana se mide mucho mas estirada de lo que esta:")
                 print("  en perfil queda detras de la cercana y el modelo la infiere,")
                 print("  sin que su puntuacion de visibilidad lo delate. El sesgo no")
