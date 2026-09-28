@@ -49,7 +49,7 @@ def diagnosticar(ruta, muestras=MUESTRAS_POR_DEFECTO, carpeta="evidencias"):
         return
 
     cam = Camera(ruta, espejo=False, verificar=True)
-    tracker = PoseTracker(model_path='pose_landmarker_full.task')
+    tracker = PoseTracker()
     os.makedirs(carpeta, exist_ok=True)
 
     ancho, alto = cam.resolucion

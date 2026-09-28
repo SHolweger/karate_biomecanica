@@ -263,6 +263,34 @@ atacaría a la vez la guardia y el arrastre hacia 90°. **No está comprobado qu
 funcione mejor**: la Z de un modelo monocular es estimada. Hay que medirlo
 contra las grabaciones antes de afirmarlo.
 
+**El modelo y la base de datos no comparten ubicación, y es a propósito**
+(30-sep-2026). Las dos rutas eran relativas —`'pose_landmarker_full.task'` en
+seis módulos y `'karate_sistema.db'` en uno—, y una ruta relativa se resuelve
+contra el **directorio de trabajo**. Eso funciona mientras se lance
+`python3 main.py` desde la carpeta del proyecto, y deja de funcionar al
+empaquetar: un `.command` abierto con doble clic arranca en la carpeta personal
+del usuario, y PyInstaller descomprime sus datos en una carpeta temporal
+distinta en cada arranque. `rutas.py` (raíz, puro, corre en CI) las resuelve:
+
+- **El modelo es parte del programa**: se instala con él, no cambia, y en un
+  ejecutable congelado vive dentro del paquete, que es de solo lectura. Si
+  falta, se lanza `ModeloNoEncontrado` nombrando el archivo y la carpeta donde
+  se buscó, en vez de dejar que MediaPipe informe un error que no lo menciona.
+- **La base de datos es del usuario**: se escribe en cada sesión y tiene que
+  sobrevivir a reinstalar. Dentro del paquete, la siguiente versión la borraría
+  con todas las mediciones, así que va a la carpeta de datos del sistema
+  (`~/Library/Application Support/ShotokanAI` en macOS).
+
+**Con una excepción que evita perder el historial:** si ya existe una base
+junto al código, se sigue usando esa. Todo el desarrollo escribió en
+`karate_sistema.db` dentro del repositorio —no está versionada, vive solo en la
+Mac de Sebastián— y moverla en silencio dejaría el historial huérfano sin que
+nada avisara hasta ver la lista de alumnos vacía. Migrar es decisión suya.
+
+`SHOTOKAN_MODELO` y `SHOTOKAN_BD` mandan sobre todo lo demás: sirven para las
+pruebas, para una base compartida en el dojo y para mover los datos sin tocar
+el código.
+
 **El texto técnico del diagnóstico es el registro; la instrucción es aparte.**
 `gui/coaching.py` traduce «TSUKI: HIPEREXTENDIDO» a «No bloquees el codo al
 impacto». El texto técnico no se cambia porque es la clave con la que la base
@@ -384,12 +412,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 774 passed |
-| CI / sin entorno gráfico | igual | 632 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 780 passed |
+| CI / sin entorno gráfico | igual | 638 passed, 10 skipped |
 
-El 632 está medido en el contenedor. El 774 es aritmética sobre dos cifras
-medidas —765 confirmadas en su Mac el 29-sep más las 9 pruebas del aviso de
-encuadre, unitarias y por tanto válidas en los dos entornos—, **pendiente de
+El 638 está medido en el contenedor. El 780 es aritmética sobre dos cifras
+medidas —774 confirmadas en su Mac el 30-sep más las 6 pruebas de resolución
+de rutas, unitarias y por tanto válidas en los dos entornos—, **pendiente de
 confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
@@ -400,7 +428,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-054**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-055**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

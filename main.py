@@ -119,7 +119,7 @@ def main_consola(fuente_pedida=None):
         db.close()
         return
     print(f"Fuente de video: {describir(fuente)}")
-    tracker = PoseTracker(model_path='pose_landmarker_full.task')
+    tracker = PoseTracker()
     renderer = SkeletonRenderer()
     reglas = KarateRules(db.cargar_umbrales_vigentes())
     analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65, reglas=reglas)

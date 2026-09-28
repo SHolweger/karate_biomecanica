@@ -36,7 +36,7 @@ COLOR_FILTRADO = (214, 120, 42)
 def capturar(source):
     """Bucle de cámara: calcula ángulo crudo y filtrado del codo y los registra."""
     cam = Camera(source=source)
-    tracker = PoseTracker(model_path='pose_landmarker_full.task')
+    tracker = PoseTracker()
     filtro = MovingAverageFilter(window=5)  # misma configuración que producción
 
     registros = []  # (t_segundos, angulo_crudo, angulo_filtrado)

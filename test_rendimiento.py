@@ -59,7 +59,7 @@ ETAPAS = ["captura", "estimacion_pose", "analisis", "renderizado", "despliegue"]
 
 def medir(fuente, n_fotogramas, desde_s=0.0, con_ventana=True):
     cam = Camera(source=fuente)
-    tracker = PoseTracker(model_path='pose_landmarker_full.task')
+    tracker = PoseTracker()
     renderer = SkeletonRenderer()
     analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65)
     monitor = PerformanceMonitor(descartar_iniciales=5)

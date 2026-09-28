@@ -2,6 +2,8 @@ import sqlite3
 import hashlib
 from datetime import datetime, timedelta
 
+from rutas import base_de_datos as ruta_de_la_base
+
 
 class Database:
     """
@@ -10,8 +12,12 @@ class Database:
     dojo corriendo en un solo equipo (Edge Computing, ver RNF-02).
     """
 
-    def __init__(self, db_path="karate_sistema.db"):
-        self.conn = sqlite3.connect(db_path)
+    def __init__(self, db_path=None):
+        # Sin ruta declarada la decide rutas.py, que respeta una base ya
+        # existente junto al codigo antes de crear una nueva en la carpeta de
+        # datos del sistema: actualizar el programa no puede dejar huerfano el
+        # historial de mediciones.
+        self.conn = sqlite3.connect(db_path or ruta_de_la_base())
         self.conn.row_factory = sqlite3.Row  # permite acceder a columnas por nombre, ej. fila["nombre"]
         self._crear_tablas()
 

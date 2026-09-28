@@ -368,7 +368,7 @@ class LiveScreen(ctk.CTkFrame):
         self.estado_var.set("")
         self.cam = self._cam_inyectada if self._cam_inyectada is not None \
             else Camera(fuente_configurada(self.db))
-        self.tracker = PoseTracker(model_path='pose_landmarker_full.task')
+        self.tracker = PoseTracker()
         self.renderer = SkeletonRenderer()
         # Umbrales vigentes desde la base de datos (RF-08), no constantes de código.
         self.analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65,
