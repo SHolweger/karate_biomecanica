@@ -167,6 +167,29 @@ Dos banderas nuevas, y las dos nacieron de mediciones equivocadas:
   cifras diciendo cuál es cuál — y medir la interfaz aparte antes de afirmar
   nada sobre el RF-01.
 
+**El RF-01 depende de qué se mida, y hay tres cifras distintas**
+(medido en la Mac de Sebastián el 27-sep, sobre grabación de 1080×1920 a 60 fps,
+descartando los primeros 10 s):
+
+| Qué se mide | Herramienta | fps sostenidos |
+|---|---|---|
+| Encadenamiento de análisis, sin ventana | `test_rendimiento.py --sin-ventana` | **44,1** ✓ |
+| Encadenamiento + ventana de OpenCV | `test_rendimiento.py` | 22,0 ✗ |
+| **La interfaz real** | `test_rendimiento_interfaz.py` | *pendiente en su equipo* |
+
+La ventana de OpenCV es de depuración y el dojo no la usa, así que la cifra de
+22,0 no describe el producto — pero la de 44,1 tampoco, porque la interfaz hace
+cosas que esa medición no incluye: convertir el fotograma a imagen de
+CustomTkinter, refrescar métricas y panel, escribir en SQLite y **grabar el video
+crudo**. En el contenedor de desarrollo (Xvfb, mucho más lento que un M1) la
+interfaz dio 15,2 fps con `grabacion` costando 10 ms por fotograma y
+`despliegue` 21,8. Esas cifras no son las de su equipo; lo que vale es que la
+herramienta ya permite medirlo donde importa.
+
+**La cifra que va a la tesis es la de la interfaz**, porque es la que el dojo
+ejecuta. Antes de tocar el requisito conviene mirar si la grabación de sesión
+—que se puede apagar por equipo— es lo que lo hunde.
+
 **Encuadre bueno medido el 29-sep**: sobre una grabación con el ejecutante de
 cuerpo completo, la detección de pose es del **98 %** y la visibilidad media de
 las rodillas de **0,95–0,98**; el codo derecho baja a 0,75 (79 % sobre el

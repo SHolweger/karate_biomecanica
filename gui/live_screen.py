@@ -61,13 +61,27 @@ class LiveScreen(ctk.CTkFrame):
     # bloque de sensores arranca desplegado (RF-02, RF-04).
     SENSORES_DISPONIBLES = False
 
-    def __init__(self, master, db, entrenador, atleta=None, cam=None, app=None):
+    def __init__(self, master, db, entrenador, atleta=None, cam=None, app=None,
+                 monitor=None):
         super().__init__(master, fg_color=theme.FONDO)
         # `master` es el contenedor donde se dibuja; `app` resuelve la navegación.
         self.master_app = app if app is not None else master
         self.db = db
         self.entrenador = entrenador
         self.atleta = atleta
+
+        # Instrumentación opcional (RNF-01, RF-01). Sin monitor, el bucle no
+        # paga nada: ni una llamada al reloj. Se inyecta desde fuera, y no se
+        # enciende desde la propia pantalla, para que medir no sea una
+        # funcionalidad del producto sino algo que una herramienta externa le
+        # pide — ver test_rendimiento_interfaz.py.
+        #
+        # Existe porque `test_rendimiento.py` mide el encadenamiento de análisis
+        # con una ventana de OpenCV, y esa ventana no es la que usa el dojo. La
+        # interfaz real convierte el fotograma a imagen de CustomTkinter,
+        # refresca las métricas articulares y el panel de correcciones, y escribe
+        # en la base: etapas que aquella medición no incluye.
+        self.monitor = monitor
 
         self.alumnos = db.listar_atletas()
         self.id_sesion = None
@@ -370,7 +384,12 @@ class LiveScreen(ctk.CTkFrame):
         if not self._activo:
             return
 
+        if self.monitor is not None:
+            self.monitor.iniciar_frame()
+
         frame = self.cam.get_frame()
+        if self.monitor is not None:
+            self.monitor.marcar("captura")
         if frame is not None:
             # La marca la da la fuente, no el reloj de pared. Con una cámara
             # en vivo ambas coinciden; con una grabación no, y usar el reloj
@@ -385,8 +404,13 @@ class LiveScreen(ctk.CTkFrame):
             # cocidas dentro de la evidencia.
             if self.grabador is not None:
                 self.grabador.escribir(frame, timestamp_ms)
+            if self.monitor is not None:
+                self.monitor.marcar("grabacion")
 
             result = self.tracker.process_frame(frame, timestamp_ms)
+            if self.monitor is not None:
+                self.monitor.marcar("estimacion_pose")
+
             frame = self.renderer.draw(frame, result.pose_landmarks)
 
             if result.pose_landmarks:
@@ -396,16 +420,30 @@ class LiveScreen(ctk.CTkFrame):
                     self.analyzer.analyze_stance(landmarks, w, h),
                     self.analyzer.analyze_mae_geri(landmarks, w, h, timestamp_ms),
                 ]
+                if self.monitor is not None:
+                    self.monitor.marcar("analisis")
+
                 for diagnostico in diagnosticos:
                     frame = self.renderer.draw_diagnostics(frame, diagnostico)
+                if self.monitor is not None:
+                    self.monitor.marcar("renderizado")
+
+                for diagnostico in diagnosticos:
                     self.logger_mediciones.registrar(diagnostico, timestamp_ms)
+                if self.monitor is not None:
+                    self.monitor.marcar("persistencia")
 
                 if self.feed.registrar(diagnosticos, timestamp_ms):
                     self._pintar_correcciones()
                 self._refrescar_metricas(diagnosticos)
+            if self.monitor is not None:
+                self.monitor.marcar("panel")
 
             if not self._mostrar_frame(frame):
                 return
+            if self.monitor is not None:
+                self.monitor.marcar("despliegue")
+                self.monitor.cerrar_frame()
 
         self._after_id = self.after(self.INTERVALO_MS, self._actualizar_frame)
 

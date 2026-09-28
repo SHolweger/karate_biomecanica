@@ -133,7 +133,15 @@ def medir(fuente, n_fotogramas, desde_s=0.0, con_ventana=True):
     return monitor
 
 
-def reportar(monitor, carpeta="evidencias"):
+def reportar(monitor, carpeta="evidencias", etapas=None):
+    """
+    Emite el CSV, la gráfica y el veredicto de una corrida.
+
+    `etapas` permite reutilizar este reporte desde otra medición con etapas
+    distintas —la interfaz real tiene grabación, persistencia y panel, que la
+    consola no—, sin duplicar el formato de la evidencia.
+    """
+    ETAPAS_MEDIDAS = etapas or ETAPAS
     total = monitor.resumen_total()
     fps = monitor.resumen_fps()
     etapas = monitor.resumen_etapas()
@@ -147,7 +155,7 @@ def reportar(monitor, carpeta="evidencias"):
 
     # ---- CSV con el detalle por fotograma ----
     ruta_csv = os.path.join(carpeta, f"rendimiento_{sello}.csv")
-    presentes = [e for e in ETAPAS if e in monitor.etapas]
+    presentes = [e for e in ETAPAS_MEDIDAS if e in monitor.etapas]
     with open(ruta_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["fotograma"] + [f"{e}_ms" for e in presentes] + ["total_ms"])
