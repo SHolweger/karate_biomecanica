@@ -175,8 +175,30 @@ Kiba no dependen de la guardia y siguen evaluándose — es exactamente lo que
 Sebastián observó en el dojo: esas dos salían perfectas mientras Zenkutsu
 fallaba.
 
-**Lo que esto NO arregla:** si la toma es frontal y MediaPipe estima la
-profundidad con el signo cambiado de forma sostenida, la proyección saldrá
+**Y el signo del eje estuvo invertido un día** (29-sep-2026). La primera
+versión dedujo el sentido de «adelante» de `tests/helpers/fakes.py`, que
+colocaba el landmark 24 —la cadera DERECHA anatómica— en x=0,58, la mitad
+derecha de la pantalla. MediaPipe lo pone en la izquierda: medido sobre
+grabación real, cadera 24 en **x=0,461** y cadera 23 en **x=0,579**. El doble
+espejaba el cuerpo entero, y como el código y las pruebas compartían el mismo
+supuesto falso, **las 764 pruebas confirmaban el error en vez de encontrarlo**.
+El sentido correcto sale de la anatomía y no del doble: con el eje vertical de
+la imagen hacia abajo, `izquierda = arriba × adelante`, y despejando queda
+`adelante ∝ (-hz, hx)`.
+
+Lo delató una grabación real, no la suite: sobre 3190 fotogramas de Zenkutsu,
+0,0 % de aciertos y **20,0 % al invertir la guardia**. Corregido el doble, el
+signo viejo rompe siete pruebas, entre ellas la que dice
+`'IZQ ADELANTE' in 'KOKUTSU (DER ADELANTE)'`.
+
+La lección general, que vale más que el arreglo: **un doble de prueba que no
+reproduce el convenio de los datos reales no verifica, ratifica**. Cualquier
+doble nuevo tiene que declarar de dónde salen sus cifras, y hay una guarda
+—`test_el_doble_de_prueba_coloca_el_cuerpo_como_lo_hace_mediapipe`— que fija
+esta en concreto.
+
+**Lo que la abstención NO arregla:** si la toma es frontal y MediaPipe estima
+la profundidad con el signo cambiado de forma sostenida, la proyección saldrá
 grande y con el sentido incorrecto. El remedio de ese caso es de protocolo, no
 numérico. Ver el punto siguiente.
 
@@ -340,13 +362,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 764 passed |
-| CI / sin entorno gráfico | igual | 622 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 765 passed |
+| CI / sin entorno gráfico | igual | 623 passed, 10 skipped |
 
-El 622 está medido en el contenedor. El 764 es aritmética sobre dos cifras
-medidas —759 confirmadas en su Mac el 28-sep más las 5 pruebas del motivo de
-apertura, que son unitarias y corren en los dos entornos—, **pendiente de
-confirmar** en su equipo.
+El 623 está medido en el contenedor. El 765 es aritmética sobre dos cifras
+medidas —764 confirmadas en su Mac más la guarda del convenio de ejes—,
+**pendiente de confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a

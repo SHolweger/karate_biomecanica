@@ -100,12 +100,32 @@ def eje_sagital(cadera_izq, cadera_der):
     Devuelve `(vector_unitario, ancho_de_caderas)`, o `(None, 0.0)` si las dos
     caderas caen en el mismo punto y no hay línea que usar.
 
-    El sentido se elige de modo que el eje apunte hacia la cámara cuando la
-    persona está de frente, que es la convención que ya usaba el sistema
-    (menor z = más cerca del sensor). Esto arrastra una limitación conocida y
-    heredada: de espaldas, el eje se invierte. Con la toma de perfil que estas
-    posturas requieren el caso no se presenta, y detectarlo exigiría mirar la
-    cara, que no es lo que este módulo observa.
+    De las dos perpendiculares posibles hay que elegir una, y cuál es no es
+    cuestión de gusto: sale de la anatomía. Con el eje vertical de la imagen
+    apuntando hacia abajo, el costado izquierdo de una persona cumple
+    `izquierda = arriba × adelante`, y despejando queda
+
+        adelante ∝ (-hz, hx)
+
+    donde `h` es el vector de la cadera derecha anatómica (landmark 24) a la
+    izquierda (23). Se comprueba en los dos casos límite: de frente, las
+    caderas se separan solo en x con `hx < 0`, y el eje sale (0, -1), hacia la
+    cámara; de perfil se separan en profundidad y el eje sale horizontal, en el
+    sentido en que mira la persona.
+
+    **Esto estaba al revés hasta el 29-sep-2026**, y el signo equivocado no lo
+    delató ninguna prueba: se dedujo de `tests/helpers/fakes.py`, que coloca el
+    landmark 24 en x=0,58 —la mitad derecha de la pantalla— mientras que
+    MediaPipe lo pone en la izquierda. Medido sobre una grabación real: cadera
+    24 en x=0,461 y cadera 23 en x=0,579. El doble y el código compartían el
+    mismo supuesto falso, así que las pruebas confirmaban el error en lugar de
+    encontrarlo. El coste fue que un Zenkutsu se reportara como Kokutsu: con la
+    guardia invertida, la pierna estirada pasa por delantera y la flexionada
+    por trasera, que es exactamente la firma de la postura contraria.
+
+    Queda una limitación heredada: de espaldas a la cámara el eje se invierte,
+    porque la línea de caderas no distingue el frente del dorso. Detectarlo
+    exigiría mirar la cara, que no es lo que este módulo observa.
     """
     hx = cadera_izq[0] - cadera_der[0]
     hz = cadera_izq[1] - cadera_der[1]
@@ -113,10 +133,7 @@ def eje_sagital(cadera_izq, cadera_der):
     if ancho < ANCHO_DE_CADERA_MINIMO:
         return None, 0.0
 
-    # Perpendicular a la línea de caderas. De las dos perpendiculares posibles
-    # se toma (hz, -hx): con la persona de frente —caderas separadas solo en
-    # x— da (0, -|h|), es decir, hacia la cámara.
-    return (hz / ancho, -hx / ancho), ancho
+    return (-hz / ancho, hx / ancho), ancho
 
 
 def separacion_sagital(cadera_izq, cadera_der, tobillo_izq, tobillo_der):

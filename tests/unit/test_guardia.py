@@ -26,8 +26,14 @@ from reporte.plantilla import Paso as PasoFicha, Prioridad, TipoPrueba, ficha
 pytestmark = pytest.mark.unitaria
 
 # Persona de frente a la cámara: las dos caderas se separan solo en x.
-CADERA_IZQ_DE_FRENTE = (0.58, 0.0)
-CADERA_DER_DE_FRENTE = (0.42, 0.0)
+#
+# Las x son las de MediaPipe real, no las que parecen naturales al leer
+# "izquierda": el landmark 24 es la cadera DERECHA anatómica y en una persona
+# de frente cae en la mitad IZQUIERDA de la imagen. Medido sobre grabación:
+# cadera 24 en x=0,461 y cadera 23 en x=0,579. Escribirlas al revés fue el
+# origen de la guardia invertida del 28-sep-2026.
+CADERA_IZQ_DE_FRENTE = (0.42, 0.0)    # landmark 24
+CADERA_DER_DE_FRENTE = (0.58, 0.0)    # landmark 23
 ANCHO_DE_CADERA = 0.16
 
 # La misma persona vista de perfil: ahora las caderas se separan en
@@ -39,6 +45,30 @@ CADERA_DER_DE_PERFIL = (0.50, 0.08)
 # ---------------------------------------------------------------------------
 # El eje sagital
 # ---------------------------------------------------------------------------
+
+def test_el_doble_de_prueba_coloca_el_cuerpo_como_lo_hace_mediapipe():
+    """
+    La guarda que faltaba, y sin la cual nada de lo de abajo significa nada.
+
+    `pose_sintetica` y este módulo declaran dónde cae cada landmark. Si esa
+    declaración no coincide con lo que MediaPipe produce, el sistema y sus
+    pruebas comparten el mismo supuesto falso y las pruebas dejan de ser
+    capaces de encontrar el error: lo confirman. Fue exactamente lo que pasó
+    con la guardia invertida, que 764 pruebas dieron por buena.
+
+    Medido sobre grabación real: cadera 24 en x=0,461, cadera 23 en x=0,579.
+    """
+    from helpers.fakes import CADERA_DER, CADERA_IZQ, pose_sintetica
+
+    landmarks = pose_sintetica()
+
+    assert landmarks[CADERA_IZQ].x < landmarks[CADERA_DER].x, (
+        "el landmark 24 es la cadera derecha anatómica y cae a la IZQUIERDA de "
+        "la pantalla; colocarlo al otro lado espeja el cuerpo sintético y "
+        "falsea todo lo que dependa del eje izquierda/derecha")
+    assert CADERA_IZQ_DE_FRENTE[0] < CADERA_DER_DE_FRENTE[0], \
+        "las coordenadas de este módulo siguen el mismo convenio"
+
 
 def test_de_frente_el_eje_sagital_apunta_a_la_camara():
     """
@@ -89,20 +119,20 @@ def test_la_separacion_no_depende_de_la_distancia_a_la_camara():
     sensor esté el ejecutante, y habría que recalibrarlo en cada dojo.
     """
     cerca = separacion_sagital(CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE,
-                               (0.58, -0.16), (0.42, 0.16))
+                               (0.42, -0.16), (0.58, 0.16))
 
     # La misma postura a media distancia: todo el cuerpo a la mitad de escala.
-    lejos = separacion_sagital((0.54, 0.0), (0.46, 0.0),
-                               (0.54, -0.08), (0.46, 0.08))
+    lejos = separacion_sagital((0.46, 0.0), (0.54, 0.0),
+                               (0.46, -0.08), (0.54, 0.08))
 
     assert cerca == pytest.approx(lejos)
 
 
 def test_el_signo_dice_cual_pierna_va_adelante():
     adelante_la_izquierda = separacion_sagital(
-        CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE, (0.58, -0.3), (0.42, 0.3))
+        CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE, (0.42, -0.3), (0.58, 0.3))
     adelante_la_derecha = separacion_sagital(
-        CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE, (0.58, 0.3), (0.42, -0.3))
+        CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE, (0.42, 0.3), (0.58, -0.3))
 
     assert adelante_la_izquierda > 0
     assert adelante_la_derecha < 0
@@ -156,20 +186,20 @@ def test_sin_separacion_suficiente_la_guardia_queda_sin_definir():
     que hasta ahora se tomaba siempre, tuviera o no fundamento.
     """
     pies_juntos = separacion_sagital(CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE,
-                                     (0.58, 0.0), (0.42, 0.0))
+                                     (0.42, 0.0), (0.58, 0.0))
     assert pies_juntos == pytest.approx(0.0)
     assert pierna_adelantada(pies_juntos) is None
 
     # Justo por debajo del mínimo: el ruido de la profundidad vive aquí.
     apenas = (SEPARACION_MINIMA_EN_CADERAS - 0.01) * ANCHO_DE_CADERA
     casi_nada = separacion_sagital(CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE,
-                                   (0.58, -apenas), (0.42, 0.0))
+                                   (0.42, -apenas), (0.58, 0.0))
     assert pierna_adelantada(casi_nada) is None
 
     # Y una postura adelantada de verdad SÍ se decide, para que la abstención
     # anterior no sea la de un comprobador que nunca se pronuncia.
     real = separacion_sagital(CADERA_IZQ_DE_FRENTE, CADERA_DER_DE_FRENTE,
-                              (0.58, -0.3), (0.42, 0.3))
+                              (0.42, -0.3), (0.58, 0.3))
     assert pierna_adelantada(real) == IZQ_ADELANTE
 
 

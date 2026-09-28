@@ -115,13 +115,27 @@ def pose_sintetica(angulo_codo_izq=175.0, angulo_codo_der=175.0,
 
     landmarks = [LandmarkFalso(0.5, 0.5, visibility=visibilidad) for _ in range(NUM_LANDMARKS)]
 
-    _colocar_articulacion(landmarks, BRAZO_IZQ_VISUAL, (0.62, 0.40), angulo_codo_izq,
+    # Las x son las que MediaPipe produce de verdad, no las que parecen
+    # naturales al leer "izquierdo". Los landmarks 12/24 son el hombro y la
+    # cadera DERECHOS anatómicos, y en una persona de frente el costado derecho
+    # cae en la mitad IZQUIERDA de la imagen: por eso van en 0,38 y 0,42 y no
+    # al otro lado. El analizador los llama "izq visual" precisamente porque
+    # aparecen a la izquierda de la pantalla.
+    #
+    # Hasta el 29-sep-2026 estaban intercambiados, y el cuerpo sintético salía
+    # espejado respecto del real. No rompía ninguna prueba de ángulos —el
+    # ángulo de un codo no cambia al reflejarlo— pero sí falseaba todo lo que
+    # dependiera del eje izquierda/derecha. De ahí se dedujo, y se dio por
+    # buena, la guardia invertida de expert_system/guardia.py.
+    #
+    # Medido sobre grabación real: cadera 24 en x=0,461 y cadera 23 en x=0,579.
+    _colocar_articulacion(landmarks, BRAZO_IZQ_VISUAL, (0.38, 0.40), angulo_codo_izq,
                           visibilidad=vis_brazos)
-    _colocar_articulacion(landmarks, BRAZO_DER_VISUAL, (0.38, 0.40), angulo_codo_der,
+    _colocar_articulacion(landmarks, BRAZO_DER_VISUAL, (0.62, 0.40), angulo_codo_der,
                           visibilidad=vis_brazos)
-    _colocar_articulacion(landmarks, PIERNA_IZQ_VISUAL, (0.58, 0.70), angulo_rodilla_izq,
+    _colocar_articulacion(landmarks, PIERNA_IZQ_VISUAL, (0.42, 0.70), angulo_rodilla_izq,
                           visibilidad=vis_piernas)
-    _colocar_articulacion(landmarks, PIERNA_DER_VISUAL, (0.42, 0.70), angulo_rodilla_der,
+    _colocar_articulacion(landmarks, PIERNA_DER_VISUAL, (0.58, 0.70), angulo_rodilla_der,
                           visibilidad=vis_piernas)
 
     # Altura del tobillo (pie en el suelo ~0.9, pie en el aire ~0.5): la pierna
