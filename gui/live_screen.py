@@ -1,4 +1,5 @@
 import os
+import time
 import tkinter
 
 import cv2
@@ -11,7 +12,7 @@ from expert_system.knowledge_base import KarateRules
 from gui import theme
 from gui import coaching
 from gui.camara_screen import fuente_configurada
-from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
+from gui.panel_vivo import (FeedCorrecciones, espera_hasta_el_siguiente, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
@@ -384,6 +385,7 @@ class LiveScreen(ctk.CTkFrame):
         if not self._activo:
             return
 
+        inicio = time.perf_counter()
         if self.monitor is not None:
             self.monitor.iniciar_frame()
 
@@ -445,7 +447,11 @@ class LiveScreen(ctk.CTkFrame):
                 self.monitor.marcar("despliegue")
                 self.monitor.cerrar_frame()
 
-        self._after_id = self.after(self.INTERVALO_MS, self._actualizar_frame)
+        # Se descuenta lo que este fotograma ya costó: reprogramar con el
+        # intervalo entero lo sumaba al trabajo en vez de solaparlo.
+        espera = espera_hasta_el_siguiente(self.INTERVALO_MS,
+                                           (time.perf_counter() - inicio) * 1000)
+        self._after_id = self.after(espera, self._actualizar_frame)
 
     def _escalar(self, ancho, alto):
         """
@@ -470,9 +476,17 @@ class LiveScreen(ctk.CTkFrame):
 
     def _mostrar_frame(self, frame):
         """Vuelca el fotograma en la etiqueta. Devuelve False si la ventana murió."""
+        alto, ancho = frame.shape[:2]
+        destino = self._escalar(ancho, alto)
+        # Se reduce ANTES de convertir. El fotograma llega a 2 MP y se dibuja en
+        # menos de 0,25: convertir los 2 MP a imagen de CustomTkinter para que
+        # ella los reduzca después cuesta unos 14 ms por fotograma que no
+        # compran nada — medido el 28-sep-2026, 20,1 ms contra 5,9. A 30 fps eso
+        # es casi medio presupuesto gastado en píxeles que nadie ve.
+        frame = cv2.resize(frame, destino, interpolation=cv2.INTER_AREA)
         imagen_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         imagen_ctk = ctk.CTkImage(light_image=imagen_pil, dark_image=imagen_pil,
-                                  size=self._escalar(imagen_pil.width, imagen_pil.height))
+                                  size=destino)
         try:
             # Puede fallar si el usuario cerró la ventana justo entre el inicio de
             # este método (lectura de cámara + MediaPipe, que toma tiempo real) y

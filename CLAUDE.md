@@ -167,6 +167,27 @@ Dos banderas nuevas, y las dos nacieron de mediciones equivocadas:
   cifras diciendo cuál es cuál — y medir la interfaz aparte antes de afirmar
   nada sobre el RF-01.
 
+**Dos fugas de rendimiento de la interfaz, medidas y corregidas**
+(28-sep-2026). La medición sobre la interfaz real en la Mac dio 18,1 fps, pero
+las etapas sumaban 39,8 ms —25 fps—. Los 15,3 ms de diferencia eran exactamente
+`INTERVALO_MS`:
+
+1. **El bucle sumaba el intervalo al trabajo en vez de solaparlo.** Se
+   reprogramaba con `after(15)` *después* de terminar todo. Ahora descuenta lo
+   gastado (`espera_hasta_el_siguiente` en `gui/panel_vivo.py`, puro y probado
+   en CI). Nunca devuelve cero: sin un hueco, Tk no atiende los clics y el
+   instructor no puede pulsar «Terminar sesión».
+2. **Se convertían 2 MP para dibujarlos en 0,25.** `_mostrar_frame` pasaba el
+   fotograma entero a `CTkImage` y dejaba que CustomTkinter lo redujera. Ahora
+   se reduce con `cv2.resize` antes de convertir: medido, 20,1 ms → 5,9.
+
+En el contenedor: **15,2 → 28,4 fps**. Proyección para la Mac: ~33 fps, que
+cumpliría el RF-01 — **falta confirmarlo en su equipo**.
+
+Y una hipótesis mía que los datos desmintieron: supuse que la grabación de
+sesión era la culpable porque aquí costaba 10 ms. En la Mac cuesta **2,2 ms**.
+No era eso.
+
 **El RF-01 depende de qué se mida, y hay tres cifras distintas**
 (medido en la Mac de Sebastián el 27-sep, sobre grabación de 1080×1920 a 60 fps,
 descartando los primeros 10 s):

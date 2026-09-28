@@ -43,6 +43,25 @@ ELIGE_ALUMNO = "Elige un alumno"
 SIN_ALUMNOS = "Sin alumnos registrados"
 
 
+def espera_hasta_el_siguiente(intervalo_ms, gastado_ms):
+    """
+    Cuánto esperar antes del próximo fotograma, descontando lo ya gastado.
+
+    El bucle del análisis en vivo se reprograma con `after(INTERVALO_MS)`
+    **después** de haber hecho todo el trabajo, así que el período real era
+    `trabajo + intervalo`. Medido en la Mac el 27-sep-2026: las etapas sumaban
+    39,8 ms por fotograma y el período observado era 55,1 — los 15 ms del
+    intervalo se sumaban enteros en vez de solaparse. Eso son 18,1 fps donde
+    había 25 disponibles, un tercio de la tasa regalado a esperar.
+
+    El intervalo existe para no acaparar el ciclo de eventos de Tk cuando el
+    análisis va más rápido que él; cuando va más lento, esperar además no
+    protege nada. Nunca devuelve cero: dejar respirar al ciclo de eventos es lo
+    que mantiene la ventana receptiva a los clics del instructor.
+    """
+    return max(1, int(round(intervalo_ms - gastado_ms)))
+
+
 def etiqueta_alumno(atleta, nombres):
     """
     Qué dice el selector de alumno según el estado de la medición.
