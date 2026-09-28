@@ -42,7 +42,9 @@ from biomechanics.geometry import BiomechanicsMath
 from expert_system.analyzer import (KOKUTSU_FRONTAL_MINIMA, KOKUTSU_TRASERA_MAXIMA,
                                     RODILLA_EXTENDIDA, RODILLA_FLEXIONADA,
                                     ZENKUTSU_TRASERA_MINIMA)
-from expert_system.guardia import IZQ_ADELANTE, pierna_adelantada, separacion_sagital
+from expert_system.guardia import (DER_ADELANTE, IZQ_ADELANTE,
+                                   orientacion_frente_a_camara,
+                                   pierna_adelantada, separacion_sagital)
 
 # Mismo mapeo de espejo que usa `analyze_stance`: los índices "izquierdos" son
 # los del lado derecho anatómico, para que coincidan con lo que el usuario ve.
@@ -110,6 +112,13 @@ def _guardia_de(puntos):
         (puntos[TOBILLO_DER].x, puntos[TOBILLO_DER].z)))
 
 
+def _invertir(guardia):
+    """La guardia contraria. None sigue siendo None: no hay nada que invertir."""
+    if guardia is None:
+        return None
+    return DER_ADELANTE if guardia == IZQ_ADELANTE else IZQ_ADELANTE
+
+
 def _estadisticas(serie):
     if not serie:
         return None
@@ -134,6 +143,14 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     izq_2d, der_2d, izq_3d, der_3d = [], [], [], []
     diferencias = []
     clasifica_2d, clasifica_3d = Counter(), Counter()
+    # Con la guardia al revés: si la postura declarada aparece aquí y no en la
+    # clasificación normal, el fallo no es de medida sino de signo.
+    clasifica_invertida = Counter()
+    orientaciones = []
+    # x de las dos caderas, para leer sobre datos REALES cuál landmark cae a la
+    # izquierda de la pantalla. El doble de prueba lo supone al revés que
+    # MediaPipe, y de ese supuesto salió el signo del eje sagital.
+    x_cadera_24, x_cadera_23 = [], []
     leidos = analizados = sin_pose = sin_mundo = 0
 
     try:
@@ -178,8 +195,16 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
             # La guardia de cada método sale de SUS propias coordenadas: en 2D
             # de la z normalizada de los landmarks de imagen, en 3D de la z
             # métrica. Compararlas es parte de lo que se quiere saber.
-            clasifica_2d[_clasificar(a2_izq, a2_der, _guardia_de(landmarks))] += 1
+            guardia_2d = _guardia_de(landmarks)
+            clasifica_2d[_clasificar(a2_izq, a2_der, guardia_2d)] += 1
             clasifica_3d[_clasificar(a3_izq, a3_der, _guardia_de(mundo))] += 1
+            clasifica_invertida[_clasificar(a2_izq, a2_der, _invertir(guardia_2d))] += 1
+
+            orientaciones.append(orientacion_frente_a_camara(
+                (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
+                (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z)))
+            x_cadera_24.append(landmarks[CADERA_IZQ].x)
+            x_cadera_23.append(landmarks[CADERA_DER].x)
             analizados += 1
 
             if analizados % 100 == 0:
@@ -195,6 +220,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                     "der 2D": der_2d, "der 3D": der_3d},
         "diferencias": diferencias,
         "clasifica_2d": clasifica_2d, "clasifica_3d": clasifica_3d,
+        "clasifica_invertida": clasifica_invertida,
+        "orientaciones": orientaciones,
+        "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
         "esperado": esperado,
     }
 
@@ -206,6 +234,31 @@ def informar(r):
               f"sin coordenadas 3D: {r['sin_mundo']}")
         print("Si 'sin pose' es alto, revisa el encuadre con diagnostico_video.py.")
         return
+
+    orientaciones = r["orientaciones"]
+    o = _estadisticas(orientaciones)
+    de_frente = sum(1 for v in orientaciones if v > 0.80)
+    de_perfil = sum(1 for v in orientaciones if v < 0.50)
+    total = r["analizados"]
+    print(f"\n=== CÓMO SE GRABÓ ({total} fotogramas) ===")
+    print(f"  orientación media: {o['media']:.2f}   (1,00 = de frente, 0,00 = de perfil)")
+    print(f"  fotogramas de frente (>0,80): {de_frente:5d} ({100*de_frente/total:3.0f}%)")
+    print(f"  fotogramas de perfil (<0,50): {de_perfil:5d} ({100*de_perfil/total:3.0f}%)")
+    print("  Zenkutsu, Kokutsu, Tsuki y Mae Geri ocurren en el plano sagital y")
+    print("  quieren perfil. Heiko y Kiba son frontales.")
+
+    x24 = _estadisticas(r["x_cadera_24"])["mediana"]
+    x23 = _estadisticas(r["x_cadera_23"])["mediana"]
+    print(f"\n=== CONVENIO DE EJES (medido, no supuesto) ===")
+    print(f"  x mediana de la cadera 24: {x24:.3f}")
+    print(f"  x mediana de la cadera 23: {x23:.3f}")
+    if x24 < x23:
+        print("  El landmark 24 cae a la IZQUIERDA de la pantalla.")
+        print("  Los dobles de prueba lo colocan al revés (24 en x=0,58), así que")
+        print("  el signo del eje sagital deducido de ellos queda INVERTIDO aquí.")
+    else:
+        print("  El landmark 24 cae a la DERECHA de la pantalla, como suponen los")
+        print("  dobles de prueba.")
 
     print(f"\n=== ÁNGULOS DE RODILLA ({r['analizados']} fotogramas) ===")
     print(f"{'Serie':10s} {'media':>8s} {'mediana':>9s} {'P5':>8s} {'P95':>8s}")
@@ -236,18 +289,32 @@ def informar(r):
     if esperado:
         acierto_2d = 100 * r["clasifica_2d"][esperado] / total
         acierto_3d = 100 * r["clasifica_3d"][esperado] / total
+        invertida = 100 * r["clasifica_invertida"][esperado] / total
+
         print(f"\n=== ACIERTO SOBRE LA POSTURA DECLARADA ({esperado}) ===")
-        print(f"  midiendo en 2D: {acierto_2d:5.1f} %")
-        print(f"  midiendo en 3D: {acierto_3d:5.1f} %")
-        if acierto_3d > acierto_2d + 10:
+        print(f"  midiendo en 2D:                        {acierto_2d:5.1f} %")
+        print(f"  midiendo en 3D:                        {acierto_3d:5.1f} %")
+        print(f"  en 2D pero con la GUARDIA INVERTIDA:   {invertida:5.1f} %")
+
+        # El orden importa: si invertir la guardia recupera la postura, discutir
+        # 2D contra 3D es discutir el decorado. Se dice primero.
+        if invertida > max(acierto_2d, acierto_3d) + 10:
+            print("\n  La postura aparece al invertir qué pierna va adelante.")
+            print("  El fallo NO es de medida ni de plano: es de SIGNO en la guardia.")
+            print("  Ni cambiar a 3D ni volver a grabar lo arreglarían.")
+        elif acierto_3d > acierto_2d + 10:
             print("\n  Las coordenadas 3D reconocen la postura bastante mejor.")
         elif acierto_2d > acierto_3d + 10:
             print("\n  La medida 2D reconoce mejor: la profundidad estimada empeora")
             print("  el análisis en esta grabación. Conviene no adoptarla.")
+        elif max(acierto_2d, acierto_3d, invertida) < 5:
+            print("\n  Ninguna de las tres reconoce la postura. No es el plano ni el")
+            print("  signo: revisa los cortes del clasificador contra los ángulos de")
+            print("  arriba, porque la postura declarada no cabe en ninguna rama.")
         else:
-            print("\n  Empate. Con esta grabación el cambio no se justifica;")
-            print("  convendría repetirlo sobre una toma de frente, que es donde")
-            print("  la proyección 2D más deforma.")
+            print("\n  Empate entre 2D y 3D. Con esta grabación el cambio no se")
+            print("  justifica.")
+
         print("\n  Cuidado: esto compara contra lo DECLARADO en --esperado, así que")
         print("  solo vale si el video contiene esa postura y poco más. Sobre una")
         print("  grabación con varias técnicas encadenadas, la cifra no significa nada.")
