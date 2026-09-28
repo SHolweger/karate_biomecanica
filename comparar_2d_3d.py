@@ -171,6 +171,10 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # una de las dos no aparece nunca, el problema esta en deducirla; si
     # aparece pero la postura no se reconoce, esta en medir esa pierna.
     guardia_global = Counter()
+    # Los dos angulos de rodilla, separados segun que guardia se dedujo. Es lo
+    # que dice si el problema esta en la guardia o en el angulo: con la
+    # izquierda adelante, la rodilla izquierda TIENE que ser la flexionada.
+    angulos_por_guardia = {}
     # Visibilidad media de cada pierna, y cuantos fotogramas se descartan por
     # no verse. Una pierna sistematicamente menos visible que la otra explica
     # que solo se reconozca una guardia.
@@ -238,6 +242,8 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                 (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z))
             guardia_global[guardia_2d or "indefinida"] += 1
+            angulos_por_guardia.setdefault(
+                guardia_2d or "indefinida", []).append((a2_izq, a2_der))
             if guardia_2d is not None:
                 guardia_de_la_postura[
                     (_clasificar(a2_izq, a2_der, guardia_2d), guardia_2d)] += 1
@@ -268,6 +274,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "orientaciones": orientaciones, "por_angulo": por_angulo,
         "guardia_de_la_postura": guardia_de_la_postura,
         "guardia_global": guardia_global,
+        "angulos_por_guardia": angulos_por_guardia,
         "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
         "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
@@ -315,9 +322,22 @@ def informar(r):
     for clave in (IZQ_ADELANTE, DER_ADELANTE, "indefinida"):
         n = g[clave]
         print(f"  {clave:16s} {n:6d} ({100*n/total if total else 0:3.0f}%)")
-    print("  Si una de las dos guardias no aparece NUNCA, el fallo esta en")
-    print("  deducirla. Si aparece pero la postura no se reconoce con ella, el")
-    print("  fallo esta en medir esa pierna.")
+    print(f"\n=== ANGULOS DE RODILLA SEGUN LA GUARDIA DEDUCIDA ===")
+    print(f"{'Guardia':16s} {'n':>6s} {'rodilla izq':>22s} {'rodilla der':>22s}")
+    print(f"{'':16s} {'':>6s} {'mediana   P5':>22s} {'mediana   P5':>22s}")
+    for clave in (IZQ_ADELANTE, DER_ADELANTE, "indefinida"):
+        muestras = r["angulos_por_guardia"].get(clave)
+        if not muestras:
+            continue
+        ei = _estadisticas([i for i, _ in muestras])
+        ed = _estadisticas([d for _, d in muestras])
+        print(f"{clave:16s} {len(muestras):6d} "
+              f"{ei['mediana']:13.1f} {ei['p5']:8.1f} "
+              f"{ed['mediana']:13.1f} {ed['p5']:8.1f}")
+    print("  Con una guardia declarada, la rodilla DELANTERA tiene que ser la")
+    print("  flexionada. Si con IZQ ADELANTE la que se dobla es la derecha, la")
+    print("  guardia esta mal en esos fotogramas; si no se dobla ninguna, no")
+    print("  hay postura que reconocer y son transiciones.")
 
     x24 = _estadisticas(r["x_cadera_24"])["mediana"]
     x23 = _estadisticas(r["x_cadera_23"])["mediana"]
