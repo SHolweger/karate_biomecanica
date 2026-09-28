@@ -248,8 +248,11 @@ los datos que se recojan de Zenkutsu, Kokutsu, Tsuki y Mae Geri filmados de
 frente serían inservibles y no habría tiempo de repetir la campaña.
 
 `guardia.orientacion_frente_a_camara()` mide esto (0 = de perfil, 1 = de
-frente) y está listo para el aviso de encuadre; **todavía no está conectado a
-la interfaz**.
+frente) y desde el 29-sep **alimenta el aviso de encuadre** de la pantalla en
+vivo (`vision/encuadre.py`, puro, corre en CI). El aviso es informativo y
+permanente, no condicionado a la técnica detectada: reconocer la técnica es
+justamente lo que falla cuando el plano está mal, así que esperar a saberla
+para avisar sería circular.
 
 **MediaPipe ya calcula coordenadas 3D y se están descartando** (28-sep-2026).
 `vision/tracker.py` devuelve el resultado completo, pero `live_screen.py` y
@@ -381,12 +384,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 765 passed |
-| CI / sin entorno gráfico | igual | 623 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 774 passed |
+| CI / sin entorno gráfico | igual | 632 passed, 10 skipped |
 
-El 623 está medido en el contenedor. El 765 es aritmética sobre dos cifras
-medidas —764 confirmadas en su Mac más la guarda del convenio de ejes—,
-**pendiente de confirmar** en su equipo.
+El 632 está medido en el contenedor. El 774 es aritmética sobre dos cifras
+medidas —765 confirmadas en su Mac el 29-sep más las 9 pruebas del aviso de
+encuadre, unitarias y por tanto válidas en los dos entornos—, **pendiente de
+confirmar** en su equipo.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -396,7 +400,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-053**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-054**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -595,22 +599,35 @@ conviene tenerlo firmado antes de la primera visita.
   media. MediaPipe infiere articulaciones ocultas sin bajar esa cifra, así
   que no sirve como guardia contra este fallo.
 
-- **ABIERTO: de perfil, la pierna lejana se mide mal**
-  (29-sep-2026). Sobre el mismo video, en el que Sebastián confirma haber
-  alternado las dos piernas, los 639 Zenkutsu reconocidos salen **todos** con
-  la derecha adelante: **0 con la izquierda, 100 % con la derecha**. La
-  rodilla «izquierda visual» no baja de 138,9° (P5) en 3190 fotogramas
-  mientras la derecha llega a 105,2°, y la asimetría aparece **igual en 2D y
-  en 3D**, así que no es de proyección sino de los landmarks.
-  En un dojo esto significa que la mitad de los alumnos se mediría mal, según
-  con qué pierna guarden. **Bloquea la campaña de recolección.**
-  Las dos hipótesis, y la medición que las separa (ya en `comparar_2d_3d.py`,
-  sin correr todavía): si la guardia IZQ no aparece nunca en ningún
-  fotograma, el fallo está en deducirla; si aparece pero la postura no se
-  reconoce con ella, está en medir esa pierna —y entonces la visibilidad
-  media por pierna dirá si es oclusión.
-- **Conectar el aviso de plano** (`orientacion_frente_a_camara`) junto con el
-  aviso de encuadre: hoy la función existe y nadie la llama.
+- **ABIERTO: por qué una guardia mide la rodilla delantera 34° más
+  estirada que la otra** (29-sep-2026). Sobre el video de Zenkutsu, los 637
+  reconocidos salen **todos** con la derecha adelante. Las tres explicaciones
+  que parecían obvias están **descartadas por medición**:
+
+  | Hipótesis | Qué la descarta |
+  |---|---|
+  | La guardia se deduce mal | Aparece IZQ ADELANTE en 546 fotogramas (22 %), y ahí la rodilla izquierda ES la más flexionada (141,4 contra 177,3). Acierta. |
+  | Es el ángulo de cámara | De frente y a 45° las dos guardias coinciden (166,7/169,1 y 146,1/148,2). Solo divergen de perfil. |
+  | Es oclusión de la pierna lejana | La pierna peor medida se ve **mejor**: visibilidad 0,958 contra 0,923. Y de perfil la delantera *lejana* mide 113,4° y la *cercana* 135,5°, al revés de lo esperado. |
+
+  La causa sigue sin identificarse. Lo que impide avanzar es que en esa
+  grabación la cámara estuvo casi siempre del mismo costado, así que «pierna
+  izquierda» y «pierna cercana al sensor» son el mismo grupo de fotogramas
+  (419 contra 352; 876 contra 943) y **no se pueden separar por análisis**.
+
+  **Hace falta una grabación de control, no otro corte:** la MISMA guardia
+  filmada de perfil desde el costado izquierdo y desde el derecho, ~15 s cada
+  una. La pierna anatómica queda fija y la cercanía al sensor se invierte. El
+  cruce 2×2 que lo lee ya está en `comparar_2d_3d.py` y avisa cuando faltan
+  celdas con muestra. Sebastián lo graba la noche del 29-sep.
+
+  Mientras no se resuelva, **esto bloquea la campaña de recolección**: si es un
+  sesgo de pierna, la mitad de los alumnos se mediría mal según con qué guardia
+  entrenen.
+
+  Dato para cualquier explicación que se intente: la puntuación de visibilidad
+  **no delata** el error. MediaPipe infiere articulaciones ocultas sin bajarla.
+
 - **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla
   está fuera de su rango, pero las reglas siguen emitiendo un único veredicto de
   postura. El panel muestra ambos.
@@ -619,28 +636,40 @@ conviene tenerlo firmado antes de la primera visita.
 
 **Pendiente de escritura:**
 
-- Capítulo 4, sección **4.8** (manuales técnicos y guías de usuario). Conviene
-  escribir primero los manuales y luego la sección que los describe.
 - Empaquetado: `.command` para Mac, `.exe` para Windows (lo compila él).
 - Ajustar el prototipo `.dc.html` para que no prometa «340 reglas» ni «red
   neuronal v0.9 entrenando».
 
-**Numeración real del capítulo 4** (la de los campos de índice de Word, no la
-del listado en texto plano, que está desactualizado):
+**Qué documento del capítulo 4 manda** (aclarado por Sebastián el 29-sep-2026,
+y es la principal fuente de desorden entre chats):
+
+| Documento | Qué es |
+|---|---|
+| `Capitulo 4 - 31 de agosto.docx` | **El canónico.** Es el que él mantiene y el que va a la tesis. Lleva los campos de índice y la numeración automática de Word. |
+| `Capitulo_4_consolidado_28_sep_2026.docx` | Una consolidación que **generó ChatGPT** juntando las entregas sueltas. Útil como material, **no es el capítulo**. |
+| `Capitulo_4.3…` a `Capitulo_4.8_Manuales_v2.docx` | Mis entregas por sección, de septiembre. Material de origen. |
+| `Capitulo_4_actualizacion_29_sep_2026.docx` | Los cuatro bloques que corrigen lo que la sesión del 29-sep dejó desfasado. |
+
+El trabajo pendiente **no es escribir**: es **fusionar** lo anterior dentro del
+documento del 31 de agosto sin perder sus campos de índice. Por eso las
+entregas van como fragmentos con instrucción de qué reemplazan, y no como un
+capítulo regenerado: regenerarlo destruiría la numeración automática.
+
+**Estado por sección** (según la consolidación, que es lo más completo que hay):
 
 | | Sección | Estado |
 |---|---|---|
-| 4.1 | Estructuración de la arquitectura y modularización | escrita por él |
-| 4.2 | Creación de la base de conocimiento técnica | escrita por él |
-| 4.3 | Codificación de las reglas del motor de inferencia | escrita por él |
-| 4.4 | Elaboración de la interfaz de usuario | entregada 14-sep |
-| 4.5 | Estructuración de la base de datos biomecánica | entregada 14-sep |
-| 4.6 | Elaboración física de los dispositivos wearables | entregada 14-sep |
-| 4.7 | Ejecución de las pruebas de validación | entregada 14-sep |
-| 4.8 | Redacción de manuales técnicos y guías de usuario | **falta** |
+| 4.1 | Estructuración de la arquitectura y modularización | escrita |
+| 4.2 | Creación de la base de conocimiento técnica | escrita |
+| 4.3 | Codificación de las reglas del motor de inferencia | escrita; 4.3.3 y 4.3.4 **se sustituyen** con la actualización del 29-sep |
+| 4.4 | Elaboración de la interfaz de usuario | escrita (4.4.1–4.4.8) |
+| 4.5 | Estructuración de la base de datos biomecánica | escrita (4.5.1–4.5.7) |
+| 4.6 | Elaboración física de los dispositivos wearables | escrita (4.6.1–4.6.4) |
+| 4.7 | Ejecución de las pruebas de validación | escrita (4.7.1–4.7.10); **se añade 4.7.11** |
+| 4.8 | Redacción de manuales técnicos y guías de usuario | escrita (4.8.1–4.8.5). Los dos manuales existen y están **pendientes de su revisión** |
 
-Tablas repartidas así: **4.1–4.3** en 4.4, **4.4–4.5** en 4.5, **4.6** en 4.6,
-**4.7–4.9** en 4.7. La siguiente libre es la **4.10**.
+Las tablas llegan hasta la **4.14**; la actualización del 29-sep añade la
+**4.15**, **4.16** y **4.17**. La siguiente libre es la **4.18**.
 
 Formato de los `.docx`: Times New Roman 12, interlineado 1.5, sangría de primera
 línea. Los títulos de **nivel 2 van sin número** (Word los numera solo); los de

@@ -14,6 +14,9 @@ from gui import coaching
 from gui.camara_screen import fuente_configurada
 from gui.panel_vivo import (FeedCorrecciones, espera_hasta_el_siguiente, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
+from expert_system.guardia import orientacion_frente_a_camara
+from vision.encuadre import NIVEL_ALTO, NIVEL_MEDIO
+from vision.encuadre import evaluar as evaluar_encuadre
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
 from vision.fuentes import es_archivo
@@ -323,6 +326,16 @@ class LiveScreen(ctk.CTkFrame):
         ctk.CTkLabel(caja, text="Correcciones", font=(theme.FUENTE, 13, "bold"),
                      text_color=theme.TEXTO).pack(anchor="w", padx=16, pady=(14, 8))
 
+        # Aviso de encuadre. Va ENCIMA de las correcciones y no dentro de la
+        # lista porque no es una corrección de técnica: dice si lo que se está
+        # midiendo sirve. Una toma frontal deja todo visible y aun así impide
+        # medir Zenkutsu; mezclarlo con «extiende más el brazo» lo escondería.
+        self.etiqueta_encuadre = ctk.CTkLabel(
+            caja, text="", font=(theme.FUENTE, 11), justify="left",
+            wraplength=300, text_color=theme.TEXTO_TENUE)
+        self.etiqueta_encuadre.pack(anchor="w", padx=16, pady=(0, 6))
+        self._ultimo_aviso_encuadre = None
+
         self.lista_correcciones = ctk.CTkScrollableFrame(caja, fg_color="transparent")
         self.lista_correcciones.pack(expand=True, fill="both", padx=10, pady=(0, 12))
         self._pintar_correcciones()
@@ -454,8 +467,10 @@ class LiveScreen(ctk.CTkFrame):
 
             frame = self.renderer.draw(frame, result.pose_landmarks)
 
-            if result.pose_landmarks:
-                landmarks = result.pose_landmarks[0]
+            landmarks = result.pose_landmarks[0] if result.pose_landmarks else None
+            self._refrescar_encuadre(landmarks)
+
+            if landmarks is not None:
                 diagnosticos = [
                     self.analyzer.analyze_tsuki(landmarks, w, h),
                     self.analyzer.analyze_stance(landmarks, w, h),
@@ -565,6 +580,32 @@ class LiveScreen(ctk.CTkFrame):
         self.etiqueta_veredicto.configure(
             text_color=theme.TEXTO_TENUE if resumen is None
             else (theme.ACENTO_VERDE if resumen else theme.ACENTO_ROJO))
+
+    def _refrescar_encuadre(self, landmarks):
+        """
+        Avisa si la cámara está donde hace falta. Ver vision/encuadre.py.
+
+        Solo toca el widget cuando el texto CAMBIA. El bucle en vivo corre a
+        decenas de fotogramas por segundo y reconfigurar una etiqueta en cada
+        uno cuesta tiempo de Tk sin que nadie lo note: es la misma lección que
+        dejó la medición de rendimiento del 28-sep.
+        """
+        orientacion = None
+        if landmarks is not None:
+            orientacion = orientacion_frente_a_camara(
+                (landmarks[24].x, landmarks[24].z),
+                (landmarks[23].x, landmarks[23].z))
+
+        avisos = evaluar_encuadre(landmarks, orientacion)
+        texto = "\n".join(a["mensaje"] for a in avisos)
+        if texto == self._ultimo_aviso_encuadre:
+            return
+        self._ultimo_aviso_encuadre = texto
+
+        peor = avisos[0]["nivel"] if avisos else None
+        color = {NIVEL_ALTO: theme.ACENTO_ROJO,
+                 NIVEL_MEDIO: theme.ACENTO_ROJO}.get(peor, theme.TEXTO_TENUE)
+        self.etiqueta_encuadre.configure(text=texto, text_color=color)
 
     def _pintar_correcciones(self):
         for w in self.lista_correcciones.winfo_children():
