@@ -140,6 +140,27 @@ agrupa los errores frecuentes.
 
 ---
 
+**Más resolución no mejora el análisis** (medido el 29-sep-2026). MediaPipe
+redimensiona el fotograma a la entrada fija de su modelo, así que la etapa de
+estimación de pose cuesta prácticamente lo mismo a 1080×1920 (13,4 ms), a
+1280×720 (11,7 ms) y a 640×480 (12,0 ms). Los píxeles de más no llegan al
+modelo: solo encarecen la captura, el espejo y sobre todo el despliegue. En una
+medición real sobre video vertical de 2,1 MP, `cv2.imshow` se llevó 20,4 de los
+42,3 ms por fotograma — la mitad del presupuesto en una ventana de depuración
+que la interfaz no usa. Grabar a la máxima calidad no ayuda; grabar con el
+cuerpo entero en cuadro, sí.
+
+**Una herramienta de diagnóstico muestrea el video entero, no su principio**
+(29-sep-2026). La primera versión de `diagnostico_video.py` leía los primeros
+sesenta fotogramas y concluyó que las rodillas no se veían nunca en una
+grabación donde se ven perfectamente. Dos segundos de un video que uno se graba
+a sí mismo son el tramo en que la persona todavía camina hacia su sitio después
+de pulsar grabar. Lo mismo vale para `test_rendimiento.py`: sus 300 fotogramas
+salen del arranque, así que la medición conviene hacerla sobre un video que ya
+empiece con el ejecutante colocado.
+
+---
+
 ## Convenciones de pruebas
 
 **Dos entornos, y las cifras difieren a propósito:**
@@ -200,6 +221,25 @@ vueltas es verdad en una máquina y mentira en la otra. Lo que sí es igual en
 todas —y lo único que la prueba afirma— es que este recorrido no llama a
 `update()`; medido, no lo llama ni una vez, ni siquiera desde dentro de
 CustomTkinter.
+
+---
+
+## Varios chats sobre el mismo repositorio
+
+Sebastián trabaja con **dos chats**: uno para código y otro para la
+documentación de las pruebas. El 27-sep se construyó dos veces lo mismo —el
+reloj de las grabaciones— porque se generaron parches desde una base vieja.
+Para que no vuelva a pasar:
+
+1. **`git fetch origin main` ANTES de generar cualquier parche**, y generarlo
+   desde `origin/main`, no desde lo que el contenedor tenga guardado. Esto es
+   responsabilidad mía, no suya.
+2. Si `origin/main` trae cosas que no conozco, **leerlas antes de escribir
+   nada**: puede que lo que iba a construir ya exista, y hecho de otra forma.
+3. Él empuja antes de cambiar de chat. Lo que no está en `origin/main` no
+   existe para el otro chat.
+
+`CLAUDE.md` es la memoria compartida, pero solo sirve si está empujado.
 
 ---
 
