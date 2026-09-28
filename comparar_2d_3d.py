@@ -65,6 +65,15 @@ def _tramo(orientacion):
     return "a 45 grados"
 
 
+# Que articulacion juzga cada postura, en el orden (frontal, trasera) en que
+# la consume su regla.
+ARTICULACIONES_DE = {
+    "zenkutsu_dachi": ("rodilla_frontal", "rodilla_trasera"),
+    "kokutsu_dachi": ("rodilla_frontal", "rodilla_trasera"),
+    "heiko_dachi": ("rodilla", "rodilla"),
+    "kiba_dachi": ("rodilla", "rodilla"),
+}
+
 POSTURAS = ("heiko_dachi", "kiba_dachi", "zenkutsu_dachi", "kokutsu_dachi",
             "guardia_indefinida", "transicion")
 
@@ -175,6 +184,12 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # que dice si el problema esta en la guardia o en el angulo: con la
     # izquierda adelante, la rodilla izquierda TIENE que ser la flexionada.
     angulos_por_guardia = {}
+    # Cruce guardia x angulo de camara: separa un sesgo de pierna de uno de
+    # encuadre, que hasta ahora estaban confundidos en la misma cifra.
+    cruce = {}
+    # Los angulos con que se juzgaria cada postura reconocida, para contestar
+    # algo que el informe no contestaba: reconocerla no es aprobarla.
+    juzgados = []
     # Visibilidad media de cada pierna, y cuantos fotogramas se descartan por
     # no verse. Una pierna sistematicamente menos visible que la otra explica
     # que solo se reconozca una guardia.
@@ -242,6 +257,17 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                 (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z))
             guardia_global[guardia_2d or "indefinida"] += 1
+            clase_2d = _clasificar(a2_izq, a2_der, guardia_2d)
+            if clase_2d == esperado:
+                if guardia_2d is None:
+                    juzgados.append((min(a2_izq, a2_der), max(a2_izq, a2_der)))
+                elif guardia_2d == IZQ_ADELANTE:
+                    juzgados.append((a2_izq, a2_der))
+                else:
+                    juzgados.append((a2_der, a2_izq))
+            if guardia_2d is not None:
+                frontal = a2_izq if guardia_2d == IZQ_ADELANTE else a2_der
+                cruce.setdefault((_tramo(orientacion), guardia_2d), []).append(frontal)
             angulos_por_guardia.setdefault(
                 guardia_2d or "indefinida", []).append((a2_izq, a2_der))
             if guardia_2d is not None:
@@ -275,6 +301,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "guardia_de_la_postura": guardia_de_la_postura,
         "guardia_global": guardia_global,
         "angulos_por_guardia": angulos_por_guardia,
+        "cruce": cruce, "juzgados": juzgados,
         "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
         "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
@@ -334,6 +361,20 @@ def informar(r):
         print(f"{clave:16s} {len(muestras):6d} "
               f"{ei['mediana']:13.1f} {ei['p5']:8.1f} "
               f"{ed['mediana']:13.1f} {ed['p5']:8.1f}")
+    if r["cruce"]:
+        print(f"\n=== RODILLA DELANTERA: ANGULO DE CAMARA x GUARDIA ===")
+        print(f"{'Angulo':14s} {'guardia':16s} {'n':>6s} {'mediana':>9s} {'P5':>8s}")
+        for tramo in TRAMOS:
+            for guardia in (IZQ_ADELANTE, DER_ADELANTE):
+                serie = r["cruce"].get((tramo, guardia))
+                if not serie:
+                    continue
+                e = _estadisticas(serie)
+                print(f"{tramo:14s} {guardia:16s} {len(serie):6d} "
+                      f"{e['mediana']:9.1f} {e['p5']:8.1f}")
+        print("  Si la diferencia entre guardias desaparece dentro de cada tramo,")
+        print("  no habia sesgo de pierna sino de encuadre.")
+
     print("  Con una guardia declarada, la rodilla DELANTERA tiene que ser la")
     print("  flexionada. Si con IZQ ADELANTE la que se dobla es la derecha, la")
     print("  guardia esta mal en esos fotogramas; si no se dobla ninguna, no")
@@ -432,6 +473,28 @@ def informar(r):
                 print("  La postura se reconoce practicamente con una sola guardia.")
                 print("  Si en el video se ejecuta de los dos lados, el sistema está")
                 print("  ciego a uno de ellos, y eso no lo explica el ángulo de cámara.")
+
+        juzgados = r["juzgados"]
+        if juzgados and esperado in ARTICULACIONES_DE:
+            from expert_system.knowledge_base import KarateRules
+            reglas = KarateRules()
+            art_frontal, art_trasera = ARTICULACIONES_DE[esperado]
+            ok_f = sum(1 for f, _ in juzgados if reglas.dentro(f, esperado, art_frontal))
+            ok_t = sum(1 for _, tr in juzgados if reglas.dentro(tr, esperado, art_trasera))
+            ok = sum(1 for f, tr in juzgados
+                     if reglas.dentro(f, esperado, art_frontal)
+                     and reglas.dentro(tr, esperado, art_trasera))
+            n = len(juzgados)
+            rf = reglas.rango(esperado, art_frontal)
+            rt = reglas.rango(esperado, art_trasera)
+            print(f"\n=== DE LAS RECONOCIDAS, CUANTAS SE JUZGAN CORRECTAS ===")
+            print(f"  reconocidas en 2D:                    {n:6d}")
+            print(f"  con la delantera dentro de {rf}: {ok_f:6d} ({100*ok_f/n:3.0f}%)")
+            print(f"  con la trasera dentro de {rt}:  {ok_t:6d} ({100*ok_t/n:3.0f}%)")
+            print(f"  veredicto CORRECTO:                   {ok:6d} ({100*ok/n:3.0f}%)")
+            print("  Reconocer la postura no es aprobarla. Si el veredicto correcto")
+            print("  es casi nulo sobre una ejecucion que el sensei da por buena, lo")
+            print("  que hay que recalibrar son los umbrales (RF-08), no el codigo.")
 
         print("\n  Cuidado: esto compara contra lo DECLARADO en --esperado, así que")
         print("  solo vale si el video contiene esa postura y poco más. Sobre una")

@@ -538,7 +538,35 @@ conviene tenerlo firmado antes de la primera visita.
   Esto desbloquea la **sección 4.3**: describe un sistema 2D con su
   limitación medida y mitigada por protocolo de cámara, no uno 3D.
 
-- **ABIERTO Y GRAVE: el sistema reconoce una guardia y es ciego a la otra**
+- **La guardia NO es el problema, el criterio sí** (29-sep-2026, medido).
+  Separando los ángulos por la guardia deducida sobre 2533 fotogramas:
+
+  | Guardia | n | rodilla izq (mediana / P5) | rodilla der (mediana / P5) |
+  |---|---|---|---|
+  | IZQ ADELANTE | 546 | **141,4 / 135,9** | 177,3 / 159,4 |
+  | DER ADELANTE | 1693 | 173,6 / 167,9 | **135,2 / 104,4** |
+
+  La guardia acierta: la rodilla que declara delantera es siempre la más
+  flexionada. Lo que falla es que **la delantera no baja lo suficiente**. El
+  clasificador exige `< 130°` (`RODILLA_FLEXIONADA`) y la mediana medida de
+  una rodilla delantera real es 135–141°. Con la derecha adelante solo pasa
+  la cola de la distribución; con la izquierda no pasa nunca.
+
+  Y el criterio de evaluación está aún más lejos: `zenkutsu_dachi /
+  rodilla_frontal` vale **90–115°**, así que una ejecución medida en 135° se
+  juzga «CORREGIR ALTURA» aunque el sensei la dé por buena.
+
+  Esto no se arregla tocando constantes hasta que pase —eso sería calibrar
+  contra el resultado deseado, indefendible ante la terna—. **Los umbrales
+  son datos versionados (RF-08) precisamente para esto**: se recalibran con
+  medición y con el criterio del cuerpo técnico. Es el mismo pendiente que
+  ya existía para el Kokutsu, ahora extendido al Zenkutsu y con números.
+
+  Falta separar cuánto del 141 contra 135 es sesgo de pierna y cuánto es
+  ángulo de cámara: el cruce guardia × encuadre ya está en la herramienta,
+  sin correr.
+
+- **ABIERTO: el sistema reconoce una guardia y es ciego a la otra**
   (29-sep-2026). Sobre el mismo video, en el que Sebastián confirma haber
   alternado las dos piernas, los 639 Zenkutsu reconocidos salen **todos** con
   la derecha adelante: **0 con la izquierda, 100 % con la derecha**. La
