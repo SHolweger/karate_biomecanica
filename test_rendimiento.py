@@ -12,14 +12,29 @@ Al terminar genera en evidencias/ un CSV con el detalle por fotograma y una
 gráfica con la composición del tiempo de cómputo.
 
 Uso:
-    ./venv/bin/python test_rendimiento.py [fuente] [n_fotogramas]
+    python3 test_rendimiento.py [fuente] [n_fotogramas] [--desde SEG] [--sin-ventana]
 
-    fuente        índice de cámara (ej. 2) o ruta a un video. Default: 2
+    fuente        índice de cámara, dirección de cámara IP o ruta a un video
     n_fotogramas  cuántos medir antes de cortar. Default: 300
+    --desde SEG   descarta los primeros SEG segundos de una grabación antes de
+                  empezar a medir
+    --sin-ventana no abre la ventana de OpenCV: mide el encadenamiento de
+                  análisis sin el costo de dibujarla
 
-Protocolo sugerido: situarse en cuadro de cuerpo completo y ejecutar técnicas
+Protocolo: situarse en cuadro de cuerpo completo y ejecutar técnicas
 normalmente durante la medición, para que el analizador trabaje sobre landmarks
 reales y no sobre un encuadre vacío.
+
+Dos advertencias que nacieron de mediciones equivocadas:
+
+  * **Sobre una grabación, usa `--desde`.** Los primeros segundos de un video
+    que uno se graba a sí mismo son el tramo en que la persona todavía camina
+    hacia su sitio. Medir ahí describe el arranque, no la ejecución.
+  * **`--sin-ventana` no es hacer trampa, es separar dos preguntas.** En una
+    medición real sobre video vertical de 2,1 MP, `cv2.imshow` se llevó 20,4 de
+    los 42,3 ms por fotograma: más que la estimación de pose. Esa ventana es de
+    depuración y la interfaz del dojo no la usa, así que conviene reportar las
+    dos cifras y decir cuál es cuál.
 """
 import csv
 import os
@@ -42,14 +57,28 @@ UMBRAL_RF01_FPS = 30.0
 ETAPAS = ["captura", "estimacion_pose", "analisis", "renderizado", "despliegue"]
 
 
-def medir(fuente, n_fotogramas):
+def medir(fuente, n_fotogramas, desde_s=0.0, con_ventana=True):
     cam = Camera(source=fuente)
     tracker = PoseTracker(model_path='pose_landmarker_full.task')
     renderer = SkeletonRenderer()
     analyzer = TechniqueAnalyzer(umbral_visibilidad=0.65)
     monitor = PerformanceMonitor(descartar_iniciales=5)
 
-    print(f"Midiendo {n_fotogramas} fotogramas... ('q' corta antes de tiempo)")
+    # Se descartan los primeros segundos ANTES de empezar a cronometrar, leyendo
+    # fotogramas sin medirlos. No se puede saltar con una búsqueda en el archivo
+    # porque el decodificador tendría que recolocarse y el primer fotograma tras
+    # el salto costaría un tiempo que no representa al resto.
+    if desde_s > 0:
+        print(f"Descartando los primeros {desde_s:.0f} s...")
+        while cam.marca_de_tiempo_ms() < desde_s * 1000:
+            if cam.get_frame() is None:
+                print("La grabación terminó antes del punto de inicio pedido.")
+                cam.release()
+                tracker.close()
+                return monitor
+
+    print(f"Midiendo {n_fotogramas} fotogramas"
+          f"{' sin ventana' if not con_ventana else ''}... ('q' corta antes de tiempo)")
     procesados = 0
 
     while procesados < n_fotogramas:
@@ -61,9 +90,10 @@ def medir(fuente, n_fotogramas):
             break
 
         h, w, _ = frame.shape
-        # El timestamp del pipeline se deriva del contador de fotogramas para no
-        # introducir otra llamada de reloj dentro del tramo que se está midiendo.
-        timestamp_ms = int(procesados * 1000 / 30)
+        # La marca la da la fuente, no el contador. Suponer 30 fps falseaba al
+        # doble los tiempos de una grabación a 60, y de ahí salen la velocidad
+        # angular del Kime y los plazos de la máquina de estados del Mae Geri.
+        timestamp_ms = int(cam.marca_de_tiempo_ms())
 
         result = tracker.process_frame(frame, timestamp_ms)
         monitor.marcar("estimacion_pose")
@@ -84,10 +114,12 @@ def medir(fuente, n_fotogramas):
             frame = renderer.draw_diagnostics(frame, d)
         monitor.marcar("renderizado")
 
-        cv2.putText(frame, f"Midiendo {procesados + 1}/{n_fotogramas}", (20, h - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        cv2.imshow('Prueba de rendimiento (RNF-01 / RF-01)', frame)
-        corta = cv2.waitKey(1) & 0xFF == ord('q')
+        corta = False
+        if con_ventana:
+            cv2.putText(frame, f"Midiendo {procesados + 1}/{n_fotogramas}", (20, h - 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.imshow('Prueba de rendimiento (RNF-01 / RF-01)', frame)
+            corta = cv2.waitKey(1) & 0xFF == ord('q')
         monitor.marcar("despliegue")
 
         monitor.cerrar_frame()
@@ -218,8 +250,24 @@ def fuente_por_defecto():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    analizador = argparse.ArgumentParser(
+        prog="test_rendimiento.py",
+        description="Mide la latencia por etapa y la tasa de procesamiento "
+                    "(RNF-01 y RF-01) sobre el encadenamiento real.")
     # `normalizar` (vision/fuentes.py) decide si lo recibido es un índice, una
     # dirección de cámara IP o un archivo de video; aquí no hay que interpretarlo.
-    fuente = sys.argv[1] if len(sys.argv) > 1 else fuente_por_defecto()
-    n = int(sys.argv[2]) if len(sys.argv) > 2 else 300
-    reportar(medir(fuente, n))
+    analizador.add_argument("fuente", nargs="?", default=None,
+                            help="índice de cámara, cámara IP o ruta de un video")
+    analizador.add_argument("n_fotogramas", nargs="?", type=int, default=300,
+                            help="cuántos fotogramas medir (por defecto 300)")
+    analizador.add_argument("--desde", type=float, default=0.0, metavar="SEG",
+                            help="descarta los primeros SEG segundos de la grabación")
+    analizador.add_argument("--sin-ventana", action="store_true",
+                            help="no abre la ventana de OpenCV durante la medición")
+    args = analizador.parse_args()
+
+    reportar(medir(args.fuente if args.fuente is not None else fuente_por_defecto(),
+                   args.n_fotogramas, desde_s=args.desde,
+                   con_ventana=not args.sin_ventana))

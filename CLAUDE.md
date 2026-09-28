@@ -150,6 +150,30 @@ medición real sobre video vertical de 2,1 MP, `cv2.imshow` se llevó 20,4 de lo
 que la interfaz no usa. Grabar a la máxima calidad no ayuda; grabar con el
 cuerpo entero en cuadro, sí.
 
+**La medición de rendimiento se configura, no se corre a ciegas**
+(29-sep-2026). `test_rendimiento.py` tomaba la marca de tiempo como
+`procesados * 1000 / 30`, suponiendo 30 fps. Las grabaciones de prueba son de
+**60 fps**, así que cada marca salía al doble: de ahí se derivan la velocidad
+angular del Kime y los plazos de la máquina de estados del Mae Geri. Ahora usa
+`Camera.marca_de_tiempo_ms()`, igual que el resto del sistema.
+
+Dos banderas nuevas, y las dos nacieron de mediciones equivocadas:
+
+- `--desde SEG` descarta los primeros segundos. Medir desde el fotograma cero de
+  un video casero describe a la persona caminando hacia su sitio.
+- `--sin-ventana` mide sin `cv2.imshow`. Medido sobre un video de 1080×1920 a
+  60 fps: **36,2 fps con la ventana, 50,1 fps sin ella**. La ventana es de
+  depuración y la interfaz del dojo no la usa, así que conviene reportar ambas
+  cifras diciendo cuál es cuál — y medir la interfaz aparte antes de afirmar
+  nada sobre el RF-01.
+
+**Encuadre bueno medido el 29-sep**: sobre una grabación con el ejecutante de
+cuerpo completo, la detección de pose es del **98 %** y la visibilidad media de
+las rodillas de **0,95–0,98**; el codo derecho baja a 0,75 (79 % sobre el
+umbral) porque el hikite lo oculta en parte. Esos son los números de referencia
+para elegir el umbral del aviso de encuadre: un encuadre malo da 0,00, así que
+la separación es limpia.
+
 **Una herramienta de diagnóstico muestrea el video entero, no su principio**
 (29-sep-2026). La primera versión de `diagnostico_video.py` leía los primeros
 sesenta fotogramas y concluyó que las rodillas no se veían nunca en una
