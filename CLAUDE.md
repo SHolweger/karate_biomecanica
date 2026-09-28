@@ -228,6 +228,25 @@ técnica se filma perpendicular a su plano.
 | Heiko Dachi, Kiba Dachi | frontal | **de frente** |
 | Zenkutsu, Kokutsu, Tsuki, Mae Geri | sagital | **de perfil** |
 
+**Y está medido, no razonado** (29-sep-2026, 3190 fotogramas de Zenkutsu
+Dachi grabados desde tres ángulos en la misma sesión):
+
+| Ángulo de cámara | fotogramas | acierto 2D | acierto 3D |
+|---|---|---|---|
+| de frente | 1156 | **0,0 %** | 0,0 % |
+| a 45° | 411 | 8,8 % | 11,7 % |
+| de perfil | 1623 | **37,2 %** | 41,8 % |
+
+De frente el sistema **no reconoce el Zenkutsu ni una sola vez**. No es que
+acierte menos: es ciego a esa postura desde esa cámara. Y el gradiente es
+monótono, lo que descarta la hipótesis de que los 45° fueran el punto dulce
+por compensar la oclusión de la pierna lejana con menos escorzo: el escorzo
+domina y el perfil gana.
+
+Esta tabla es el protocolo de grabación de la campaña del dojo. Sin ella,
+los datos que se recojan de Zenkutsu, Kokutsu, Tsuki y Mae Geri filmados de
+frente serían inservibles y no habría tiempo de repetir la campaña.
+
 `guardia.orientacion_frente_a_camara()` mide esto (0 = de perfil, 1 = de
 frente) y está listo para el aviso de encuadre; **todavía no está conectado a
 la interfaz**.

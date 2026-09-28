@@ -164,6 +164,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # La misma cuenta, separada por el angulo de camara. Es lo que convierte
     # el informe en un protocolo: dice desde donde hay que grabar cada tecnica.
     por_angulo = {tramo: [] for tramo in TRAMOS}
+    # Con que guardia se reconocio cada postura. Si una postura solo aparece
+    # con una de las dos, el sistema esta viendo un lado y no el otro.
+    guardia_de_la_postura = Counter()
     # x de las dos caderas, para leer sobre datos REALES cuál landmark cae a la
     # izquierda de la pantalla. El doble de prueba lo supone al revés que
     # MediaPipe, y de ese supuesto salió el signo del eje sagital.
@@ -220,6 +223,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
             orientacion = orientacion_frente_a_camara(
                 (landmarks[CADERA_IZQ].x, landmarks[CADERA_IZQ].z),
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z))
+            if guardia_2d is not None:
+                guardia_de_la_postura[
+                    (_clasificar(a2_izq, a2_der, guardia_2d), guardia_2d)] += 1
             por_angulo[_tramo(orientacion)].append(
                 (_clasificar(a2_izq, a2_der, guardia_2d),
                  _clasificar(a3_izq, a3_der, _guardia_de(mundo))))
@@ -245,6 +251,7 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "clasifica_2d": clasifica_2d, "clasifica_3d": clasifica_3d,
         "clasifica_invertida": clasifica_invertida,
         "orientaciones": orientaciones, "por_angulo": por_angulo,
+        "guardia_de_la_postura": guardia_de_la_postura,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
         "esperado": esperado,
     }
@@ -351,6 +358,18 @@ def informar(r):
         print("  Esto es lo que fija el protocolo de grabación del dojo: desde qué")
         print("  ángulo conviene filmar cada técnica. Ojo, un tramo con pocos")
         print("  fotogramas no decide nada.")
+
+        con_izq = r["guardia_de_la_postura"][(esperado, IZQ_ADELANTE)]
+        con_der = r["guardia_de_la_postura"][(esperado, DER_ADELANTE)]
+        reconocidas = con_izq + con_der
+        if reconocidas:
+            print(f"\n=== CON QUÉ PIERNA ADELANTE SE RECONOCIÓ ({esperado}) ===")
+            print(f"  izquierda adelante: {con_izq:5d} ({100*con_izq/reconocidas:3.0f}%)")
+            print(f"  derecha adelante:   {con_der:5d} ({100*con_der/reconocidas:3.0f}%)")
+            if min(con_izq, con_der) < 0.1 * reconocidas:
+                print("  La postura se reconoce practicamente con una sola guardia.")
+                print("  Si en el video se ejecuta de los dos lados, el sistema está")
+                print("  ciego a uno de ellos, y eso no lo explica el ángulo de cámara.")
 
         print("\n  Cuidado: esto compara contra lo DECLARADO en --esperado, así que")
         print("  solo vale si el video contiene esa postura y poco más. Sobre una")
