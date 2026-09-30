@@ -289,4 +289,3 @@ def estado_en_vivo(configurada, sesion_iniciada=False, grabador_activo=None,
     if not sesion_iniciada:
         return POR_GRABAR
     return GRABANDO if grabador_activo else GRABACION_DETENIDA
-

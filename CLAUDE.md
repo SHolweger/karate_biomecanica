@@ -259,6 +259,30 @@ la técnica por su forma.
 Efecto secundario que conviene aprovechar: «evaluaciones cerradas» pasa a
 significar **repeticiones**, que es lo que siempre debió significar.
 
+**Verificado en su Mac el 30-sep, en vivo y sobre grabación**, que era el
+pendiente declarado: las pruebas cubrían que el golpe se detecta, pero no con
+MediaPipe real. Contrastado contra las capturas de esa misma mañana:
+
+| Situación | Antes | Después |
+|---|---|---|
+| De pie, brazos abajo (codos 168°/173°) | «IZQ - TSUKI: EXCELENTE / DER - TSUKI: EXCELENTE» | «SIN TSUKI: BRAZO EN REPOSO» |
+| En transición (codo 179°) | «TSUKI: HIPEREXTENDIDO (peligro)», veredicto **Incorrecto** | «SIN TSUKI», veredicto por la postura |
+| Rascándose la cabeza ante la cámara | *(habría calificado)* | «SIN TSUKI: BRAZO EN REPOSO» |
+| **Zenkutsu de perfil con Tsuki real** | — | «Kime correcto (izquierdo)» a los 00:21, y «Extiende más el brazo» a los 00:17 |
+
+Dos veredictos de Tsuki en veintiún segundos, espaciados, en vez de uno por
+fotograma. El panel de correcciones de esa misma sesión tenía por la mañana
+cuatro entradas de Tsuki en los dos primeros segundos, **con el ejecutante
+quieto**.
+
+**Un efecto de diseño que conviene tener presente el 9 de noviembre:** sostener
+el brazo extendido más de `VENTANA_RECORRIDO_MS` devuelve el aviso a «SIN
+TSUKI». Es correcto —el golpe terminó, y su veredicto queda fechado en el panel
+de correcciones— pero en una demostración, donde la postura se sostiene para
+que la terna la vea, el texto del brazo desaparece del video mientras la
+postura sigue en pantalla. Decidir antes de la defensa si eso se explica o se
+cambia.
+
 **Y deja el historial anterior inservible para calcular precisión.** Todo lo
 medido antes del 30-sep lleva filas de Tsuki producidas por brazos que no
 golpeaban, y no se pueden separar fila por fila: el código viejo no registraba
@@ -332,9 +356,17 @@ Esta tabla es el protocolo de grabación de la campaña del dojo. Sin ella,
 los datos que se recojan de Zenkutsu, Kokutsu, Tsuki y Mae Geri filmados de
 frente serían inservibles y no habría tiempo de repetir la campaña.
 
+La tabla se confirmó en la interfaz el 30-sep: el mismo video que de frente
+daba «HEIKO DACHI» sobre un Zenkutsu, de perfil da **«ZENKUTSU (DER ADELANTE):
+POSTURA: FIRME»**, con la rodilla delantera en 106° y la trasera en 168°. La
+guardia acierta y el veredicto es el que corresponde.
+
 `guardia.orientacion_frente_a_camara()` mide esto (0 = de perfil, 1 = de
 frente) y desde el 29-sep **alimenta el aviso de encuadre** de la pantalla en
-vivo (`vision/encuadre.py`, puro, corre en CI). El aviso es informativo y
+vivo (`vision/encuadre.py`, puro, corre en CI). **Verificado el 30-sep**: el
+aviso cambia solo al girar la toma, de «Cámara de frente: sirve para Heiko
+Dachi y Kiba Dachi» a «Cámara de perfil: sirve para Zenkutsu, Kokutsu, Tsuki y
+Mae Geri». El aviso es informativo y
 permanente, no condicionado a la técnica detectada: reconocer la técnica es
 justamente lo que falla cuando el plano está mal, así que esperar a saberla
 para avisar sería circular.
@@ -550,9 +582,7 @@ empiece con el ejecutante colocado.
 | Completo (con cámara y pantalla) | `python3 -m pytest -q` | 808 passed |
 | CI / sin entorno gráfico | igual | 665 passed, 10 skipped |
 
-El 665 está medido en el contenedor. El 808 sale de las 797 confirmadas en su
-Mac el 30-sep más las 7 de `revisar_base.py` y las 4 del aviso de grabación —
-**pendiente de confirmar**.
+El 665 está medido en el contenedor y el 808 en su Mac, los dos el 30-sep.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
