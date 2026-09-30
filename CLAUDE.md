@@ -840,6 +840,19 @@ Lecciones aprendidas, todas por haberlas sufrido:
 - **Ensayar siempre** sobre un clon limpio partiendo de su commit real, y correr
   los dos entornos antes de enviar.
 - Decirle que borre los parches viejos de `~/Downloads` antes de aplicar.
+- **Nunca repetirle un `git am` de un parche que ya aplicó** (30-sep-2026, tres
+  veces el mismo día). Un `git am` que falla por estar ya aplicado deja
+  `.git/rebase-apply` a medias, y a partir de ahí **todos** los siguientes
+  mueren con «previous rebase directory still exists but mbox given» — así que
+  el error no se ve donde se produjo. Sale de darle un bloque de comandos que
+  incluye parches anteriores «por si acaso». No: **un solo `git am` por
+  mensaje**, el que falta, y antes comprobar contra la cuenta de pruebas que
+  informó cuál tiene ya aplicado. Si el lote se enreda, la salida es siempre
+  `git am --abort` y luego el parche que falte, uno a uno.
+- **Comprobar que el parche anterior está aplicado antes de generar el
+  siguiente.** El 30-sep se construyó un lote sobre un `CLAUDE.md` que incluía
+  cambios que él no tenía, y no aplicó. La cuenta de pruebas de su última
+  corrida es la forma rápida de saberlo.
 - `zsh` **no** trata `#` como comentario en la línea interactiva: nunca mandarle
   comandos con comentarios al final.
 - **Los commits van sin líneas de atribución** (28-sep-2026). Nada de
