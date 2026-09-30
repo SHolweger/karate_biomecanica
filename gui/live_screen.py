@@ -12,7 +12,7 @@ from expert_system.knowledge_base import KarateRules
 from gui import theme
 from gui import coaching
 from gui.camara_screen import fuente_configurada
-from gui.panel_vivo import (FeedCorrecciones, espera_hasta_el_siguiente, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
+from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
 from expert_system.guardia import orientacion_frente_a_camara
 from vision.encuadre import NIVEL_ALTO, NIVEL_MEDIO
@@ -508,11 +508,26 @@ class LiveScreen(ctk.CTkFrame):
                 self.monitor.marcar("despliegue")
                 self.monitor.cerrar_frame()
 
-        # Se descuenta lo que este fotograma ya costó: reprogramar con el
-        # intervalo entero lo sumaba al trabajo en vez de solaparlo.
-        espera = espera_hasta_el_siguiente(self.INTERVALO_MS,
-                                           (time.perf_counter() - inicio) * 1000)
-        self._after_id = self.after(espera, self._actualizar_frame)
+        # El intervalo es FIJO y se suma al trabajo, aunque eso cueste
+        # fotogramas por segundo. Descontar lo ya gastado —como se hizo entre
+        # el 28 y el 30 de septiembre— deja el temporizador siguiente vencido
+        # casi siempre, porque el trabajo de un fotograma supera el intervalo.
+        # Dos consecuencias medidas en la Mac, y las dos graves:
+        #
+        #   * La aplicación se cayó con RecursionError durante un análisis en
+        #     vivo. La guardia de reentrada evita que el bucle se llame a sí
+        #     mismo, pero no impide que los ciclos de eventos anidados de Tk se
+        #     acumulen, y en macOS `update_idletasks()` atiende temporizadores
+        #     vencidos.
+        #   * La ventana dejaba de responder a los clics. Con una espera de un
+        #     milisegundo entre fotogramas de ~40 ms, Tk recibe el 2 % del
+        #     tiempo para atender al usuario; con el intervalo completo recibe
+        #     cerca del 27 %.
+        #
+        # Los ~6 fps que costó revertirlo no valen una caída en la defensa. La
+        # otra optimización del 28-sep —reducir el fotograma antes de
+        # convertirlo— se conserva: baja el trabajo sin tocar la planificación.
+        self._after_id = self.after(self.INTERVALO_MS, self._actualizar_frame)
 
     def _escalar(self, ancho, alto):
         """

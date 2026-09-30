@@ -557,3 +557,64 @@ def test_el_bucle_no_se_reentra_a_si_mismo(app, db, entrenador_registrado, dos_a
         assert len(entradas) == 1, "el fotograma se dibujó más de una vez"
     finally:
         pantalla.cerrar()
+
+
+# --------------------------------------------------------------------------
+# El ritmo del bucle, que es una cuestión de estabilidad y no de rendimiento
+# --------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-055",
+    nombre="El bucle de análisis reprograma siempre con el intervalo completo y "
+           "nunca con una espera mínima",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="entre el 28 y el 30 de septiembre el ciclo descontaba el "
+                         "tiempo ya gastado antes de reprogramarse, con la intención "
+                         "de recuperar fotogramas por segundo. Como el trabajo de un "
+                         "fotograma supera el intervalo, la resta daba siempre el "
+                         "mínimo, y el temporizador siguiente quedaba vencido casi "
+                         "siempre. En macOS eso produjo dos fallos: la aplicación se "
+                         "cerró con RecursionError durante un análisis en vivo, y la "
+                         "ventana dejó de responder a los clics porque Tk recibía "
+                         "alrededor del 2 % del tiempo para atender al usuario. La "
+                         "guardia de reentrada no basta: impide que el bucle se llame "
+                         "a sí mismo, no que los ciclos de eventos anidados se "
+                         "acumulen",
+    componente="gui/live_screen.py (_procesar_fotograma)",
+    requisitos="RF-01, RNF-01",
+    precondiciones="Entorno gráfico disponible; cámara sustituida por `CamaraSintetica`",
+    datos_entrada="Un fotograma procesado por la pantalla de análisis en vivo, con el "
+                  "método `after` interceptado para registrar los plazos solicitados",
+    pasos=[
+        Paso("Interceptar `after` en la pantalla y procesar un fotograma",
+             "Se registran los plazos con que el ciclo se reprograma"),
+        Paso("Comprobar el plazo de la reprogramación del ciclo",
+             "assert es igual a INTERVALO_MS: el ciclo cede a Tk una fracción fija "
+             "del tiempo, independientemente de lo que haya costado el fotograma"),
+    ],
+    resultado_esperado="PASSED en el entorno con interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_el_ciclo_reprograma_con_el_intervalo_completo(vivo):
+    pantalla = vivo
+    plazos = []
+    original = pantalla.after
+
+    def espiar(ms, *args, **kwargs):
+        if args and args[0] == pantalla._actualizar_frame:
+            plazos.append(ms)
+        return original(ms, *args, **kwargs)
+
+    pantalla.after = espiar
+    try:
+        pantalla._procesar_fotograma()
+    finally:
+        pantalla.after = original
+
+    assert plazos, "el ciclo no se reprogramó"
+    assert plazos[-1] == pantalla.INTERVALO_MS, (
+        f"el ciclo se reprogramó con {plazos[-1]} ms en vez de "
+        f"{pantalla.INTERVALO_MS}. Descontar el trabajo ya hecho deja el "
+        f"temporizador vencido y en macOS eso tumba la aplicación.")

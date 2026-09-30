@@ -344,22 +344,38 @@ sin la guardia. Ojo: una primera versión de esa prueba la provocaba desde
 no produce pose detectada y ese camino nunca se ejecuta. Toda prueba nueva sobre
 el bucle en vivo tiene que verificarse quitando el arreglo.
 
-**Dos fugas de rendimiento de la interfaz, medidas y corregidas**
-(28-sep-2026). La medición sobre la interfaz real en la Mac dio 18,1 fps, pero
-las etapas sumaban 39,8 ms —25 fps—. Los 15,3 ms de diferencia eran exactamente
-`INTERVALO_MS`:
+**El intervalo del bucle en vivo es FIJO, y revertirlo costó una caída**
+(30-sep-2026). El 28-sep se «optimizó» descontando del intervalo el tiempo ya
+gastado en el fotograma, para recuperar los 15,3 ms que se sumaban al trabajo.
+Subió de 18,1 a 24,2 fps. **Hubo que revertirlo el 30-sep.**
 
-1. **El bucle sumaba el intervalo al trabajo en vez de solaparlo.** Se
-   reprogramaba con `after(15)` *después* de terminar todo. Ahora descuenta lo
-   gastado (`espera_hasta_el_siguiente` en `gui/panel_vivo.py`, puro y probado
-   en CI). Nunca devuelve cero: sin un hueco, Tk no atiende los clics y el
-   instructor no puede pulsar «Terminar sesión».
-2. **Se convertían 2 MP para dibujarlos en 0,25.** `_mostrar_frame` pasaba el
-   fotograma entero a `CTkImage` y dejaba que CustomTkinter lo redujera. Ahora
-   se reduce con `cv2.resize` antes de convertir: medido, 20,1 ms → 5,9.
+Como el trabajo de un fotograma (~40 ms) supera el intervalo (15 ms), la resta
+daba **siempre el mínimo de 1 ms**, y el temporizador siguiente quedaba vencido
+casi siempre. Dos fallos medidos en la Mac, los dos graves:
 
-En el contenedor: **15,2 → 28,4 fps**. Proyección para la Mac: ~33 fps, que
-cumpliría el RF-01 — **falta confirmarlo en su equipo**.
+- **`RecursionError` durante un análisis en vivo**, con la aplicación cerrada.
+  La guardia de reentrada impide que el bucle se llame a sí mismo, pero **no**
+  que los ciclos de eventos anidados de Tk se acumulen, y en macOS
+  `update_idletasks()` atiende los temporizadores vencidos. Nótese que la traza
+  era corta —siete marcos— y aun así agotó el límite: la profundidad no venía
+  del lado de Python.
+- **La ventana dejaba de responder a los clics.** Con 1 ms de espera entre
+  fotogramas de 40 ms, Tk recibe el 2 % del tiempo para atender al usuario; con
+  el intervalo completo, cerca del 27 %. Sebastián lo describió como «doy clics
+  y no responde hasta después de varios intentos», y encaja exactamente.
+
+**Los ~6 fps no valen una caída en la defensa.** Lo fija
+`test_el_ciclo_reprograma_con_el_intervalo_completo` (TC-AUTO-055), que
+intercepta `after` y comprueba el plazo. `espera_hasta_el_siguiente` se retiró.
+
+**La otra optimización del 28-sep sí se conserva**, porque reduce trabajo sin
+tocar la planificación: `_mostrar_frame` convertía 2 MP para dibujarlos en 0,25;
+ahora reduce con `cv2.resize` antes de convertir. Medido: 20,1 ms → 5,9.
+
+Lección general: **una optimización que cambia el ritmo del ciclo de eventos no
+es una optimización local**. Si vuelve a tocarse el intervalo, hay que medir en
+macOS antes de darlo por bueno — el contenedor de desarrollo no reproduce este
+fallo.
 
 Y una hipótesis mía que los datos desmintieron: supuse que la grabación de
 sesión era la culpable porque aquí costaba 10 ms. En la Mac cuesta **2,2 ms**.
@@ -412,13 +428,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 784 passed |
-| CI / sin entorno gráfico | igual | 642 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 781 passed |
+| CI / sin entorno gráfico | igual | 638 passed, 10 skipped |
 
-El 642 está medido en el contenedor. El 784 es aritmética sobre dos cifras
-medidas —780 confirmadas en su Mac el 30-sep más las 4 pruebas del monitor con
-tope, unitarias y por tanto válidas en los dos entornos—, **pendiente de
-confirmar** en su equipo.
+El 638 está medido en el contenedor. El 781 sale de 784 confirmadas en su Mac
+menos las 4 pruebas del intervalo adaptativo retirado, más la de regresión del
+ciclo, que solo corre con entorno gráfico — **pendiente de confirmar**.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -428,7 +443,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-055**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-056**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

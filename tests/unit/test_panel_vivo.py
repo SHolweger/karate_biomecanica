@@ -9,7 +9,7 @@ un panel que repite la misma corrección treinta veces por segundo, o que escrib
 """
 import pytest
 
-from gui.panel_vivo import (ARTICULACIONES, ELIGE_ALUMNO, espera_hasta_el_siguiente, FeedCorrecciones, PUNTOS_IMU,
+from gui.panel_vivo import (ARTICULACIONES, ELIGE_ALUMNO, FeedCorrecciones, PUNTOS_IMU,
                             SIN_ALUMNOS, SIN_DATO, etiqueta_alumno, formatear_angulo,
                             formatear_tiempo, metricas_articulares, veredicto_legible)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
@@ -272,33 +272,4 @@ def test_el_texto_del_selector_no_se_confunde_con_el_nombre_de_un_alumno():
     assert etiqueta_alumno(None, [ELIGE_ALUMNO]) == ELIGE_ALUMNO
 
 
-# ---------------- ritmo del bucle de análisis ----------------
 
-def test_un_fotograma_lento_no_suma_ademas_el_intervalo():
-    """
-    Regresión medida el 27-sep-2026. El bucle se reprogramaba con
-    `after(INTERVALO_MS)` DESPUÉS de todo el trabajo, así que el período era
-    trabajo + intervalo: las etapas sumaban 39,8 ms y el período observado era
-    55,1. Eran 18,1 fps donde había 25 disponibles.
-    """
-    assert espera_hasta_el_siguiente(15, 39.8) == 1
-
-
-def test_un_fotograma_rapido_espera_lo_que_falta():
-    """El intervalo protege el ciclo de eventos cuando el análisis va sobrado."""
-    assert espera_hasta_el_siguiente(15, 4.0) == 11
-    assert espera_hasta_el_siguiente(15, 0.0) == 15
-
-
-def test_la_espera_nunca_es_cero():
-    """
-    Devolver cero dejaría a Tk sin un hueco para atender clics: la ventana
-    seguiría dibujando video y el instructor no podría pulsar «Terminar sesión».
-    """
-    for gastado in (15, 16, 100, 5000):
-        assert espera_hasta_el_siguiente(15, gastado) == 1
-
-
-def test_la_espera_nunca_supera_el_intervalo():
-    for gastado in (0, 1, 7.5, 14.9):
-        assert 1 <= espera_hasta_el_siguiente(15, gastado) <= 15
