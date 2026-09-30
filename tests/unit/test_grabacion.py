@@ -12,6 +12,7 @@ import pytest
 
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 from vision.grabacion import (FPS_POR_DEFECTO, aviso_en_vivo, describir_resultado,
+                              estado_en_vivo,
                               directorio_configurado,
                               fps_estimado, grabacion_activada, nombre_de_archivo,
                               nombre_visible, parte_de_nombre, ruta_de_sesion)
@@ -212,3 +213,94 @@ def test_sin_grabar_tambien_se_anuncia_en_vez_de_no_decir_nada():
     grabando". El estado tiene que estar afirmado en los dos casos.
     """
     assert aviso_en_vivo(False) == "○ Solo midiendo"
+
+
+# ---------------- el aviso dice lo que pasa, no lo que se configuró ----------
+
+@ficha(
+    id_caso="TC-AUTO-060",
+    nombre="El aviso de grabacion no anuncia que graba cuando no esta grabando",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="este aviso es la unica pieza del sistema dedicada al "
+                         "consentimiento: existe para que nadie descubra despues que "
+                         "lo filmaron, y en el dojo se entrena con menores. Hasta el "
+                         "30-sep-2026 la pantalla lo resolvia una sola vez al "
+                         "construirse, leyendo solo el interruptor del equipo, de modo "
+                         "que anunciaba «Grabando» sin alumno elegido --sin camara ni "
+                         "sesion, sin nada que grabar-- y seguia anunciandolo si el "
+                         "grabador renunciaba a mitad de sesion por disco lleno o "
+                         "codec caido. El segundo caso deja al sensei creyendo que "
+                         "tiene el video de la sesion, y se entera al ir a buscarlo. "
+                         "Un punto rojo que a veces no significa nada es peor que no "
+                         "tener punto rojo",
+    componente="vision/grabacion.py (estado_en_vivo)",
+    requisitos="RF-09, RNF-05",
+    precondiciones="Ninguna: la funcion es pura y recibe el estado ya resuelto",
+    datos_entrada="Las cuatro combinaciones que se dan en la pantalla: configurada sin "
+                  "sesion, configurada con grabador activo, configurada con grabador "
+                  "que renuncio, y apagada",
+    pasos=[
+        Paso("Pedir el estado con la grabacion configurada pero sin sesion iniciada",
+             "assert NO dice «Grabando»: sin alumno no hay camara ni sesion, asi "
+             "que no se escribe nada"),
+        Paso("Pedir el estado con sesion iniciada y grabador activo",
+             "assert dice «Grabando» con el punto lleno"),
+        Paso("Pedir el estado con sesion iniciada y grabador que ya renuncio",
+             "assert avisa de que la grabacion se detuvo, en vez de seguir "
+             "anunciando que graba"),
+        Paso("Pedir el estado con la grabacion apagada en el equipo",
+             "assert dice «Solo midiendo», que ya era correcto"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz grafica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_el_aviso_no_anuncia_que_graba_cuando_no_graba():
+    sin_sesion = estado_en_vivo(configurada=True, sesion_iniciada=False)
+    assert "Grabando" not in sin_sesion, (
+        "sin alumno elegido no hay camara ni sesion: no se esta grabando nada")
+
+    assert estado_en_vivo(configurada=True, sesion_iniciada=True,
+                          grabador_activo=True) == "● Grabando"
+
+    detenida = estado_en_vivo(configurada=True, sesion_iniciada=True,
+                              grabador_activo=False)
+    assert "Grabando" not in detenida and "detenida" in detenida.lower(), (
+        "un grabador que renuncio no puede seguir anunciando que graba")
+
+    assert estado_en_vivo(configurada=False, sesion_iniciada=True) == "○ Solo midiendo"
+
+
+def test_el_aviso_de_que_va_a_grabar_no_se_confunde_con_el_de_que_no_grabara():
+    """
+    «Se grabará al comenzar» y «Solo midiendo» son promesas opuestas, y las dos
+    aparecen antes de que haya nada escrito. Si se anunciaran igual, el
+    interruptor del equipo dejaría de ser verificable justo cuando hay tiempo
+    de cambiarlo: antes de empezar.
+    """
+    assert (estado_en_vivo(configurada=True, sesion_iniciada=False)
+            != estado_en_vivo(configurada=False, sesion_iniciada=False))
+
+
+def test_analizar_una_grabacion_manda_sobre_todo_lo_demas():
+    """
+    Ya existía como caso aparte y sigue siéndolo: no se escribe video nuevo
+    —no es «Grabando»— pero sí queda el de origen —no es «Solo midiendo»—.
+    """
+    assert estado_en_vivo(configurada=True, sesion_iniciada=True, grabador_activo=True,
+                          fuente_es_grabacion=True) == "▸ Analizando grabación"
+    assert estado_en_vivo(configurada=False, fuente_es_grabacion=True) == \
+        "▸ Analizando grabación"
+
+
+def test_ningun_estado_se_queda_sin_texto():
+    """
+    Una etiqueta vacía se lee como «no me fijé», no como «no se graba». Las
+    ocho combinaciones tienen que afirmar algo.
+    """
+    for configurada in (True, False):
+        for iniciada in (True, False):
+            for activo in (True, False, None):
+                texto = estado_en_vivo(configurada, iniciada, activo)
+                assert texto and texto.strip(), (configurada, iniciada, activo)

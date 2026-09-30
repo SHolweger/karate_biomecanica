@@ -376,6 +376,34 @@ nada avisara hasta ver la lista de alumnos vacía. Migrar es decisión suya.
 pruebas, para una base compartida en el dojo y para mover los datos sin tocar
 el código.
 
+**El aviso de grabación dice lo que pasa, no lo que se configuró**
+(30-sep-2026). Es la única pieza del sistema dedicada al **consentimiento** —
+existe para que nadie descubra después que lo filmaron, y en el dojo se entrena
+con menores—, y se resolvía una sola vez al construir la pantalla, leyendo solo
+el interruptor del equipo. Tres situaciones distintas, un solo texto:
+
+| Situación real | Anunciaba | Anuncia ahora |
+|---|---|---|
+| Sin alumno: ni cámara ni sesión | ● Grabando | ○ Se grabará al comenzar |
+| Grabando de verdad | ● Grabando | ● Grabando |
+| **El grabador renunció a mitad** | ● Grabando | ⚠ Grabación detenida |
+| Apagada en el equipo | ○ Solo midiendo | ○ Solo midiendo |
+
+El primero se vio en una captura de Sebastián con la base recién estrenada:
+cero alumnos, recuadro de video en negro y el punto rojo encendido. **El
+tercero es el grave**: la decisión de que un fallo de grabación nunca tumbe la
+sesión —se anota el motivo, se deja de grabar y se sigue midiendo— tiene como
+reverso que la sesión entera transcurre anunciando que graba, y el sensei se
+entera al ir a buscar el video. Un punto rojo que a veces no significa nada es
+peor que no tener punto rojo.
+
+`vision/grabacion.estado_en_vivo()` (puro, corre en CI) lo decide con lo que el
+sistema sabe: si la fuente es un archivo, si está configurada, si hay sesión y
+si el grabador sigue activo. `grabador_activo` es ternario a propósito: `None`
+es «no hay grabador que consultar», que no es lo mismo que uno apagado. La
+pantalla lo consulta al construirse, al abrir la sesión y en cada fotograma que
+graba — que son los tres momentos en que puede cambiar. TC-AUTO-060.
+
 **El texto técnico del diagnóstico es el registro; la instrucción es aparte.**
 `gui/coaching.py` traduce «TSUKI: HIPEREXTENDIDO» a «No bloquees el codo al
 impacto». El texto técnico no se cambia porque es la clave con la que la base
@@ -519,11 +547,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 804 passed |
-| CI / sin entorno gráfico | igual | 661 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 808 passed |
+| CI / sin entorno gráfico | igual | 665 passed, 10 skipped |
 
-El 661 está medido en el contenedor. El 804 sale de las 797 confirmadas en su
-Mac el 30-sep más las 7 de `revisar_base.py` — **pendiente de confirmar**.
+El 665 está medido en el contenedor. El 808 sale de las 797 confirmadas en su
+Mac el 30-sep más las 7 de `revisar_base.py` y las 4 del aviso de grabación —
+**pendiente de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -551,7 +580,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-060**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-061**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

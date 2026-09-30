@@ -217,6 +217,12 @@ def nombre_visible(ruta_guardada):
 GRABANDO = "● Grabando"
 SOLO_MIDIENDO = "○ Solo midiendo"
 
+# Estado que se anuncia cuando la fuente ya es una grabación. No es «Grabando»
+# —no se escribe nada— ni «Solo midiendo» —sí queda video, el de origen—: es una
+# tercera situación, y nombrarla con cualquiera de las otras dos convertiría el
+# aviso en ruido.
+ANALIZANDO_GRABACION = "▸ Analizando grabación"
+
 
 def aviso_en_vivo(activada):
     """
@@ -230,12 +236,57 @@ def aviso_en_vivo(activada):
     El punto lleno/vacío acompaña al texto a propósito: es la convención con
     la que cualquier persona reconoce una grabación en curso, y se entiende
     de un vistazo desde el otro lado del tatami.
+
+    Describe la CONFIGURACIÓN del equipo. Lo que ocurre de verdad en la sesión
+    lo dice `estado_en_vivo`, y son cosas distintas: ver más abajo.
     """
     return GRABANDO if activada else SOLO_MIDIENDO
 
 
-# Estado que se anuncia cuando la fuente ya es una grabación. No es «Grabando»
-# —no se escribe nada— ni «Solo midiendo» —sí queda video, el de origen—: es una
-# tercera situación, y nombrarla con cualquiera de las otras dos convertiría el
-# aviso en ruido.
-ANALIZANDO_GRABACION = "▸ Analizando grabación"
+# Lo que se anuncia cuando la grabación está configurada pero todavía no ha
+# empezado —no hay alumno elegido, así que no hay sesión ni cámara abierta—. El
+# punto hueco es deliberado: no se está escribiendo nada.
+POR_GRABAR = "○ Se grabará al comenzar"
+
+# Y lo que se anuncia cuando la grabación se apagó sola a mitad de sesión. El
+# proyecto decidió que un fallo de grabación NUNCA tumba la sesión: se anota el
+# motivo, se deja de grabar y se sigue midiendo (ver vision/grabador.py). Ese
+# acierto tiene un reverso: sin avisar, la sesión entera transcurre con la
+# pantalla diciendo que graba.
+GRABACION_DETENIDA = "⚠ Grabación detenida"
+
+
+def estado_en_vivo(configurada, sesion_iniciada=False, grabador_activo=None,
+                   fuente_es_grabacion=False):
+    """
+    Qué está pasando AHORA con la grabación, no qué se configuró.
+
+    Hasta el 30-sep-2026 la pantalla resolvía esto una sola vez, al construirse,
+    leyendo únicamente el interruptor del equipo. De ahí salían dos afirmaciones
+    falsas:
+
+    - **Sin alumno elegido** no se abre la cámara ni se crea sesión —no hay
+      nada que grabar— y la pantalla anunciaba «● Grabando» igual. Se vio en
+      una captura de Sebastián con la base recién estrenada: cero alumnos,
+      recuadro de video en negro y el punto rojo encendido.
+    - **Si el grabador renunciaba** a mitad de sesión, el aviso no cambiaba. La
+      sesión entera seguía diciendo «● Grabando» con el disco lleno o el códec
+      caído, y el sensei se enteraba al buscar el video y no encontrarlo.
+
+    El segundo es el que de verdad importa, y no por comodidad: este aviso es la
+    única pieza del sistema dedicada al **consentimiento**. Existe para que
+    nadie descubra después que lo filmaron —en el dojo se entrena con menores—
+    y un aviso que miente en un sentido acaba por no leerse en el otro. Un punto
+    rojo que a veces no significa nada es peor que no tener punto rojo.
+
+    `grabador_activo` es ternario a propósito: `None` significa que no hay
+    grabador que consultar, que no es lo mismo que uno apagado.
+    """
+    if fuente_es_grabacion:
+        return ANALIZANDO_GRABACION
+    if not configurada:
+        return SOLO_MIDIENDO
+    if not sesion_iniciada:
+        return POR_GRABAR
+    return GRABANDO if grabador_activo else GRABACION_DETENIDA
+

@@ -20,8 +20,8 @@ from vision.encuadre import evaluar as evaluar_encuadre
 from persistence.medicion_logger import MedicionLogger
 from vision.camera import Camera
 from vision.fuentes import es_archivo
-from vision.grabacion import (ANALIZANDO_GRABACION, CLAVE_DIRECTORIO, CLAVE_GRABAR,
-                              aviso_en_vivo, directorio_configurado, grabacion_activada)
+from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, directorio_configurado,
+                              estado_en_vivo, grabacion_activada)
 from vision.grabador import GrabadorSesion
 from vision.tracker import PoseTracker
 
@@ -115,9 +115,11 @@ class LiveScreen(ctk.CTkFrame):
         self.veredicto_var = ctk.StringVar(value=SIN_DATO)
         # Grabando o solo midiendo, a la vista durante toda la sesión. Nadie
         # debería descubrir que lo estaban filmando después.
-        self.grabacion_var = ctk.StringVar(value=(
-            ANALIZANDO_GRABACION if es_archivo(fuente_configurada(db))
-            else aviso_en_vivo(grabacion_activada(db.leer_config(CLAVE_GRABAR)))))
+        # Arranca por el mismo camino que los refrescos posteriores, y no por
+        # uno propio: dos formas de decidir el mismo aviso es como se coló que
+        # dijera «Grabando» sin sesión ni camara abierta.
+        self.grabacion_var = ctk.StringVar()
+        self._refrescar_aviso_de_grabacion()
 
         self._encabezado()
         self._controles()
@@ -200,6 +202,21 @@ class LiveScreen(ctk.CTkFrame):
     def _fuente_es_grabacion(self):
         """¿Se está analizando un archivo en vez de una cámara en vivo?"""
         return es_archivo(fuente_configurada(self.db))
+
+    def _refrescar_aviso_de_grabacion(self):
+        """
+        Pone el aviso al día con lo que está pasando, no con lo configurado.
+
+        Se llama al construir la pantalla, al abrir la sesión y en cada
+        fotograma que se graba, porque el grabador puede renunciar en
+        cualquiera de ellos. La redacción y el porqué viven en
+        `vision.grabacion.estado_en_vivo`, que es puro y corre en CI.
+        """
+        self.grabacion_var.set(estado_en_vivo(
+            configurada=grabacion_activada(self.db.leer_config(CLAVE_GRABAR)),
+            sesion_iniciada=self.id_sesion is not None,
+            grabador_activo=None if self.grabador is None else self.grabador.grabando,
+            fuente_es_grabacion=self._fuente_es_grabacion()))
 
     def _graba(self):
         """
@@ -398,6 +415,9 @@ class LiveScreen(ctk.CTkFrame):
         else:
             self.grabador = None
             self.resumen_grabacion = "La grabación de video está desactivada en este equipo."
+        # Ya hay sesión y ya se sabe si hay grabador: el aviso deja de ser una
+        # promesa («se grabará al comenzar») y pasa a describir lo que ocurre.
+        self._refrescar_aviso_de_grabacion()
         self._activo = True
         self._actualizar_frame()
 
@@ -458,6 +478,11 @@ class LiveScreen(ctk.CTkFrame):
             # cocidas dentro de la evidencia.
             if self.grabador is not None:
                 self.grabador.escribir(frame, timestamp_ms)
+                # El grabador puede renunciar aquí mismo —disco lleno, códec,
+                # permisos— y la sesión sigue midiendo, que es lo decidido. Pero
+                # el aviso tiene que enterarse: si no, la sesión entera
+                # transcurre anunciando que graba. Ver vision/grabacion.py.
+                self._refrescar_aviso_de_grabacion()
             if self.monitor is not None:
                 self.monitor.marcar("grabacion")
 
