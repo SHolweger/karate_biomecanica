@@ -20,6 +20,7 @@ python3 main.py --consola --fuente "grabacion.mp4"   # analiza un video y lo reg
 python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta pose
 python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3D?
 python3 revisar_base.py                              # qué hay en la base (solo lectura)
+python3 revisar_tsuki.py "grabacion.mp4" --golpes 8  # ¿a qué velocidad son los Tsuki?
 python3 -m pytest -q         # suite completa
 ```
 
@@ -249,12 +250,43 @@ magnitud de margen, igual que la separación en anchos de cadera de
 `guardia.py`. **Conviene contrastarlo contra grabaciones reales antes de fijar
 los números en la tesis.**
 
-Deliberadamente **no** se exige velocidad como criterio aparte: haría falta
-calibrarla contra grabaciones que no existen, y una ejecución lenta frente al
-espejo sigue siendo un Tsuki — es lo que `riesgos.py` recomienda practicar. Lo
-que el criterio **no** puede distinguir es un Tsuki de cualquier otra extensión
-rápida del codo; conviene decirlo en la tesis en vez de insinuar que reconoce
-la técnica por su forma.
+**ABIERTO: el umbral de 70°/s deja fuera el Tsuki lento** (30-sep-2026,
+observado en vivo). El par (recorrido, ventana) ES un umbral de velocidad, y
+una ejecución deliberadamente lenta no llega. Este archivo y el módulo llegaron
+a decir que «una ejecución lenta frente al espejo sigue siendo un Tsuki»; con
+este criterio, **no**. La frase describía mal su propio umbral.
+
+La tensión es real y no está resuelta: `expert_system/riesgos.py` recomienda
+literalmente «trabajar el Tsuki a velocidad media frente al espejo». Un sistema
+que recomienda practicar despacio y luego no mide cuando se practica despacio se
+contradice. Bajar el umbral reabre los falsos positivos que el módulo existe
+para cerrar.
+
+**Se decide con datos, no con criterio.** Los dos umbrales son parámetros del
+constructor de `TsukiStateMachine`, y `revisar_tsuki.py` (raíz) los barre sobre
+una grabación real: lista cada golpe reconocido con su marca de tiempo, de qué
+ángulo salió y a qué velocidad, imprime los percentiles de velocidad angular del
+codo y contrasta lo reconocido contra lo ejecutado (`--golpes N`). Si el corte de
+70°/s cae por encima del P95 de la grabación, el sistema exige más velocidad de
+la que el ejecutante produce.
+
+Sebastián observó además que **al recoger el brazo el veredicto se encendió
+alguna vez**. Eso sí sería un defecto —la máquina solo dispara al ABRIR el
+codo— y la herramienta lo comprueba fechando cada golpe, para poder abrir el
+video en ese segundo. **Sin confirmar todavía.**
+
+Lo que el criterio **no** puede distinguir, en ningún caso, es un Tsuki de
+cualquier otra extensión rápida del codo; conviene decirlo en la tesis en vez
+de insinuar que reconoce la técnica por su forma.
+
+Dos errores míos en la propia herramienta, los dos encontrados **al ejecutarla**
+y no al leerla, y los dos en la única cifra para la que existe: informaba el
+golpe «de 90,7° a 172° a 411°/s» cuando salió de 50° a 616°/s —tomaba como
+inicio el fotograma en que la máquina se enteró, no el Hikite—, y al corregir
+eso pasó a 205°/s, porque la duración se tragaba los cientos de milisegundos
+que el puño llevaba parado. Ahora mide desde el último instante en que el codo
+seguía abajo hasta aquel en que la extensión llegó más arriba, con **la
+resolución del muestreo**: a 30 fps, ±33 ms sobre una extensión de 200.
 
 Efecto secundario que conviene aprovechar: «evaluaciones cerradas» pasa a
 significar **repeticiones**, que es lo que siempre debió significar.
@@ -579,10 +611,11 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 808 passed |
-| CI / sin entorno gráfico | igual | 665 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 816 passed |
+| CI / sin entorno gráfico | igual | 673 passed, 10 skipped |
 
-El 665 está medido en el contenedor y el 808 en su Mac, los dos el 30-sep.
+El 673 está medido en el contenedor. El 816 sale de las 808 confirmadas en su
+Mac más las 8 de `revisar_tsuki.py` — **pendiente de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -610,7 +643,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-061**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-062**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

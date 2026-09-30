@@ -56,12 +56,27 @@ queda en el ruido del filtro. Por eso el criterio separa limpiamente sin
 depender de calibrar un umbral fino, igual que la separación en anchos de
 cadera de `guardia.py`.
 
-**No se exige velocidad**, y es deliberado: haría falta calibrarla contra
-grabaciones que todavía no existen, y una ejecución lenta y deliberada frente
-al espejo sigue siendo un Tsuki — es justamente lo que `riesgos.py` recomienda
-practicar. Lo que sí impone la ventana es un límite superior de duración: una
-extensión repartida en más de `VENTANA_RECORRIDO_MS` no se reconoce como
-golpe, porque a esa velocidad ya no lo es.
+**El par (recorrido, ventana) ES un umbral de velocidad**, y conviene decirlo
+así: 35° en 500 ms equivale a exigir **70°/s**. Una extensión más lenta que eso
+no se reconoce como golpe.
+
+Esa consecuencia se comprobó en vivo el 30-sep-2026: **un Tsuki ejecutado
+despacio no se detecta**. No es un fallo, es lo que el umbral decide — pero
+estuvo mal descrito, porque este comentario llegó a afirmar que «una ejecución
+lenta frente al espejo sigue siendo un Tsuki». Con este criterio, no.
+
+Y ahí hay una tensión real que **no está resuelta**: `expert_system/riesgos.py`
+recomienda literalmente «trabajar el Tsuki a velocidad media frente al espejo,
+deteniendo la extensión justo antes del bloqueo». Un sistema que recomienda
+practicar despacio y luego no mide cuando se practica despacio se contradice.
+Bajar el umbral, en cambio, reabre la puerta a los falsos positivos que este
+módulo existe para cerrar.
+
+La decisión pide datos y no criterio, y por eso los dos umbrales son
+**parámetros del constructor** y no constantes leídas directamente:
+`revisar_tsuki.py` barre combinaciones sobre una grabación real y contrasta
+los golpes reconocidos contra los ejecutados. Mientras tanto rigen los valores
+del módulo.
 
 `RECORRIDO_MINIMO` sale de la definición de la técnica —el Hikite parte del
 puño en la cadera, con el codo muy flexionado, y hasta un Kizami Tsuki desde
@@ -137,10 +152,17 @@ class TsukiStateMachine:
     que falta en los estados intermedios es el veredicto, no el dato.
     """
 
-    def __init__(self, reglas=None):
+    def __init__(self, reglas=None, recorrido_minimo=RECORRIDO_MINIMO,
+                 ventana_ms=VENTANA_RECORRIDO_MS):
         # Sin reglas explícitas se instancian las de literatura, para poder
         # probar la máquina sin base de datos.
         self.reglas = reglas or KarateRules()
+        # Los dos umbrales son parámetros y no constantes leídas directamente
+        # porque están declarados provisionales: hace falta poder barrerlos
+        # contra grabaciones reales para elegirlos con datos. Lo hace
+        # `revisar_tsuki.py`. El sistema usa los valores del módulo.
+        self.recorrido_minimo = recorrido_minimo
+        self.ventana_ms = ventana_ms
         self.reset()
 
     def reset(self):
@@ -177,7 +199,7 @@ class TsukiStateMachine:
         distingue abrirse de estar abierto.
         """
         self._ventana.append((t_ms, angulo))
-        while len(self._ventana) > 1 and t_ms - self._ventana[0][0] > VENTANA_RECORRIDO_MS:
+        while len(self._ventana) > 1 and t_ms - self._ventana[0][0] > self.ventana_ms:
             self._ventana.popleft()
 
         angulos = [a for _, a in self._ventana]
@@ -198,7 +220,7 @@ class TsukiStateMachine:
         recorrido, abriendose = self._recorrido(angulo, t_ms)
 
         if self.estado == REPOSO:
-            if recorrido >= RECORRIDO_MINIMO and abriendose:
+            if recorrido >= self.recorrido_minimo and abriendose:
                 self.estado = EXTENDIENDO
                 self.pico = angulo
                 self.t_inicio_extension_ms = t_ms
@@ -225,7 +247,7 @@ class TsukiStateMachine:
         #   se vacíe perdería el segundo golpe;
         # - o la ventana dejó de ver recorrido, que es lo que ocurre cuando el
         #   brazo se queda extendido donde terminó.
-        if angulo <= self.pico - RECORRIDO_MINIMO or recorrido < RECORRIDO_MINIMO:
+        if angulo <= self.pico - self.recorrido_minimo or recorrido < self.recorrido_minimo:
             self.estado = REPOSO
             self.pico = None
         return dict(self.ultimo_veredicto, angulo=angulo)
