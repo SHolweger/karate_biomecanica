@@ -684,12 +684,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 820 passed |
-| CI / sin entorno gráfico | igual | 677 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 822 passed |
+| CI / sin entorno gráfico | igual | 679 passed, 10 skipped |
 
-El 677 está medido en el contenedor. El 820 sale de las 816 confirmadas en su
-Mac más la del arranque del golpe y las tres del plan de pruebas — **pendiente
-de confirmar**.
+El 679 está medido en el contenedor. El 822 sale de las 816 confirmadas en su
+Mac más la del arranque del golpe, las tres del plan y las dos de la corrida
+parcial — **pendiente de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -727,6 +727,30 @@ python3 -m pytest --exigir-fichas --reporte-formal   # lo que corre CI
 `docs/casos_prueba_automatizados.generado.md` está versionado y **solo se
 reescribe en corridas completas**; una corrida parcial informa por qué no lo
 actualizó, para que no borre evidencia.
+
+**Una corrida parcial tiene DOS causas y no significan lo mismo** (30-sep-2026).
+El auditor de formato distinguía solo entre corrida completa y módulos omitidos
+por el entorno, así que ejecutar una prueba suelta —`pytest
+tests/unit/test_guardia.py`— imprimía «**incumplimiento**: la serie de IDs tiene
+huecos» seguido de cuarenta y nueve identificadores. La suite estaba perfecta;
+lo único que pasaba es que no se había pedido entera. Se vio preparando una
+demostración, y ahí es donde más daño hace: un aviso que grita ante lo normal se
+aprende a ignorar, y deja de servir cuando el hueco es real.
+
+| Por qué faltan módulos | Qué significa |
+|---|---|
+| El entorno no puede importarlos | Este equipo no sirve: hay que correrlos en otro |
+| No se pidieron | No se pidieron. Nada más |
+
+Se cuenta comparando **archivos en disco** contra los recolectados, no
+interpretando los argumentos: `pytest archivo.py::prueba` y `pytest -k patrón`
+seleccionan igual de parcialmente por caminos distintos. El inventario vive en
+`self.modulos_en_disco` y no dentro del cálculo, para que un doble pueda
+**declarar** qué considera «completo» en vez de heredar lo que haya en el disco
+de quien ejecuta.
+
+En una corrida elegida la lista de huecos ya no se imprime: falta casi toda la
+serie por construcción y volcarla escondía el único renglón que importaba.
 
 **El plan de pruebas se genera, no se escribe** (30-sep-2026). `plan_de_pruebas.py`
 (raíz) produce `docs/plan_de_pruebas.csv` —que abre en Excel o Project, con las

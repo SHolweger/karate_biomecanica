@@ -313,6 +313,12 @@ def _auditor(ids, modulos_omitidos=()):
             ficha=ficha_caso, nodeid=f"tests/unit/test_x.py::test_{numero}")
     auditor.modulos = {"tests/unit/test_x.py": {f"TC-AUTO-{n:03d}" for n in ids}}
     auditor.modulos_omitidos = list(modulos_omitidos)
+    # El doble declara qué considera «todos los módulos», en vez de heredar lo
+    # que haya en el disco de quien ejecuta: sin esto, estas pruebas dirían
+    # cosas distintas según cuántos archivos de prueba tenga el repositorio ese
+    # día. Los omitidos también existen en disco, por definición.
+    auditor.modulos_en_disco = {"test_x.py"} | {
+        m.split("::")[0].rsplit("/", 1)[-1] for m in modulos_omitidos}
     return auditor
 
 
@@ -344,6 +350,56 @@ def test_un_hueco_por_modulos_omitidos_es_solo_un_aviso():
     assert problemas == [], "un hueco explicado por el entorno no es un incumplimiento"
     assert any("huecos" in a for a in avisos), "pero debe informarse igual"
     assert any("omitido" in a for a in avisos), "y explicarse por qué"
+
+
+@pytest.mark.unitaria
+def test_elegir_que_ejecutar_no_es_un_incumplimiento():
+    """
+    El tercer caso, que faltaba: la corrida no vio todos los módulos porque
+    quien ejecuta eligió un subconjunto.
+
+    Encontrado el 30-sep-2026 preparando una demostración: correr una sola
+    prueba —`pytest tests/unit/test_guardia.py`— imprimía «incumplimiento: la
+    serie de IDs tiene huecos» seguido de cuarenta y nueve identificadores. La
+    suite estaba perfecta; lo único que pasaba es que no se había pedido
+    ejecutarla entera. Un aviso que grita ante lo normal se aprende a ignorar,
+    y entonces deja de servir cuando el hueco es real.
+
+    La lista de huecos tampoco se imprime aquí: en una corrida elegida falta
+    casi toda la serie por construcción, y volcarla esconde el único renglón
+    que importa.
+    """
+    auditor = _auditor([1, 2, 4])
+    auditor.modulos_en_disco = {"test_x.py", "test_y.py", "test_z.py"}
+
+    problemas, avisos = auditor._auditar_formato()
+
+    assert problemas == [], "elegir qué ejecutar no puede ser un incumplimiento"
+    assert any("corrida parcial" in a for a in avisos), "y debe decirse por qué"
+    assert not any("TC-AUTO-003" in a for a in avisos), \
+        "la lista de huecos es ruido cuando falta casi toda la serie"
+
+
+@pytest.mark.unitaria
+def test_el_aviso_distingue_el_entorno_de_la_seleccion():
+    """
+    Las dos causas piden reacciones distintas. Un módulo omitido por el entorno
+    dice que ESTE equipo no puede ejecutarlo —hay que correrlo en otro—;
+    uno no seleccionado dice que no se pidió. Confundirlas llevaría a buscar un
+    equipo con pantalla para una prueba que solo hacía falta incluir.
+    """
+    solo_entorno = _auditor([1, 2, 4], modulos_omitidos=["tests/e2e/test_gui.py"])
+    solo_entorno.modulos_en_disco = {"test_x.py", "test_gui.py"}
+    _, avisos_entorno = solo_entorno._auditar_formato()
+
+    solo_seleccion = _auditor([1, 2, 4])
+    solo_seleccion.modulos_en_disco = {"test_x.py", "test_y.py"}
+    _, avisos_seleccion = solo_seleccion._auditar_formato()
+
+    assert any("omitido" in a for a in avisos_entorno)
+    assert not any("corrida parcial" in a for a in avisos_entorno)
+    assert any("corrida parcial" in a for a in avisos_seleccion)
+    assert not any("omitido" in a for a in avisos_seleccion)
 
 
 @pytest.mark.unitaria

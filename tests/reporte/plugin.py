@@ -30,6 +30,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -183,6 +184,12 @@ class ReporteFormal:
         self.problemas_formato: list[str] = []
         self.avisos_formato: list[str] = []
         self.modulos_omitidos: list[str] = []
+        # Qué módulos de prueba EXISTEN, para saber si la corrida los vio todos.
+        # Es un atributo y no un cálculo dentro de la auditoría para que un
+        # doble pueda declararlo: una prueba sobre «corrida completa» tiene que
+        # poder decir qué considera completo, en vez de depender de lo que haya
+        # en el disco de quien la ejecuta.
+        self.modulos_en_disco: set[str] = self._inventario_en_disco()
 
     # -- recolección --------------------------------------------------------
     def pytest_collectreport(self, report):
@@ -232,6 +239,46 @@ class ReporteFormal:
                 "Documentá los casos faltantes con @ficha(...) o quitá --exigir-fichas."
             )
 
+    @staticmethod
+    def _inventario_en_disco() -> set[str]:
+        """Los archivos de prueba que hay, por nombre."""
+        try:
+            return {p.name for p in Path(__file__).resolve().parents[1].rglob("test_*.py")}
+        except OSError:
+            return set()
+
+    def _modulos_no_recolectados(self) -> int:
+        """
+        Cuántos módulos de prueba existen y esta corrida no miró.
+
+        Se comparan archivos, no se interpretan los argumentos de la línea de
+        órdenes: `pytest tests/unit/test_tsuki.py::test_x` y `pytest -k tsuki`
+        seleccionan igual de parcialmente por caminos distintos, y adivinarlo
+        desde los argumentos sería frágil justo donde importa que no lo sea.
+        """
+        vistos = {Path(m).name for m in self.modulos}
+        vistos |= {Path(m.split("::")[0]).name for m in self.modulos_omitidos}
+        return len(self.modulos_en_disco - vistos)
+
+    def _por_que_faltan(self, sin_seleccionar: int) -> str:
+        """
+        Por qué los huecos no son un incumplimiento, diciendo cuál de las dos
+        causas es. Confundirlas llevaría a buscar un caso borrado que no existe,
+        o a dar por bueno un entorno que sí está incompleto.
+        """
+        if self.modulos_omitidos and sin_seleccionar:
+            return (f"los huecos anteriores se explican por "
+                    f"{len(self.modulos_omitidos)} módulo(s) omitido(s) en este "
+                    f"entorno y {sin_seleccionar} no incluido(s) en esta corrida; "
+                    f"no se cuentan como incumplimiento")
+        if self.modulos_omitidos:
+            return (f"los huecos anteriores se explican por "
+                    f"{len(self.modulos_omitidos)} módulo(s) omitido(s) en este "
+                    f"entorno; no se cuentan como incumplimiento")
+        return (f"corrida parcial: {sin_seleccionar} módulo(s) de prueba quedaron "
+                f"fuera de la selección, así que la serie aparece incompleta. "
+                f"No es un incumplimiento; para auditarla, correr la suite entera")
+
     def _auditar_formato(self) -> tuple[list[str], list[str]]:
         """
         Separa los incumplimientos reales de los avisos que dependen del entorno.
@@ -253,12 +300,20 @@ class ReporteFormal:
         huecos = verificar_correlativos(c.ficha for c in self.casos.values())
         problemas, avisos = [], []
 
-        if self.modulos_omitidos and huecos:
-            avisos.extend(huecos)
-            avisos.append(
-                f"los huecos anteriores se explican por {len(self.modulos_omitidos)} "
-                f"módulo(s) omitido(s) en este entorno; no se cuentan como incumplimiento"
-            )
+        # Un hueco solo es evidencia de un caso borrado cuando la corrida vio
+        # TODOS los módulos. Hay dos maneras de que no los vea, y significan
+        # cosas distintas: que el entorno no pueda importarlos, o que quien
+        # ejecuta haya elegido un subconjunto.
+        sin_seleccionar = self._modulos_no_recolectados()
+
+        if huecos and (self.modulos_omitidos or sin_seleccionar):
+            # La lista de huecos solo se imprime cuando dice algo. En una
+            # corrida que alguien eligió --una prueba suelta, un archivo-- falta
+            # casi toda la serie por construcción, y volcar cincuenta
+            # identificadores esconde el único renglón que importa.
+            if not sin_seleccionar:
+                avisos.extend(huecos)
+            avisos.append(self._por_que_faltan(sin_seleccionar))
         else:
             problemas.extend(huecos)
 
