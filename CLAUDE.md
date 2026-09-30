@@ -21,6 +21,7 @@ python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta po
 python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3D?
 python3 revisar_base.py                              # qué hay en la base (solo lectura)
 python3 revisar_tsuki.py "grabacion.mp4" --golpes 8  # ¿a qué velocidad son los Tsuki?
+python3 plan_de_pruebas.py                           # regenera docs/plan_de_pruebas.{csv,md}
 python3 -m pytest -q         # suite completa
 ```
 
@@ -307,14 +308,37 @@ Dos cosas que esa corrida sí deja claras:
   contra 394 del izquierdo). El Hikite oculta el codo, y eso —no el umbral—
   puede ser lo que explique que solo se le reconozca un golpe.
 - Un golpe a **44,2°/s durante 1382 ms** se clasificó «HIPEREXTENDIDO
-  (Peligro)» con un pico de 179,5°. A esa velocidad y esa duración, es el
-  primer candidato a falso positivo, y tiene marca de tiempo: **40,92 s**.
-  Sebastián lo contrasta contra el video.
+  (Peligro)» con un pico de 179,5°, en el segundo **40,92**. **CONFIRMADO
+  falso positivo**: Sebastián abrió el video ahí y lo que hace es estirar el
+  brazo y sostenerlo unos tres segundos, sin golpear. La abstención no cierra
+  el caso que motivó el módulo — solo lo hizo mucho más raro.
 
-Sebastián observó además que **al recoger el brazo el veredicto se encendió
-alguna vez**. Eso sí sería un defecto —la máquina solo dispara al ABRIR el
-codo— y la herramienta lo comprueba fechando cada golpe, para poder abrir el
-video en ese segundo. **Sin confirmar todavía.**
+**Tres situaciones distintas que hoy se confunden en una** (30-sep-2026, a
+raíz de una pregunta de Sebastián: «¿qué pasa si el Tsuki tiene baja potencia,
+lo detecta o marca que debe ser más potente?»). Hoy el sistema las trata igual
+—no dice nada—, y son casos que pedirían respuestas opuestas:
+
+| Lo que ocurre | Lo que el sistema hace | Lo que debería |
+|---|---|---|
+| Se golpea con potencia | Lo juzga | ✔ |
+| Se golpea flojo, pero se golpea | **Silencio** | Decirlo: es lo que el alumno tiene que corregir |
+| Se estira el brazo sin golpear | **Silencio** (y antes, un veredicto falso) | ✔ |
+
+El segundo caso es el problema: un Tsuki lento es **una ejecución mejorable,
+no la ausencia de ejecución**, y callarse es justo lo contrario de lo que un
+sistema de corrección técnica debe hacer.
+
+Y conviene decir una cosa con claridad en la tesis: **el sistema no mide
+potencia**. La cámara da píxeles, no newtons. Lo que mide es velocidad angular
+del codo, que se relaciona con la potencia pero no es ella — afirmar lo
+contrario sería del mismo tipo que las cifras en m/s que este archivo ya
+prohíbe mostrar.
+
+La salida que se perfila, **sin decidir todavía**: un segundo umbral por debajo
+del actual. Entre los dos, el golpe se reconoce y se informa como lento; por
+debajo del segundo, sigue sin haber golpe. Eso convierte un umbral en una
+banda, y necesita las dos cifras medidas sobre una grabación donde se sepa qué
+se ejecutó — la de esta noche.
 
 Lo que el criterio **no** puede distinguir, en ningún caso, es un Tsuki de
 cualquier otra extensión rápida del codo; conviene decirlo en la tesis en vez
@@ -660,11 +684,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 817 passed |
-| CI / sin entorno gráfico | igual | 674 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 820 passed |
+| CI / sin entorno gráfico | igual | 677 passed, 10 skipped |
 
-El 674 está medido en el contenedor. El 817 sale de las 816 confirmadas en su
-Mac más la del arranque del golpe — **pendiente de confirmar**.
+El 677 está medido en el contenedor. El 820 sale de las 816 confirmadas en su
+Mac más la del arranque del golpe y las tres del plan de pruebas — **pendiente
+de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -692,7 +717,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-062**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-063**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -702,6 +727,25 @@ python3 -m pytest --exigir-fichas --reporte-formal   # lo que corre CI
 `docs/casos_prueba_automatizados.generado.md` está versionado y **solo se
 reescribe en corridas completas**; una corrida parcial informa por qué no lo
 actualizó, para que no borre evidencia.
+
+**El plan de pruebas se genera, no se escribe** (30-sep-2026). `plan_de_pruebas.py`
+(raíz) produce `docs/plan_de_pruebas.csv` —que abre en Excel o Project, con las
+columnas de planificación **vacías**— y `docs/plan_de_pruebas.md`, con el
+comando exacto de cada caso y su criterio de aceptación.
+
+Lee el **árbol sintáctico**, no importa los módulos, y esa decisión es la que
+lo hace servir: los diez módulos de `tests/e2e/` se omiten solos sin entorno
+gráfico, así que un plan generado importándolos saldría **sin los casos de
+interfaz**, que son justamente los que hay que ejecutar a mano delante de
+alguien. Cada fila declara si necesita pantalla y cámara o corre en cualquier
+equipo, porque eso decide si una prueba se puede planificar en integración
+continua o hace falta una sesión presencial.
+
+Las columnas de fecha, responsable y resultado salen vacías a propósito:
+rellenarlas convertiría el plan en el registro de unas pruebas que nadie
+ejecutó. Lo fija `test_las_columnas_de_planificacion_salen_vacias`, y
+TC-AUTO-062 comprueba además que **el comando de cada fila ejecuta de verdad**
+—se corre uno— y que la serie de identificadores no tiene huecos.
 
 **Dobles de prueba:** `CamaraSintetica` y `pose_sintetica()` en
 `tests/helpers/fakes.py` permiten ejercitar el encadenamiento completo sin
