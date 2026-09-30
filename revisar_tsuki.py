@@ -138,10 +138,14 @@ def golpes_detectados(serie, recorrido_minimo=RECORRIDO_MINIMO,
     # umbrales de velocidad: subestimarla un 33 % habría llevado esa cifra a la
     # tesis.
     ventana = []
+    # La serie completa ya recorrida, para poder buscar hacia atrás el fondo
+    # de la flexión sin el límite de la ventana de deteccion.
+    vistos = []
     inicio = None
     cima = None
 
     for t_ms, angulo in serie:
+        vistos.append((t_ms, angulo))
         ventana.append((t_ms, angulo))
         while len(ventana) > 1 and t_ms - ventana[0][0] > ventana_ms:
             ventana.pop(0)
@@ -150,13 +154,28 @@ def golpes_detectados(serie, recorrido_minimo=RECORRIDO_MINIMO,
         estado = maquina.estado
 
         if estado == "EXTENDIENDO" and inicio is None:
-            # El ÚLTIMO instante en que el codo seguía abajo, no el primero.
-            # Tomando el mínimo más antiguo, la duración se tragaba los cientos
-            # de milisegundos que el puño llevaba parado en el Hikite y la
-            # velocidad salía al tercio: 205 grados/s sobre un golpe de 616.
-            # El golpe empieza cuando el brazo arranca, no cuando se colocó.
-            suelo = min(a for _, a in ventana) + MARGEN_INICIO
-            inicio = [par for par in ventana if par[1] <= suelo][-1]
+            # De dónde salió el golpe: se retrocede por la serie mientras el
+            # codo siga viniendo de más abajo, hasta el fondo de la flexión.
+            #
+            # NO se busca dentro de `ventana`. Esa dura `ventana_ms` porque es
+            # lo que necesita DETECTAR el golpe, y usarla también para MEDIRLO
+            # recortaba el arranque: sobre grabación real los golpes salían de
+            # 81, 94, 105 y 118 grados —nunca del Hikite— porque para cuando la
+            # máquina disparaba, el fondo de la flexión ya había salido de la
+            # ventana. Detectar y medir son dos cosas, y confundirlas
+            # subestimaba el recorrido y la velocidad de todos los golpes.
+            # Dos pasos, y hacen falta los dos. Retroceder hasta el fondo de la
+            # flexión, y desde ahí volver al ÚLTIMO instante que siga en ese
+            # fondo: el golpe empieza cuando el puño arranca, no cuando llegó
+            # al Hikite. Sin el segundo paso, la duración se traga los cientos
+            # de milisegundos que el puño lleva colocado esperando.
+            i = len(vistos) - 1
+            while i > 0 and vistos[i - 1][1] <= vistos[i][1] + MARGEN_INICIO:
+                i -= 1
+            fondo = vistos[i][1]
+            while i + 1 < len(vistos) and vistos[i + 1][1] <= fondo + MARGEN_INICIO:
+                i += 1
+            inicio = vistos[i]
 
         # El instante en que la extensión llegó a su punto más alto. No es el
         # mismo en que se emite el veredicto: ese llega un fotograma después,

@@ -244,11 +244,29 @@ mínimo *mientras volvía* del golpe, y la máquina detectaba un segundo golpe e
 la recogida del primero.
 
 Los dos números equivalen a exigir **70°/s**, y esa es la cifra que hay que
-poder defender: un Tsuki extiende unos 125° en 150–250 ms —entre 500 y 800°/s—
-y levantar el brazo sin intención de golpear ronda los 60°/s. Casi un orden de
-magnitud de margen, igual que la separación en anchos de cadera de
-`guardia.py`. **Conviene contrastarlo contra grabaciones reales antes de fijar
-los números en la tesis.**
+poder defender.
+
+**Y la justificación que aquí se dio era de literatura, no medida** (corregido
+el 30-sep-2026). Decía «un Tsuki extiende unos 125° en 150–250 ms, entre 500 y
+800°/s», y sobre grabación real eso no aparece por ningún lado:
+
+| | P50 | P75 | P90 | P95 | P99 |
+|---|---|---|---|---|---|
+| codo izquierdo | 20,9 | 48,1 | 91,3 | 129,3 | **189,0** |
+| codo derecho | 12,3 | 35,4 | 79,0 | 129,2 | **234,0** |
+
+(°/s, sobre los 2911 fotogramas de «Zenkusu dachi.mp4»). **Ni el 1 % de los
+fotogramas supera los 234°/s.** Los cuatro golpes que el sistema reconoce en
+esa grabación van de **44 a 318°/s**, no de 500 a 800.
+
+La hipótesis de que el filtro de media móvil deprimiera la cifra **está
+descartada por medición**: sobre una rampa sintética pierde un 20 % en un golpe
+de 150 ms y **0 %** de 200 ms en adelante. Las velocidades son las que son.
+
+Queda por decidir si eso describe el Tsuki o describe ese video —una grabación
+de prueba de posturas, no un entrenamiento a velocidad de combate—, y la
+respuesta cambia dónde va el umbral. **No citar 500–800°/s en la tesis: no está
+verificado contra nada.**
 
 **ABIERTO: el umbral de 70°/s deja fuera el Tsuki lento** (30-sep-2026,
 observado en vivo). El par (recorrido, ventana) ES un umbral de velocidad, y
@@ -266,9 +284,32 @@ para cerrar.
 constructor de `TsukiStateMachine`, y `revisar_tsuki.py` (raíz) los barre sobre
 una grabación real: lista cada golpe reconocido con su marca de tiempo, de qué
 ángulo salió y a qué velocidad, imprime los percentiles de velocidad angular del
-codo y contrasta lo reconocido contra lo ejecutado (`--golpes N`). Si el corte de
-70°/s cae por encima del P95 de la grabación, el sistema exige más velocidad de
-la que el ejecutante produce.
+codo y contrasta lo reconocido contra lo ejecutado (`--golpes N`).
+
+**Primera corrida, 30-sep-2026**, sobre «Zenkusu dachi.mp4» (2911 fotogramas):
+
+| recorrido | 500 ms | 750 ms | 1000 ms |
+|---|---|---|---|
+| 20° | 12 | 15 | 17 |
+| 25° | 7 | 8 | 10 |
+| 30° | 7 | 7 | 8 |
+| **35° (vigente)** | **4** | 6 | 7 |
+| 40° | 4 | 4 | 5 |
+
+Cuatro golpes con el criterio vigente; diecisiete con el más permisivo. **Falta
+el dato que decide: cuántos Tsuki hay de verdad en ese video.** Sin él, la tabla
+no dice si cuatro son pocos — por eso existe `--golpes N`, y por eso la
+herramienta lo dice en vez de elegir por su cuenta.
+
+Dos cosas que esa corrida sí deja claras:
+
+- **El brazo derecho se pierde en el 33 % de los fotogramas** (952 de 2911,
+  contra 394 del izquierdo). El Hikite oculta el codo, y eso —no el umbral—
+  puede ser lo que explique que solo se le reconozca un golpe.
+- Un golpe a **44,2°/s durante 1382 ms** se clasificó «HIPEREXTENDIDO
+  (Peligro)» con un pico de 179,5°. A esa velocidad y esa duración, es el
+  primer candidato a falso positivo, y tiene marca de tiempo: **40,92 s**.
+  Sebastián lo contrasta contra el video.
 
 Sebastián observó además que **al recoger el brazo el veredicto se encendió
 alguna vez**. Eso sí sería un defecto —la máquina solo dispara al ABRIR el
@@ -279,7 +320,7 @@ Lo que el criterio **no** puede distinguir, en ningún caso, es un Tsuki de
 cualquier otra extensión rápida del codo; conviene decirlo en la tesis en vez
 de insinuar que reconoce la técnica por su forma.
 
-Dos errores míos en la propia herramienta, los dos encontrados **al ejecutarla**
+Tres errores míos en la propia herramienta, los tres encontrados **al ejecutarla**
 y no al leerla, y los dos en la única cifra para la que existe: informaba el
 golpe «de 90,7° a 172° a 411°/s» cuando salió de 50° a 616°/s —tomaba como
 inicio el fotograma en que la máquina se enteró, no el Hikite—, y al corregir
@@ -287,6 +328,14 @@ eso pasó a 205°/s, porque la duración se tragaba los cientos de milisegundos
 que el puño llevaba parado. Ahora mide desde el último instante en que el codo
 seguía abajo hasta aquel en que la extensión llegó más arriba, con **la
 resolución del muestreo**: a 30 fps, ±33 ms sobre una extensión de 200.
+
+El tercero lo delató la grabación real: **ningún golpe salía del Hikite**, sino
+de 81°, 94°, 105° y 118°. Buscaba el arranque dentro de la ventana de
+detección, y esa dura lo que necesita DETECTAR, no lo que dura el golpe: cuando
+la máquina dispara, el fondo de la flexión ya salió de la ventana. Detectar y
+medir son dos cosas. Ahora el arranque se busca hacia atrás por la serie
+completa, hasta el fondo de la flexión y de ahí al último instante que siga en
+él. Lo fija `test_el_arranque_no_lo_recorta_la_ventana_de_deteccion`.
 
 Efecto secundario que conviene aprovechar: «evaluaciones cerradas» pasa a
 significar **repeticiones**, que es lo que siempre debió significar.
@@ -611,11 +660,11 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 816 passed |
-| CI / sin entorno gráfico | igual | 673 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 817 passed |
+| CI / sin entorno gráfico | igual | 674 passed, 10 skipped |
 
-El 673 está medido en el contenedor. El 816 sale de las 808 confirmadas en su
-Mac más las 8 de `revisar_tsuki.py` — **pendiente de confirmar**.
+El 674 está medido en el contenedor. El 817 sale de las 816 confirmadas en su
+Mac más la del arranque del golpe — **pendiente de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los

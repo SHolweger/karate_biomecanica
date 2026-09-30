@@ -173,3 +173,30 @@ def test_el_golpe_se_mide_desde_el_hikite_y_no_desde_donde_disparo():
         "el golpe sale del Hikite, no del punto en que la maquina se entero"
     assert golpes[0].velocidad > 450, \
         "122 grados en 200 ms rondan los 600 grados/s, no 410 ni 205"
+
+
+def test_el_arranque_no_lo_recorta_la_ventana_de_deteccion():
+    """
+    Regresión encontrada sobre grabación real el 30-sep-2026.
+
+    Detectar el golpe y medirlo son dos cosas. La ventana dura lo que necesita
+    la DETECCIÓN; usarla también para medir recortaba el arranque, porque para
+    cuando la máquina dispara, el fondo de la flexión ya salió de la ventana.
+    Sobre el video de Sebastián los cuatro golpes salían de 81°, 94°, 105° y
+    118° — ninguno del Hikite — y con ellos el recorrido y la velocidad iban
+    subestimados.
+
+    Aquí el golpe dura 900 ms, muy por encima de la ventana de 500, y aun así
+    tiene que reportarse desde donde de verdad empezó.
+    """
+    subida = _rampa(45, 170, 900, t0=633)
+    # La recogida hace falta: el Kime se cierra cuando el brazo vuelve.
+    lento = _quieto(45, 600) + subida + _rampa(170, 45, 400, t0=subida[-1][0] + 33)
+
+    golpes = golpes_detectados(lento, brazo="izq")
+
+    assert len(golpes) == 1
+    assert golpes[0].desde == pytest.approx(45, abs=6), \
+        "el arranque sale de la serie, no de la ventana de deteccion"
+    assert golpes[0].recorrido > 100, \
+        "un recorrido de 125 grados no puede reportarse como 60"
