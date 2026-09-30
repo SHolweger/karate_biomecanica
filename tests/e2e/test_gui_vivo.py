@@ -207,13 +207,17 @@ def test_el_tamano_de_dibujado_no_altera_los_angulos_medidos(vivo):
     frame = np.zeros((480, 640, 3), dtype=np.uint8)
     alto, ancho, _ = frame.shape
 
-    primera = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto)
+    # Las marcas de tiempo avanzan porque el análisis es el de una secuencia,
+    # no el de un fotograma suelto. Lo que la prueba fija es que los GRADOS no
+    # dependen del tamaño de dibujado; que el veredicto dependa del instante es
+    # justamente lo correcto desde que el Tsuki se juzga como transición.
+    primera = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto, 0)
     angulos_primera = [d["angulo"] for d in primera]
 
     # Se fuerza un hueco de dibujado radicalmente distinto y se vuelve a medir.
     vivo.VIDEO_ARRANQUE = (120, 90)
     vivo._mostrar_frame(frame)
-    segunda = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto)
+    segunda = vivo.analyzer.analyze_tsuki(landmarks, ancho, alto, 33)
 
     assert [d["angulo"] for d in segunda] == angulos_primera, \
         "el tamaño con el que se dibuja el video llegó a influir en la medición"

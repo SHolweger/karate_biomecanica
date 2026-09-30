@@ -490,12 +490,29 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 795 passed |
-| CI / sin entorno gráfico | igual | 652 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 797 passed |
+| CI / sin entorno gráfico | igual | 654 passed, 10 skipped |
 
-El 652 está medido en el contenedor. El 795 sale de las 781 confirmadas en su
-Mac el 30-sep más las 14 del Tsuki (12 unitarias y 2 de integración), que corren
-en los dos entornos — **pendiente de confirmar**.
+El 654 está medido en el contenedor. El 797 sale de las 795 recogidas en su Mac
+el 30-sep más las 2 de la guarda de firmas — **pendiente de confirmar**.
+
+**Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
+(30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
+dieciséis puntos de llamada visibles desde el contenedor y quedaron **dos en
+`tests/e2e/test_gui_vivo.py`**. Aquí pasaron las 652; en su Mac, `TypeError`.
+
+De ahí sale `tests/unit/test_firmas_del_analizador.py` (TC-AUTO-058): lee el
+árbol sintáctico de **todo** el repositorio y contrasta cada llamada a
+`analyze_tsuki`, `analyze_stance` y `analyze_mae_geri` contra la firma real del
+método. Al ser estática alcanza a los módulos que este entorno no puede
+importar, que es la única forma de verificarlos desde aquí. Nombra archivo y
+línea. Lleva además una guarda de sí misma —`test_la_busqueda_encuentra_las_
+llamadas_que_debe`— porque una prueba que recorre archivos y no encuentra nada
+pasa siempre.
+
+Regla que sigue valiendo aunque exista la guarda: **al cambiar una firma
+pública, `grep -rn` sobre el repositorio entero y sin `head`**. El `head -30`
+de esa búsqueda fue lo que ocultó las dos llamadas.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -505,7 +522,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-058**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-059**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
