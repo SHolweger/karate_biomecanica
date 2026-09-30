@@ -101,7 +101,7 @@ def medir(fuente, n_fotogramas, desde_s=0.0, con_ventana=True):
         if result.pose_landmarks:
             landmarks = result.pose_landmarks[0]
             diagnosticos = [
-                analyzer.analyze_tsuki(landmarks, w, h),
+                analyzer.analyze_tsuki(landmarks, w, h, timestamp_ms),
                 analyzer.analyze_stance(landmarks, w, h),
                 analyzer.analyze_mae_geri(landmarks, w, h, timestamp_ms),
             ]

@@ -202,6 +202,62 @@ la profundidad con el signo cambiado de forma sostenida, la proyección saldrá
 grande y con el sentido incorrecto. El remedio de ese caso es de protocolo, no
 numérico. Ver el punto siguiente.
 
+**Un Tsuki es una transición, no un estado** (30-sep-2026). `analyze_tsuki`
+juzgaba el codo en CADA fotograma en que el brazo se viera, sin preguntar antes
+si había un golpe. Como el rango de evaluación del Tsuki es 160–175° y un brazo
+colgando al costado mide entre 160 y 180°, el sistema calificaba de Tsuki a
+alguien que estaba de pie sin hacer nada. Medido sobre tres segundos de brazo
+quieto a 175 ± 2°:
+
+| | filas de Tsuki en la base |
+|---|---|
+| código viejo | **90** (45 «EXCELENTE» y 45 «HIPEREXTENDIDO (Peligro)») |
+| código nuevo | 0 |
+
+Por brazo, y son tres segundos. El temblor natural cruza el límite de 175° una
+y otra vez, y `MedicionLogger` escribe en cada cruce porque el mensaje cambia.
+
+Es el mismo tipo de fallo que el de la guardia: **no falla, inventa**. Esas
+filas entran con `tecnica="tsuki"` y veredicto cerrado, así que contaminan la
+precisión del alumno, su gráfica de evolución y el conteo de errores
+frecuentes. Y `expert_system/riesgos.py` cuenta hiperextensiones para advertir
+de bloqueo articular: bastaba estar de pie con los brazos estirados para que el
+reporte de prevención de lesiones recomendara corregir el Kime.
+
+Lo encontró otra prueba en vivo de Sebastián, no la suite —y esta vez ni
+siquiera hizo falta buscarlo: estaba escrito en la pantalla de la captura, «IZQ
+- TSUKI: EXCELENTE» con los brazos abajo—. El Mae Geri nunca tuvo el problema
+porque su máquina de estados solo califica al cerrar el Kime, y la postura
+aprendió a abstenerse el 28-sep. **El Tsuki era la única técnica que juzgaba un
+estado en vez de una transición.**
+
+`expert_system/tsuki.py` (puro, corre en CI) lo corrige con una máquina de
+estados por brazo, REPOSO → EXTENDIENDO → RECOGIENDO, que emite **un veredicto
+por golpe** en el instante en que la extensión se detiene —que es la definición
+del Kime—. El criterio es un RECORRIDO y no un umbral: el ángulo tiene que
+subir `RECORRIDO_MINIMO` (35°) sobre el mínimo de la ventana de tiempo reciente
+(`VENTANA_RECORRIDO_MS`, 500 ms) **y estar en el máximo de esa ventana**. Lo
+segundo no es un adorno: sin ello, el brazo seguía estando muy por encima del
+mínimo *mientras volvía* del golpe, y la máquina detectaba un segundo golpe en
+la recogida del primero.
+
+Los dos números equivalen a exigir **70°/s**, y esa es la cifra que hay que
+poder defender: un Tsuki extiende unos 125° en 150–250 ms —entre 500 y 800°/s—
+y levantar el brazo sin intención de golpear ronda los 60°/s. Casi un orden de
+magnitud de margen, igual que la separación en anchos de cadera de
+`guardia.py`. **Conviene contrastarlo contra grabaciones reales antes de fijar
+los números en la tesis.**
+
+Deliberadamente **no** se exige velocidad como criterio aparte: haría falta
+calibrarla contra grabaciones que no existen, y una ejecución lenta frente al
+espejo sigue siendo un Tsuki — es lo que `riesgos.py` recomienda practicar. Lo
+que el criterio **no** puede distinguir es un Tsuki de cualquier otra extensión
+rápida del codo; conviene decirlo en la tesis en vez de insinuar que reconoce
+la técnica por su forma.
+
+Efecto secundario que conviene aprovechar: «evaluaciones cerradas» pasa a
+significar **repeticiones**, que es lo que siempre debió significar.
+
 **Los ángulos son 2D y eso tiene un coste medible** (28-sep-2026).
 `calculate_angle` usa solo `(x, y)`. Cuando el plano de la técnica no es
 paralelo al sensor, el ángulo proyectado no es el real, y **la proyección
@@ -368,6 +424,12 @@ casi siempre. Dos fallos medidos en la Mac, los dos graves:
 `test_el_ciclo_reprograma_con_el_intervalo_completo` (TC-AUTO-055), que
 intercepta `after` y comprueba el plazo. `espera_hasta_el_siguiente` se retiró.
 
+**Verificado en su Mac el 30-sep**, y esa verificación hacía falta: la
+reversión se envió como razonada y sin comprobar, porque el contenedor no
+reproduce el fallo. Con el intervalo fijo, un análisis en vivo sostenido no
+se cayó y los clics volvieron a responder. **Que los dos síntomas
+desaparecieran juntos es la evidencia de que la causa era una sola.**
+
 **La otra optimización del 28-sep sí se conserva**, porque reduce trabajo sin
 tocar la planificación: `_mostrar_frame` convertía 2 MP para dibujarlos en 0,25;
 ahora reduce con `cv2.resize` antes de convertir. Medido: 20,1 ms → 5,9.
@@ -428,12 +490,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 781 passed |
-| CI / sin entorno gráfico | igual | 638 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 795 passed |
+| CI / sin entorno gráfico | igual | 652 passed, 10 skipped |
 
-El 638 está medido en el contenedor. El 781 sale de 784 confirmadas en su Mac
-menos las 4 pruebas del intervalo adaptativo retirado, más la de regresión del
-ciclo, que solo corre con entorno gráfico — **pendiente de confirmar**.
+El 652 está medido en el contenedor. El 795 sale de las 781 confirmadas en su
+Mac el 30-sep más las 14 del Tsuki (12 unitarias y 2 de integración), que corren
+en los dos entornos — **pendiente de confirmar**.
 
 Los módulos de `tests/e2e/` se omiten solos con `pytest.importorskip`. Por eso
 toda regla de presentación que pueda expresarse sin CustomTkinter **se extrae a
@@ -443,7 +505,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-056**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-058**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

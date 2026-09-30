@@ -472,7 +472,7 @@ class LiveScreen(ctk.CTkFrame):
 
             if landmarks is not None:
                 diagnosticos = [
-                    self.analyzer.analyze_tsuki(landmarks, w, h),
+                    self.analyzer.analyze_tsuki(landmarks, w, h, timestamp_ms),
                     self.analyzer.analyze_stance(landmarks, w, h),
                     self.analyzer.analyze_mae_geri(landmarks, w, h, timestamp_ms),
                 ]

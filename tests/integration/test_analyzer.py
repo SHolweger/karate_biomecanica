@@ -29,19 +29,46 @@ def _por_categoria(resultados, categoria):
     return next(r for r in resultados if r["categoria"] == categoria)
 
 
+def _tsuki_hasta(kime):
+    """
+    Los ángulos de codo de un Tsuki completo que cierra el Kime en `kime`.
+
+    Desde el 30-sep-2026 hace falta ejecutar el golpe para obtener un veredicto:
+    un fotograma suelto con el brazo extendido ya no basta, porque un brazo
+    quieto no ejecuta ningún Tsuki (ver expert_system/tsuki.py). Sale del
+    Hikite, extiende y empieza a recoger, que es cuando se cierra el Kime.
+    """
+    return [50, 50 + (kime - 50) * 0.25, 50 + (kime - 50) * 0.5,
+            50 + (kime - 50) * 0.75, kime, kime - 20]
+
+
+def _ejecutar_tsuki(analizador, izq, der, t0=0):
+    """Pasa una secuencia de ángulos por brazo y devuelve el ÚLTIMO diagnóstico."""
+    for fotograma, (angulo_izq, angulo_der) in enumerate(zip(izq, der)):
+        resultados = analizador.analyze_tsuki(
+            pose_sintetica(angulo_codo_izq=angulo_izq, angulo_codo_der=angulo_der),
+            ANCHO, ALTO, t0 + fotograma * 33)
+    return resultados
+
+
 # --------------------------------------------------------------------------
 # Tsuki — análisis de ambos brazos
 # --------------------------------------------------------------------------
 
 def test_evalua_los_dos_brazos_de_forma_independiente(analizador):
     """
-    El karateka golpea con el brazo derecho mientras el izquierdo se mantiene
-    en hikite (retraído). El sistema debe premiar uno y corregir el otro en el
-    mismo frame, no promediarlos.
-    """
-    landmarks = pose_sintetica(angulo_codo_izq=90, angulo_codo_der=170)
+    El karateka golpea con los dos brazos: el derecho llega y el izquierdo se
+    queda corto. El sistema debe premiar uno y corregir el otro en el mismo
+    frame, no promediarlos.
 
-    resultados = analizador.analyze_tsuki(landmarks, ANCHO, ALTO)
+    Hasta el 30-sep-2026 esta prueba dejaba el brazo izquierdo quieto en hikite
+    y esperaba que se calificara «FLEXIONADO». Ahí estaba escrito el defecto:
+    un brazo retraído no ejecuta ningún golpe, así que ya no recibe veredicto
+    —de eso se ocupa test_estar_de_pie_no_produce_veredicto_de_tsuki—. Lo que
+    la prueba quería comprobar, que los dos brazos se juzgan por separado,
+    sigue igual de vigente; lo que cambia es que ahora los dos golpean.
+    """
+    resultados = _ejecutar_tsuki(analizador, _tsuki_hasta(90), _tsuki_hasta(170))
 
     izquierdo = _por_categoria(resultados, "codo_izq")
     derecho = _por_categoria(resultados, "codo_der")
@@ -53,7 +80,7 @@ def test_el_angulo_medido_coincide_con_la_pose_ejecutada(analizador):
     """Precisión de extremo a extremo: landmarks -> píxeles -> ángulo, con 1 grado de tolerancia."""
     landmarks = pose_sintetica(angulo_codo_izq=132)
 
-    resultados = analizador.analyze_tsuki(landmarks, ANCHO, ALTO)
+    resultados = analizador.analyze_tsuki(landmarks, ANCHO, ALTO, 0)
 
     assert _por_categoria(resultados, "codo_izq")["angulo"] == pytest.approx(132, abs=1.0)
 
@@ -66,7 +93,7 @@ def test_brazo_no_visible_se_informa_en_vez_de_inventar_diagnostico(analizador):
     """
     landmarks = pose_sintetica(angulo_codo_izq=170, visibilidad_brazos=0.3)
 
-    resultados = analizador.analyze_tsuki(landmarks, ANCHO, ALTO)
+    resultados = analizador.analyze_tsuki(landmarks, ANCHO, ALTO, 0)
 
     for categoria in ("codo_izq", "codo_der"):
         diagnostico = _por_categoria(resultados, categoria)
@@ -83,11 +110,11 @@ def test_el_filtro_se_reinicia_cuando_el_brazo_desaparece(analizador):
     postura anterior.
     """
     suavizador = TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=5)
-    for _ in range(5):
-        suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=40), ANCHO, ALTO)
+    for fotograma in range(5):
+        suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=40), ANCHO, ALTO, fotograma * 33)
 
-    suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=40, visibilidad_brazos=0.2), ANCHO, ALTO)
-    resultados = suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=170), ANCHO, ALTO)
+    suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=40, visibilidad_brazos=0.2), ANCHO, ALTO, 165)
+    resultados = suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=170), ANCHO, ALTO, 198)
 
     assert _por_categoria(resultados, "codo_izq")["angulo"] == pytest.approx(170, abs=1.0), \
         "el angulo tras reaparecer no debe arrastrar el promedio de la postura previa"
@@ -99,10 +126,10 @@ def test_el_suavizado_amortigua_un_salto_de_jitter(analizador):
     diagnóstico: el ángulo reportado se mantiene cerca de la postura sostenida.
     """
     suavizador = TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=5)
-    for _ in range(5):
-        suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=170), ANCHO, ALTO)
+    for fotograma in range(5):
+        suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=170), ANCHO, ALTO, fotograma * 33)
 
-    resultados = suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=100), ANCHO, ALTO)
+    resultados = suavizador.analyze_tsuki(pose_sintetica(angulo_codo_izq=100), ANCHO, ALTO, 165)
 
     angulo = _por_categoria(resultados, "codo_izq")["angulo"]
     assert 150 < angulo < 170, f"un solo frame ruidoso movio el diagnostico a {angulo}"
@@ -269,7 +296,10 @@ def test_todo_diagnostico_cumple_el_contrato_de_la_capa_visual(analizador, metod
     """
     landmarks = pose_sintetica(angulo_codo_izq=170, angulo_rodilla_izq=100, angulo_rodilla_der=170)
 
-    for diagnostico in getattr(analizador, metodo)(landmarks, ANCHO, ALTO):
+    argumentos = (landmarks, ANCHO, ALTO, 0) if metodo == "analyze_tsuki" \
+        else (landmarks, ANCHO, ALTO)
+
+    for diagnostico in getattr(analizador, metodo)(*argumentos):
         assert set(diagnostico) >= {"angulo", "pos_angulo", "mensaje", "color", "y_offset",
                                     "categoria", "correcto"}, f"claves faltantes: {diagnostico}"
         assert isinstance(diagnostico["y_offset"], int)
@@ -285,7 +315,7 @@ def test_las_lineas_de_texto_no_se_encimam_en_pantalla(analizador):
     """
     landmarks = pose_sintetica(angulo_codo_izq=170, angulo_codo_der=100)
 
-    alturas = [d["y_offset"] for d in analizador.analyze_tsuki(landmarks, ANCHO, ALTO)]
+    alturas = [d["y_offset"] for d in analizador.analyze_tsuki(landmarks, ANCHO, ALTO, 0)]
 
     assert len(set(alturas)) == len(alturas), f"diagnosticos superpuestos en {alturas}"
 
@@ -430,8 +460,14 @@ def test_una_transicion_no_declara_tecnica_ni_angulos_de_regla(analizador):
 
 
 def test_un_tsuki_declara_su_tecnica_y_su_unico_angulo(analizador):
-    pose = pose_sintetica(angulo_codo_izq=168)
-    resultado = _por_categoria(analizador.analyze_tsuki(pose, ANCHO, ALTO), "codo_izq")
+    """
+    El ángulo declarado es el del Kime —el máximo que alcanzó la extensión— y
+    no el del fotograma en que se emite el veredicto, que ya viene de vuelta.
+    Es lo que permite volver a juzgar la medición si el umbral cambia (RF-08):
+    guardar el de la recogida dejaría el historial imposible de re-evaluar.
+    """
+    resultado = _por_categoria(
+        _ejecutar_tsuki(analizador, _tsuki_hasta(168), _tsuki_hasta(168)), "codo_izq")
 
     assert resultado["tecnica"] == "tsuki"
     assert resultado["angulos_regla"][0] == pytest.approx(168, abs=1.5)
@@ -599,3 +635,89 @@ def test_las_filas_por_rodilla_no_se_persisten_dos_veces(analizador):
 
     for categoria in ("rodilla_izq", "rodilla_der"):
         assert _por_categoria(resultados, categoria)["mensaje"] == ""
+
+
+# ---------------------------------------------------------------------------
+# El Tsuki solo se juzga cuando hay golpe (30-sep-2026)
+# ---------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-057",
+    nombre="El analizador no emite veredicto de Tsuki mientras el brazo no golpea",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="la maquina de estados del Tsuki puede ser correcta y aun asi "
+                         "no proteger nada si el analizador sigue llamando a la regla "
+                         "por su cuenta, que es exactamente lo que hacia hasta el "
+                         "30-sep-2026. Esta prueba recorre la costura completa "
+                         "-landmarks, pixeles, angulo, filtro, maquina, diagnostico- "
+                         "porque es en esa costura donde vivia el defecto: la regla "
+                         "siempre estuvo bien, lo que estaba mal era cuando se "
+                         "consultaba",
+    componente="expert_system/analyzer.py (analyze_tsuki) sobre expert_system/tsuki.py",
+    requisitos="RF-03, RF-07",
+    precondiciones="Analizador con ventana de filtro 1, sin base de datos: usa los "
+                   "umbrales de literatura",
+    datos_entrada="Pose sintetica de una persona de pie con los brazos casi extendidos "
+                  "(172 grados, la cifra medida en la prueba en vivo del 30-sep), "
+                  "repetida durante dos segundos de marcas de tiempo",
+    pasos=[
+        Paso("Analizar sesenta fotogramas de esa pose inmovil",
+             "assert ningun diagnostico de codo lleva veredicto cerrado, ni de un "
+             "brazo ni del otro"),
+        Paso("Comprobar que el angulo si se informa",
+             "assert los grados del codo aparecen en el diagnostico: el codo esta "
+             "medido, lo que falta es la tecnica"),
+        Paso("Comprobar que la fila no se marca como medicion de Tsuki",
+             "assert `tecnica` es None, para que no entre en el informe de "
+             "recalibracion retroactiva"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz grafica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_estar_de_pie_no_produce_veredicto_de_tsuki(analizador):
+    """
+    La regresión del defecto que encontró la prueba en vivo del 30-sep-2026.
+
+    De pie y con los brazos abajo, la pantalla informaba «IZQ - TSUKI:
+    EXCELENTE / DER - TSUKI: EXCELENTE», y esas filas entraban a la base con
+    `tecnica="tsuki"` y veredicto cerrado. Sesenta fotogramas de brazo quieto
+    producían sesenta mediciones de una técnica que nadie ejecutó.
+    """
+    pose = pose_sintetica(angulo_codo_izq=172, angulo_codo_der=172)
+
+    for fotograma in range(60):
+        resultados = analizador.analyze_tsuki(pose, ANCHO, ALTO, fotograma * 33)
+
+        for categoria in ("codo_izq", "codo_der"):
+            diagnostico = _por_categoria(resultados, categoria)
+            assert diagnostico["correcto"] is None, \
+                "un brazo inmóvil no ejecuta ningún Tsuki y no puede calificarse"
+            assert diagnostico["tecnica"] is None, \
+                "tampoco puede entrar al historial como medición de Tsuki"
+            assert diagnostico["angulo"] == pytest.approx(172, abs=1), \
+                "el codo sí está medido: lo que falta es la técnica, no el dato"
+
+
+def test_un_golpe_si_produce_veredicto(analizador):
+    """
+    El contrapeso obligatorio: si la abstención se tragara también los golpes
+    reales, la prueba anterior pasaría con un analizador que no sirve para
+    nada. Se ejecuta un Tsuki con el brazo izquierdo mientras el derecho sigue
+    quieto, y solo el izquierdo recibe veredicto.
+    """
+    veredictos = []
+    for fotograma, angulo in enumerate([50] * 5 + [75, 100, 125, 150, 172]):
+        pose = pose_sintetica(angulo_codo_izq=angulo, angulo_codo_der=172)
+        veredictos.append(analizador.analyze_tsuki(pose, ANCHO, ALTO, fotograma * 33))
+
+    # El golpe se cierra cuando el brazo empieza a volver.
+    pose = pose_sintetica(angulo_codo_izq=150, angulo_codo_der=172)
+    ultimo = analizador.analyze_tsuki(pose, ANCHO, ALTO, 10 * 33)
+
+    assert _por_categoria(ultimo, "codo_izq")["correcto"] is True, \
+        "un Tsuki que llega a 172° está dentro del rango y se juzga correcto"
+    assert _por_categoria(ultimo, "codo_izq")["tecnica"] == "tsuki"
+    assert _por_categoria(ultimo, "codo_der")["correcto"] is None, \
+        "el brazo que no golpeó no recibe veredicto, aunque esté extendido"

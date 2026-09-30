@@ -4,6 +4,7 @@ from expert_system.guardia import (IZQ_ADELANTE, pierna_adelantada,
                                    separacion_sagital)
 from expert_system.knowledge_base import KarateRules
 from expert_system.kick_state_machine import MaeGeriStateMachine
+from expert_system.tsuki import TsukiStateMachine
 
 # ---------------------------------------------------------------------------
 # CORTES DEL CLASIFICADOR DE POSTURAS
@@ -56,42 +57,62 @@ class TechniqueAnalyzer:
             "izq": MaeGeriStateMachine(ventana_filtro, self.reglas),
             "der": MaeGeriStateMachine(ventana_filtro, self.reglas),
         }
+        # Una máquina por brazo, por el mismo motivo: el Tsuki es una
+        # transición y no un estado, así que hace falta memoria para saber si
+        # hubo golpe. Sin ella el sistema calificaba de Tsuki a un brazo en
+        # reposo — el porqué completo está en expert_system/tsuki.py.
+        self.maquinas_tsuki = {
+            "izq": TsukiStateMachine(self.reglas),
+            "der": TsukiStateMachine(self.reglas),
+        }
 
-    def analyze_tsuki(self, landmarks, w, h):
+    def analyze_tsuki(self, landmarks, w, h, timestamp_ms):
         """
         Analiza la técnica de Tsuki en AMBOS brazos y devuelve una lista de resultados
         lista para que el Renderer los dibuje.
+
+        El veredicto NO se decide aquí: lo decide una máquina de estados por
+        brazo, que solo califica cuando efectivamente hubo un golpe. Hasta el
+        30-sep-2026 este método evaluaba el codo en cada fotograma, de modo que
+        un brazo colgando al costado —entre 160 y 180°— se reportaba como
+        «TSUKI: EXCELENTE» o «TSUKI: HIPEREXTENDIDO (Peligro)» y esas filas
+        entraban a la base como mediciones de Tsuki. El porqué completo está en
+        expert_system/tsuki.py.
+
+        Recibe `timestamp_ms` por el mismo motivo que `analyze_mae_geri`: el
+        recorrido del golpe se mide contra el reloj de la grabación, no contra
+        el número de fotogramas que alcance a procesar esta máquina.
         """
         resultados = []
-        
+
         # ---------------- BRAZO IZQUIERDO ----------------
         # Los puntos oficiales de MediaPipe para el lado derecho son 11, 13 y 15
         hombro_izq_lm, codo_izq_lm, muneca_izq_lm = landmarks[12], landmarks[14], landmarks[16] #Invertimos los puntos para no confundir al usuario con el modo espejo y que sea mas comodo visualmente.
-        
-        if (hombro_izq_lm.visibility > self.umbral and 
-            codo_izq_lm.visibility > self.umbral and 
+
+        if (hombro_izq_lm.visibility > self.umbral and
+            codo_izq_lm.visibility > self.umbral and
             muneca_izq_lm.visibility > self.umbral):
-            
+
             hombro_izq = (int(hombro_izq_lm.x * w), int(hombro_izq_lm.y * h))
             codo_izq = (int(codo_izq_lm.x * w), int(codo_izq_lm.y * h))
             muneca_izq = (int(muneca_izq_lm.x * w), int(muneca_izq_lm.y * h))
-            
+
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
             angulo_izq = self.filtros["codo_izq"].update(angulo_crudo)
-            es_correcto, msg, color = self.reglas.evaluate_tsuki(angulo_izq)
+            diagnostico = self.maquinas_tsuki["izq"].update(angulo_izq, timestamp_ms)
 
-            resultados.append({
-                "angulo": angulo_izq, "pos_angulo": (codo_izq[0] + 20, codo_izq[1]),
-                "mensaje": f"IZQ - {msg}", "color": color, "y_offset": 50, "categoria": "codo_izq",
-                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki"),
-                # Con qué regla y con qué ángulos se juzgó. Es lo que permite
-                # volver a juzgar la medición si el umbral cambia (RF-08).
-                "tecnica": "tsuki", "angulos_regla": (angulo_izq,)
-            })
+            resultados.append(dict(
+                diagnostico,
+                pos_angulo=(codo_izq[0] + 20, codo_izq[1]),
+                mensaje=f"IZQ - {diagnostico['mensaje']}",
+                y_offset=50, categoria="codo_izq",
+            ))
         else:
-            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
+            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer,
+            # y la máquina para no juzgar con un golpe visto a medias.
             self.filtros["codo_izq"].reset()
+            self.maquinas_tsuki["izq"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO IZQ: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 50,
@@ -102,30 +123,31 @@ class TechniqueAnalyzer:
         # ---------------- BRAZO DERECHO ----------------
         # Los puntos oficiales de MediaPipe para el lado derecho son 12, 14 y 16
         hombro_der_lm, codo_der_lm, muneca_der_lm = landmarks[11], landmarks[13], landmarks[15] #Invertimos los puntos para no confundir al usuario con el modo espejo y que sea mas comodo visualmente.
-        
-        if (hombro_der_lm.visibility > self.umbral and 
-            codo_der_lm.visibility > self.umbral and 
+
+        if (hombro_der_lm.visibility > self.umbral and
+            codo_der_lm.visibility > self.umbral and
             muneca_der_lm.visibility > self.umbral):
-            
+
             hombro_der = (int(hombro_der_lm.x * w), int(hombro_der_lm.y * h))
             codo_der = (int(codo_der_lm.x * w), int(codo_der_lm.y * h))
             muneca_der = (int(muneca_der_lm.x * w), int(muneca_der_lm.y * h))
-            
+
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
             angulo_der = self.filtros["codo_der"].update(angulo_crudo)
-            es_correcto, msg, color = self.reglas.evaluate_tsuki(angulo_der)
+            diagnostico = self.maquinas_tsuki["der"].update(angulo_der, timestamp_ms)
 
-            resultados.append({
-                "angulo": angulo_der, "pos_angulo": (codo_der[0] - 60, codo_der[1]), # -60 para que no tape el codo
-                "mensaje": f"DER - {msg}", "color": color, "y_offset": 90, "categoria": "codo_der",
-                "correcto": es_correcto, "id_umbral": self.reglas.id_umbral_principal("tsuki"),
-                "tecnica": "tsuki", "angulos_regla": (angulo_der,)
-                # Más abajo para no chocar con el texto izq
-            })
+            resultados.append(dict(
+                diagnostico,
+                pos_angulo=(codo_der[0] - 60, codo_der[1]),  # -60 para que no tape el codo
+                mensaje=f"DER - {diagnostico['mensaje']}",
+                y_offset=90, categoria="codo_der",           # más abajo para no chocar con el texto izq
+            ))
         else:
-            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer
+            # Brazo oculto: reseteamos el filtro para no promediar con datos viejos al reaparecer,
+            # y la máquina para no juzgar con un golpe visto a medias.
             self.filtros["codo_der"].reset()
+            self.maquinas_tsuki["der"].reset()
             resultados.append({
                 "angulo": None, "pos_angulo": None,
                 "mensaje": "BRAZO DER: OCULTO/NO VISIBLE", "color": (0, 165, 255), "y_offset": 90,

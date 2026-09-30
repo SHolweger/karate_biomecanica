@@ -66,7 +66,7 @@ analy = caja_clase(c, 200, 1000, 310, "TechniqueAnalyzer", [
     "- umbral : float", "- reglas : KarateRules",
     "- filtros : dict<str, MovingAverageFilter>",
     "- maquinas_patada : dict<str, MaeGeriSM>"],
-    ["+ analyze_tsuki(lm, w, h)", "+ analyze_stance(lm, w, h)",
+    ["+ analyze_tsuki(lm, w, h, t)", "+ analyze_stance(lm, w, h)",
      "+ analyze_mae_geri(lm, w, h, ts)"], estereotipo="motor de inferencia (RF-05)")
 
 fsm = caja_clase(c, 550, 1000, 310, "MaeGeriStateMachine", [

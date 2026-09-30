@@ -148,7 +148,7 @@ def main_consola(fuente_pedida=None):
             landmarks = result.pose_landmarks[0]
             
             # Le pedimos al analista que evalúe ambos brazos
-            diagnostico_tsuki = analyzer.analyze_tsuki(landmarks, w, h)
+            diagnostico_tsuki = analyzer.analyze_tsuki(landmarks, w, h, timestamp_ms)
             diagnostico_postura = analyzer.analyze_stance(landmarks, w, h) # <--- NUEVA LÍNEA
             diagnostico_patada = analyzer.analyze_mae_geri(landmarks, w, h, timestamp_ms)
 
