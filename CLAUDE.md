@@ -19,6 +19,7 @@ python3 main.py --consola    # el encadenamiento sin GUI, por terminal
 python3 main.py --consola --fuente "grabacion.mp4"   # analiza un video y lo registra
 python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta pose
 python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3D?
+python3 revisar_base.py                              # qué hay en la base (solo lectura)
 python3 -m pytest -q         # suite completa
 ```
 
@@ -258,6 +259,34 @@ la técnica por su forma.
 Efecto secundario que conviene aprovechar: «evaluaciones cerradas» pasa a
 significar **repeticiones**, que es lo que siempre debió significar.
 
+**Y deja el historial anterior inservible para calcular precisión.** Todo lo
+medido antes del 30-sep lleva filas de Tsuki producidas por brazos que no
+golpeaban, y no se pueden separar fila por fila: el código viejo no registraba
+si hubo golpe, que era justamente el defecto. `revisar_base.py` (raíz, **solo
+lectura**, abre SQLite en modo `ro`) cuantifica lo que sí se puede demostrar:
+veredictos OPUESTOS del mismo brazo separados por menos de 150 ms, que es la
+firma de un brazo quieto cruzando el límite de 175° y no la puede producir
+ninguna secuencia de golpes reales —un Tsuki dura 150-250 ms y el encadenado
+más rápido no baja de ~300 ms—. Es una **cota inferior**, y conviene citarla
+así en la tesis.
+
+Contrastado de extremo a extremo contra una base construida con el código
+viejo (seis segundos de pie más cuatro Tsukis reales y doce filas de postura):
+marca 360 de 376 filas, deja fuera los cuatro golpes y las doce posturas.
+
+La primera versión informó **«190,4 % del total»**, porque sumaba dos filas por
+cada pareja y en una tanda alternante cada fila participa en dos. Lo delató
+correr la herramienta contra una base real; las pruebas unitarias con
+`> 0` no podían verlo. Lo fija ahora `test_la_cuenta_nunca_supera_el_total_de_
+filas`.
+
+**Apartar la base se hace renombrando, no borrando.** El historial contaminado
+sigue siendo evidencia de la tesis —sostiene con números el argumento de la
+sección de validación— y borrarlo no se deshace. Al renombrar
+`karate_sistema.db`, la base nueva nace en la carpeta de datos del sistema
+(`~/Library/Application Support/ShotokanAI/`), porque ya no hay ninguna junto
+al código: ver la excepción de `rutas.py`.
+
 **Los ángulos son 2D y eso tiene un coste medible** (28-sep-2026).
 `calculate_angle` usa solo `(x, y)`. Cuando el plano de la técnica no es
 paralelo al sensor, el ángulo proyectado no es el real, y **la proyección
@@ -490,11 +519,11 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 797 passed |
-| CI / sin entorno gráfico | igual | 654 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 804 passed |
+| CI / sin entorno gráfico | igual | 661 passed, 10 skipped |
 
-El 654 está medido en el contenedor. El 797 sale de las 795 recogidas en su Mac
-el 30-sep más las 2 de la guarda de firmas — **pendiente de confirmar**.
+El 661 está medido en el contenedor. El 804 sale de las 797 confirmadas en su
+Mac el 30-sep más las 7 de `revisar_base.py` — **pendiente de confirmar**.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -522,7 +551,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-059**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-060**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
