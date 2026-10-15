@@ -151,8 +151,17 @@ def escribir_csv(casos, destino):
     cabecera = ["ID", "Nombre del caso", "Tipo", "Prioridad", "Componente",
                 "Requisito", "Entorno", "Comando de ejecución",
                 "Resultado esperado", "Riesgo que cubre"] + COLUMNAS_A_LLENAR
+    # `utf-8-sig` escribe el BOM, que es lo que hace que Excel abra el archivo
+    # como UTF-8 en vez de repartir las tildes por su cuenta.
+    #
+    # `lineterminator="\n"` corrige el valor por omisión de `csv`, que es CRLF.
+    # No es cosmético: `git am` aplica `--no-keep-cr` por omisión y borra el CR
+    # del final de cada línea del parche, así que un archivo con CRLF deja de
+    # coincidir con su blob y **cualquier** parche que lo regenerara de rebote
+    # fallaba con «patch does not apply». Bloqueó la entrega del aviso de señal
+    # —un cambio que no tiene nada que ver con el plan— durante dos días.
     with open(destino, "w", newline="", encoding="utf-8-sig") as f:
-        escritor = csv.writer(f)
+        escritor = csv.writer(f, lineterminator="\n")
         escritor.writerow(cabecera)
         for c in casos:
             escritor.writerow([
@@ -236,6 +245,12 @@ def escribir_md(casos, destino):
             lineas.append(f"| {i} | {accion} | {esperado} |")
         lineas += ["", f"**Criterio de aceptación:** {c.esperado}", "", "---", ""]
 
+    # El bucle cierra cada caso con un separador y un renglón vacío, de modo
+    # que el último deja una línea en blanco al final del archivo: invisible al
+    # leerlo y una diferencia más en cada regeneración. Se recortan las vacías
+    # del final y se termina en un único salto, como cualquier archivo de texto.
+    while lineas and not lineas[-1].strip():
+        lineas.pop()
     Path(destino).write_text("\n".join(lineas) + "\n", encoding="utf-8")
     return destino
 
