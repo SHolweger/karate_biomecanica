@@ -541,6 +541,36 @@ es «no hay grabador que consultar», que no es lo mismo que uno apagado. La
 pantalla lo consulta al construirse, al abrir la sesión y en cada fotograma que
 graba — que son los tres momentos en que puede cambiar. TC-AUTO-060.
 
+**Una imagen congelada no es un alumno quieto, y hay que decirlo**
+(1-oct-2026). Cuando la fuente dejaba de entregar fotogramas, el bucle anotaba
+el motivo en `_motivo_detencion`, aumentaba `_sin_fotograma` y **se reprogramaba
+igual**. Ninguna de las dos variables se leía desde la interfaz: sus únicos
+lectores eran las dos últimas líneas de `test_rendimiento_interfaz.py`. Un
+contador que se incrementa y nadie consulta es peor que no tenerlo — al leer el
+código parece que hay una guarda donde no la hay.
+
+Lo que veía el sensei era la última imagen congelada, indefinidamente, con la
+sesión abierta y el último veredicto a la vista. En un dojo eso no es
+hipotético: alguien tropieza con el USB, o el teléfono que hace de cámara IP
+pierde la red. Y contradice el criterio que gobierna toda la presentación: una
+imagen congelada **muestra algo que ya no se está midiendo**.
+
+`vision/senal.py` (puro, corre en CI) redacta el aviso y distingue las dos
+situaciones, que no son la misma: de una grabación significa que se acabó el
+archivo —final normal, no fallo— y de una cámara, que hay que ir a mirar el
+cable. Se mide en **segundos de reloj**, no en fotogramas perdidos: el bucle
+corre a la velocidad de MediaPipe, así que «treinta fotogramas» dura cosas
+distintas en dos equipos. El umbral es 1,5 s, holgadamente por encima de un
+fotograma perdido (40 ms a 24 fps) y por debajo de lo que tarda alguien en
+dudar de lo que ve. **El aviso se retira solo** cuando la imagen vuelve: uno
+que se queda puesto enseña a ignorarlo.
+
+Lo fija TC-AUTO-063 (unitaria, la redacción) y TC-AUTO-064
+(`test_la_pantalla_avisa_cuando_la_imagen_deja_de_llegar`, e2e, **la costura**),
+porque lo que faltaba no era el texto sino que alguien lo consultara. La e2e
+retrasa `_desde_sin_imagen` en vez de dormir 1,5 s: lo que verifica es la
+costura, no el reloj.
+
 **El texto técnico del diagnóstico es el registro; la instrucción es aparte.**
 `gui/coaching.py` traduce «TSUKI: HIPEREXTENDIDO» a «No bloquees el codo al
 impacto». El texto técnico no se cambia porque es la clave con la que la base
@@ -684,12 +714,14 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 822 passed |
-| CI / sin entorno gráfico | igual | 679 passed, 10 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **pendiente de confirmar** |
+| CI / sin entorno gráfico | igual | 727 passed, 7 skipped |
 
-El 679 está medido en el contenedor. El 822 sale de las 816 confirmadas en su
-Mac más la del arranque del golpe, las tres del plan y las dos de la corrida
-parcial — **pendiente de confirmar**.
+El 727 está medido en el contenedor sobre `origin/main` del 15-oct, **con el
+plan ya fuera del índice**: con el plan todavía versionado salen dos fallos de
+`test_entrega.py`, y son los que cierra el `git rm --cached`. La cifra del
+entorno completo lleva además los siete módulos de `tests/e2e/` y hay que
+contarla en su Mac, no deducirla.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -717,7 +749,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-063**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-066**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -756,6 +788,54 @@ serie por construcción y volcarla escondía el único renglón que importaba.
 (raíz) produce `docs/plan_de_pruebas.csv` —que abre en Excel o Project, con las
 columnas de planificación **vacías**— y `docs/plan_de_pruebas.md`, con el
 comando exacto de cada caso y su criterio de aceptación.
+
+**Ninguno de los dos se versiona** (1-oct-2026): se deducen de las fichas, que
+sí lo están, y versionar la derivación rompió una entrega. Se regeneran con
+`python3 plan_de_pruebas.py` cuando hagan falta.
+
+La causa costó **tres diagnósticos equivocados** y bloqueó dos días la entrega
+del aviso de señal perdida —un cambio que no toca el plan por ningún lado—:
+
+```
+error: patch failed: docs/plan_de_pruebas.csv:1
+error: docs/plan_de_pruebas.csv: patch does not apply
+```
+
+No era el BOM, ni bastaba con poner `lineterminator="\n"` en el generador.
+**`git am` aplica `--no-keep-cr` por omisión**: borra el CR del final de cada
+línea del parche, así que las líneas `-` del CSV dejaban de coincidir con el
+blob que sí los tenía. El archivo estaba bien; el que lo rompía era el
+transporte.
+
+La decisión no es de formato sino de naturaleza: la fuente de verdad —los
+decoradores `@ficha(...)`— ya está versionada, así que los dos archivos son
+**derivaciones**, y versionar una derivación obliga a que las dos máquinas la
+tengan byte a byte idéntica. En cuanto divergen, ningún parche que las toque
+puede aplicar en los dos lados.
+
+`docs/casos_prueba_automatizados.generado.md` **sí** se versiona, y la
+diferencia no es arbitraria: registra qué pruebas *pasaron* en una corrida
+—evidencia de un hecho, material de la tesis— y solo se reescribe en corridas
+completas. Uno es un registro; el otro, una vista.
+
+Lo fija **TC-AUTO-065** (`tests/unit/test_entrega.py`), que comprueba **la
+salida del generador** y no lo que haya en el disco —el disco puede estar en
+cualquier estado y con esta decisión ya no importa—: ni CRLF, ni línea en
+blanco al final, y BOM en el CSV porque Excel lo necesita.
+`test_el_plan_generado_no_esta_versionado` vigila la decisión y su mensaje de
+fallo trae el `git rm --cached` que la restablece; `test_el_registro_de_la_
+corrida_si_esta_versionado` vigila la otra mitad, para que no se lea como «lo
+generado no se versiona nunca».
+
+**Y el paso de sacarlos del índice lo da él, no un parche.** Un parche que los
+borrara tendría que arrastrar su contenido como líneas `-`, con los CRLF
+dentro, que es exactamente lo que no sobrevive a `git am`. `git rm --cached`
+toca el índice y no necesita que ningún contenido coincida. Va **antes** del
+`git am`, para que la suite pase en la primera corrida.
+
+Regla general que queda: **ningún parche debe tocar un archivo que una
+herramienta regenera.** Si uno aparece en `git format-patch --stat`, el lote
+está mal armado.
 
 Lee el **árbol sintáctico**, no importa los módulos, y esa decisión es la que
 lo hace servir: los diez módulos de `tests/e2e/` se omiten solos sin entorno

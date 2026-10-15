@@ -23,6 +23,7 @@ from vision.fuentes import es_archivo
 from vision.grabacion import (CLAVE_DIRECTORIO, CLAVE_GRABAR, directorio_configurado,
                               estado_en_vivo, grabacion_activada)
 from vision.grabador import GrabadorSesion
+from vision.senal import aviso_de_senal
 from vision.tracker import PoseTracker
 
 
@@ -109,6 +110,12 @@ class LiveScreen(ctk.CTkFrame):
         self._motivo_detencion = None
         # Fotogramas nulos seguidos. Cero mientras la fuente entrega.
         self._sin_fotograma = 0
+        # Reloj del primer fotograma nulo de la racha actual, o None si la
+        # imagen está llegando. Se guarda el INSTANTE y no una cuenta porque el
+        # bucle corre a la velocidad de MediaPipe: treinta fotogramas perdidos
+        # duran cosas distintas en dos equipos, y el aviso no debe depender de
+        # en cuál se ejecute. Ver vision/senal.py.
+        self._desde_sin_imagen = None
 
         self.filas_metricas = {}
         self.estado_var = ctk.StringVar(value="")
@@ -120,6 +127,9 @@ class LiveScreen(ctk.CTkFrame):
         # dijera «Grabando» sin sesión ni camara abierta.
         self.grabacion_var = ctk.StringVar()
         self._refrescar_aviso_de_grabacion()
+        # Imagen detenida. Vacío mientras el video avanza; el aviso se retira
+        # solo en cuanto vuelve a llegar un fotograma.
+        self.senal_var = ctk.StringVar(value="")
 
         self._encabezado()
         self._controles()
@@ -196,6 +206,14 @@ class LiveScreen(ctk.CTkFrame):
             text_color=theme.ACENTO_ROJO if self._graba() else theme.TEXTO_TENUE)
         self.etiqueta_grabacion.pack(side="left", padx=(22, 0))
 
+        # El aviso de imagen detenida va junto al de grabación porque es lo
+        # mismo: las condiciones en que se está midiendo. Va vacío casi todo el
+        # tiempo y por eso no ocupa sitio cuando no hay nada que decir.
+        self.etiqueta_senal = ctk.CTkLabel(
+            fila, textvariable=self.senal_var, font=(theme.FUENTE, 11.5, "bold"),
+            text_color=theme.ACENTO_AMARILLO)
+        self.etiqueta_senal.pack(side="left", padx=(22, 0))
+
         ctk.CTkLabel(fila, textvariable=self.estado_var, font=(theme.FUENTE, 11.5),
                      text_color=theme.ACENTO_AMARILLO).pack(side="right")
 
@@ -217,6 +235,22 @@ class LiveScreen(ctk.CTkFrame):
             sesion_iniciada=self.id_sesion is not None,
             grabador_activo=None if self.grabador is None else self.grabador.grabando,
             fuente_es_grabacion=self._fuente_es_grabacion()))
+
+    def _refrescar_aviso_de_senal(self):
+        """
+        Pone al día el aviso de imagen detenida, en cada fotograma.
+
+        Se mide en segundos de reloj y no en fotogramas perdidos porque el
+        bucle corre a la velocidad de MediaPipe: contar fotogramas haría que el
+        aviso saltara antes o después según el equipo. La redacción, el umbral
+        y el porqué viven en `vision.senal.aviso_de_senal`, que es puro y corre
+        en CI; aquí solo queda medir el tiempo y pintarlo.
+        """
+        segundos = (None if self._desde_sin_imagen is None
+                    else time.perf_counter() - self._desde_sin_imagen)
+        aviso = aviso_de_senal(segundos,
+                               fuente_es_grabacion=self._fuente_es_grabacion())
+        self.senal_var.set(aviso or "")
 
     def _graba(self):
         """
@@ -462,8 +496,17 @@ class LiveScreen(ctk.CTkFrame):
             self._sin_fotograma += 1
             if self._motivo_detencion is None:
                 self._motivo_detencion = "la fuente dejó de entregar fotogramas"
+            if self._desde_sin_imagen is None:
+                self._desde_sin_imagen = time.perf_counter()
         else:
             self._sin_fotograma = 0
+            self._desde_sin_imagen = None
+        # En CADA fotograma, llegue o no: es lo que retira el aviso solo cuando
+        # la imagen vuelve. Hasta el 1-oct-2026 las dos variables de arriba se
+        # escribían y no las leía nadie salvo test_rendimiento_interfaz.py, de
+        # modo que el sensei se quedaba mirando una imagen congelada con la
+        # sesión abierta y el último veredicto a la vista.
+        self._refrescar_aviso_de_senal()
         if frame is not None:
             # La marca la da la fuente, no el reloj de pared. Con una cámara
             # en vivo ambas coinciden; con una grabación no, y usar el reloj

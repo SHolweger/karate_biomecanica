@@ -622,3 +622,60 @@ def test_el_ciclo_reprograma_con_el_intervalo_completo(vivo):
         f"el ciclo se reprogramó con {plazos[-1]} ms en vez de "
         f"{pantalla.INTERVALO_MS}. Descontar el trabajo ya hecho deja el "
         f"temporizador vencido y en macOS eso tumba la aplicación.")
+
+
+# ---------------- la imagen que deja de llegar ----------------
+
+@ficha(
+    id_caso="TC-AUTO-064",
+    nombre="La pantalla avisa cuando la imagen deja de llegar, y retira el aviso al volver",
+    tipo=TipoPrueba.E2E,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "hasta el 1-oct-2026 el bucle anotaba la detención en dos variables que "
+        "nadie leía desde la interfaz: la sesión seguía abierta sobre una imagen "
+        "congelada, con el último veredicto a la vista, y el sensei corregía "
+        "sobre una ejecución terminada. Lo que faltaba no era el texto sino que "
+        "alguien lo consultara, así que la unitaria del módulo no basta"),
+    componente="gui/live_screen.py (_refrescar_aviso_de_senal) + vision/senal.py",
+    requisitos="RF-01",
+    precondiciones="Pantalla en vivo abierta con una cámara sintética que agota sus fotogramas",
+    datos_entrada="CamaraSintetica(frames_disponibles=1); después, fuente restablecida",
+    pasos=[
+        Paso("Procesar fotogramas hasta agotar la fuente",
+             "assert pantalla._desde_sin_imagen is not None"),
+        Paso("Retrasar el inicio de la racha por encima del umbral y refrescar",
+             "assert pantalla.senal_var.get() != ''"),
+        Paso("Restablecer la fuente y procesar un fotograma",
+             "assert pantalla.senal_var.get() == ''"),
+    ],
+    resultado_esperado="PASSED: el aviso aparece en pantalla y se retira solo",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_la_pantalla_avisa_cuando_la_imagen_deja_de_llegar(vivo):
+    pantalla = vivo
+    pantalla.cam.frames_disponibles = pantalla.cam.frames_entregados
+
+    # Mientras la imagen llegaba no había nada que decir.
+    assert pantalla.senal_var.get() == ""
+
+    pantalla._procesar_fotograma()
+    assert pantalla._desde_sin_imagen is not None, (
+        "el bucle no registró el instante en que la fuente dejó de entregar")
+
+    # Se retrasa el inicio de la racha en vez de esperar de verdad: el umbral
+    # son 1,5 s y una prueba que los durmiera pagaría ese precio en cada
+    # corrida. Lo que se verifica es la costura, no el reloj.
+    pantalla._desde_sin_imagen -= 5.0
+    pantalla._procesar_fotograma()
+    aviso = pantalla.senal_var.get()
+    assert aviso != "", (
+        "la imagen lleva más de cinco segundos detenida y la pantalla no lo dice")
+
+    # Y se retira solo en cuanto vuelve la imagen: uno que se queda puesto
+    # después de resolverse el problema enseña a ignorarlo.
+    pantalla.cam.frames_disponibles = None
+    pantalla._procesar_fotograma()
+    assert pantalla.senal_var.get() == "", (
+        f"el aviso «{aviso}» siguió puesto después de recuperarse la imagen")
