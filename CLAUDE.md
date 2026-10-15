@@ -675,7 +675,7 @@ descartando los primeros 10 s):
 |---|---|---|
 | Encadenamiento de análisis, sin ventana | `test_rendimiento.py --sin-ventana` | **44,1** ✓ |
 | Encadenamiento + ventana de OpenCV | `test_rendimiento.py` | 22,0 ✗ |
-| **La interfaz real** | `test_rendimiento_interfaz.py` | *pendiente en su equipo* |
+| **La interfaz real** | `test_rendimiento_interfaz.py` | **27,8 media / 29,6 mediana** ✗ |
 
 La ventana de OpenCV es de depuración y el dojo no la usa, así que la cifra de
 22,0 no describe el producto — pero la de 44,1 tampoco, porque la interfaz hace
@@ -687,8 +687,43 @@ interfaz dio 15,2 fps con `grabacion` costando 10 ms por fotograma y
 herramienta ya permite medirlo donde importa.
 
 **La cifra que va a la tesis es la de la interfaz**, porque es la que el dojo
-ejecuta. Antes de tocar el requisito conviene mirar si la grabación de sesión
-—que se puede apagar por equipo— es lo que lo hunde.
+ejecuta.
+
+**Y estaba medida desde el 27-sep sin que nadie sacara el número**
+(calculado el 15-oct-2026). Las dos corridas de `test_rendimiento_interfaz.py`
+llevaban meses en `evidencias/` —se reconocen porque su CSV trae las columnas
+`grabacion_ms`, `persistencia_ms` y `panel_ms`, que la otra herramienta no
+produce—. Descartando los primeros 10 s de reloj:
+
+| Corrida | fotogramas | media | mediana |
+|---|---|---|---|
+| `rendimiento_20260927_205715.csv` | 301 | 25,1 fps | 25,3 fps |
+| `rendimiento_20260927_224259.csv` | **11 520** | **27,8 fps** | **29,6 fps** |
+
+La segunda es la muestra buena, y es la misma corrida que el capítulo 5 cita
+como «un defecto del vigilante procesó 11 515 fotogramas en vez de los 300
+solicitados».
+
+Desglose por etapa de esa corrida, en mediana:
+
+| Etapa | ms |
+|---|---|
+| Estimación de pose | 17,84 |
+| Despliegue | 8,32 |
+| Captura | 4,62 |
+| **Grabación de sesión** | **1,73** |
+| Análisis + panel + persistencia | 0,66 |
+
+**Contra el criterio del capítulo 3** (cómputo < 500 ms y tasa sostenida
+≥ 30 fps): los 500 ms se cumplen con margen enorme —34 ms de mediana— y los
+**30 fps no se alcanzan por 0,4**. Hay que decidirlo antes de la defensa: o se
+reporta el requisito como cumplido parcialmente con la cifra y su desglose, o
+se apaga la grabación en la demostración —libera 1,73 ms y cruza por mediana—
+y se cumple. Lo que **no** se puede es citar los 44,1 fps como si describieran
+el producto.
+
+Y queda descartada por medición la sospecha de que la grabación de sesión
+fuera lo que lo hunde: cuesta **1,73 ms**, no diez.
 
 **Encuadre bueno medido el 28-sep**: sobre una grabación con el ejecutante de
 cuerpo completo, la detección de pose es del **98 %** y la visibilidad media de
@@ -714,14 +749,20 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **pendiente de confirmar** |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 848 passed |
 | CI / sin entorno gráfico | igual | 727 passed, 7 skipped |
 
-El 727 está medido en el contenedor sobre `origin/main` del 15-oct, **con el
-plan ya fuera del índice**: con el plan todavía versionado salen dos fallos de
-`test_entrega.py`, y son los que cierra el `git rm --cached`. La cifra del
-entorno completo lleva además los siete módulos de `tests/e2e/` y hay que
-contarla en su Mac, no deducirla.
+Las dos cifras están **medidas** el 15-oct-2026 sobre `origin/main`, no
+deducidas: el 727 en el contenedor y el 848 en su Mac (macOS, Python 3.11.0).
+
+**Y cuadran, que es lo que las hace citables.** Los siete módulos que este
+entorno omite aportan 18 + 20 + 14 + 15 + 15 + 23 + 16 = **121** pruebas, y
+727 + 121 = 848. No sobra ni falta ninguna, así que los «skipped» de aquí son
+exactamente las que allá sí corren — no hay un tercer grupo escondido.
+
+El 727 exige el plan **fuera del índice**: con `docs/plan_de_pruebas.{csv,md}`
+todavía versionados salen dos fallos de `test_entrega.py`, que son los que
+cierra el `git rm --cached`.
 
 **Los diez módulos que CI omite son un punto ciego, y ya costó una corrida**
 (30-sep-2026). Al añadir `timestamp_ms` a `analyze_tsuki` se actualizaron los
@@ -957,9 +998,23 @@ prevención de lesiones, biblioteca de técnicas, calibración de umbrales,
 selección de cámara, **grabación del video crudo de cada sesión** y
 **re-análisis de una grabación** desde la pantalla de cámara.
 
-**Bloqueado por hardware:** RF-02 y RF-04 (sensores inerciales). Sebastián tiene
-el ESP32 y los IMU pero **no tiene cautín**. La contingencia ya está tomada: el
-sistema funciona solo con visión y declara la ausencia.
+**Bloqueado por hardware:** RF-02 y RF-04 (sensores inerciales). Sebastián
+tiene los IMU —**Adafruit BNO055**, 9-DOF con fusión en el propio
+encapsulado—, el ESP32 y, desde el 15-oct, **cautín y estaño**; le faltan el
+resto de materiales. La contingencia ya está tomada: el sistema funciona solo
+con visión y declara la ausencia.
+
+**Recomendación del 15-oct: cerrarlo como está.** Soldar es la parte corta; lo
+que no cabe en lo que queda es alimentación, sujeción, canal inalámbrico,
+**sincronización temporal con el video** —un problema de ingeniería por sí
+solo— y validar que los datos sirvan. Un montaje a medias y sin validar abre
+preguntas que no se van a poder contestar el 9 de noviembre; el capítulo, en
+cambio, ya documenta una decisión de ingeniería defendible.
+
+Consecuencia técnica del BNO055 que conviene no olvidar: entrega orientación
+absoluta ya resuelta, así que **el microcontrolador no ejecuta el filtro de
+fusión**. Eso deja obsoleta la prueba «Verificación algorítmica de conversión
+geométrica (matemática de cuaterniones)» del plan de validación del capítulo 3.
 
 **Pendiente de Sebastián, no mío:** confirmar con su sensei los rangos de
 **Kokutsu Dachi** (145–175° rodilla delantera, 90–120° trasera). Esos números
