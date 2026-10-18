@@ -665,7 +665,29 @@ corregir ni hacia dónde, y el sistema tenía el dato. Ahora:
 | Trasera más doblada que su rango | `POSTURA: EXTIENDE LA RODILLA TRASERA` | Estira la pierna de atrás |
 | Las dos | `POSTURA: CORREGIR AMBAS RODILLAS` | Corrige las dos rodillas |
 
-Kiba conserva «CORREGIR ALTURA»: es simétrica y no hay rodilla que nombrar.
+**Y Kiba dice hacia dónde** (mismo día). Es simétrica y no hay rodilla que
+nombrar, pero «CORREGIR ALTURA» no decía si subir o bajar, ni nombraba el error
+típico de la postura, que es cargar el peso en una pierna:
+
+| Qué falla | Veredicto | Lo que lee el alumno |
+|---|---|---|
+| Las rodillas, por encima de su rango | `POSTURA: FLEXIONA MAS LAS RODILLAS` | Baja más la postura |
+| Por debajo | `POSTURA: EXTIENDE LAS RODILLAS` | Sube un poco la postura |
+| Una por encima y otra por debajo | `POSTURA: REPARTE EL PESO EN LAS DOS PIERNAS` | Reparte el peso entre las dos piernas |
+
+**No se nombra el lado, y es a propósito**: el analizador trabaja en modo
+espejo y Kiba se filma de frente, así que la «izquierda» de la pantalla es la
+pierna derecha del alumno. Decirle «la izquierda» le haría corregir la pierna
+equivocada.
+
+Con los cortes del clasificador (130–160°) y el rango de literatura (130–150°),
+una rodilla de Kiba reconocida nunca queda por debajo de su rango, así que hoy
+solo se ve «Baja más la postura». Las otras dos existen porque los umbrales son
+datos: si el cuerpo técnico sube el mínimo, aparecen. TC-AUTO-069.
+
+**Ninguna regla emite ya «POSTURA: CORREGIR ALTURA»**, pero su traducción se
+queda en `gui/coaching.py`: las sesiones registradas antes del 18-oct lo llevan
+y su reporte se sigue abriendo.
 
 Tres cosas que conviene saber de este cambio:
 
@@ -909,7 +931,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-069**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-070**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

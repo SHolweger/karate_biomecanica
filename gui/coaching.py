@@ -37,11 +37,25 @@ CORRECCIONES = {
         ("Postura firme", "la altura y el reparto de peso son los correctos"),
     "POSTURA: ESTABLE":
         ("Postura estable", "el peso está donde corresponde a esta guardia"),
-    # Desde el 18-oct-2026 solo lo emite Kiba Dachi, que es simétrica: no hay
-    # guardia que nombrar, así que el motivo ya no habla de ella.
+    # Ninguna regla lo emite desde el 18-oct-2026: Zenkutsu y Kokutsu nombran la
+    # rodilla y Kiba dice hacia dónde corregir. Se conserva porque las sesiones
+    # registradas antes lo llevan, y su reporte se sigue abriendo.
     "POSTURA: CORREGIR ALTURA":
         ("Corrige la altura de la postura",
-         "en el Kiba Dachi las dos rodillas se flexionan por igual, a media altura"),
+         "la flexión de las rodillas no corresponde a la postura"),
+
+    # Kiba Dachi. No se nombra lado: el analizador trabaja en modo espejo y esta
+    # postura se filma de frente, así que «izquierda» en pantalla es la pierna
+    # derecha del alumno.
+    "POSTURA: FLEXIONA MAS LAS RODILLAS":
+        ("Baja más la postura",
+         "en el Kiba Dachi las rodillas se flexionan hasta media altura"),
+    "POSTURA: EXTIENDE LAS RODILLAS":
+        ("Sube un poco la postura",
+         "tan baja, carga las rodillas más de lo que pide el Kiba Dachi"),
+    "POSTURA: REPARTE EL PESO EN LAS DOS PIERNAS":
+        ("Reparte el peso entre las dos piernas",
+         "el Kiba Dachi es simétrico: las dos rodillas se flexionan por igual"),
 
     # Posturas asimétricas: el veredicto nombra la rodilla y el sentido. El
     # motivo es el mismo para Zenkutsu y Kokutsu —la tabla se indexa por

@@ -230,7 +230,9 @@ def test_kiba_dachi_mal_ejecutado_se_detecta_pero_se_corrige(analizador):
 
     assert "KIBA DACHI" in diagnostico["mensaje"]
     assert diagnostico["correcto"] is False
-    assert "CORREGIR ALTURA" in diagnostico["mensaje"]
+    # Hasta el 18-oct-2026 decía «CORREGIR ALTURA», sin decir hacia dónde. Con
+    # las dos rodillas a 158° —por encima del rango 130–150— hay que bajar.
+    assert "FLEXIONA MAS LAS RODILLAS" in diagnostico["mensaje"]
 
 
 def test_piernas_no_visibles_se_informan_sin_calificar(analizador):

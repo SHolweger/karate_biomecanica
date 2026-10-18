@@ -119,15 +119,107 @@ def test_los_limites_del_rango_cuentan_como_dentro(reglas, tecnica, frontal, tra
     assert correcto is True
 
 
-def test_kiba_dachi_conserva_su_veredicto():
-    """
-    Kiba es simétrica: no hay rodilla delantera ni trasera que nombrar, así que
-    su veredicto sigue siendo el de siempre.
-    """
-    correcto, mensaje, _ = KarateRules().evaluate_kiba_dachi(158, 158)
+@ficha(
+    id_caso="TC-AUTO-069",
+    nombre="En Kiba Dachi el veredicto dice si subir, bajar o repartir el peso",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo=(
+        "«CORREGIR ALTURA» no decía hacia dónde: un alumno demasiado alto y uno "
+        "demasiado bajo recibían la misma instrucción, y uno con el peso cargado "
+        "en una pierna —el error típico del Kiba— no recibía ninguna que lo "
+        "nombrara"),
+    componente="expert_system/knowledge_base.py (evaluate_kiba_dachi)",
+    requisitos=("RF-05", "RF-06"),
+    precondiciones="Ninguna. Rango de literatura: las dos rodillas entre 130 y 150°",
+    datos_entrada="Pares de rodillas por encima, por debajo, dentro y a ambos lados del rango",
+    pasos=[
+        Paso("Evaluar las dos rodillas a 158°",
+             "assert mensaje == KIBA_FLEXIONA"),
+        Paso("Evaluar con un rango recalibrado que deja las rodillas por debajo",
+             "assert mensaje == KIBA_EXTIENDE"),
+        Paso("Evaluar una rodilla por encima y otra por debajo",
+             "assert mensaje == KIBA_REPARTE"),
+        Paso("Recorrer una rejilla y comparar el booleano con el criterio",
+             "assert correcto == (izq dentro and der dentro)"),
+    ],
+    resultado_esperado="PASSED: el texto dice hacia dónde corregir y el booleano no cambia",
+)
+@pytest.mark.parametrize("izq, der, esperado", [
+    (158, 158, kb.KIBA_FLEXIONA),     # demasiado alto: las dos por encima
+    (158, 140, kb.KIBA_FLEXIONA),     # una bien y otra alta: sigue siendo bajar
+])
+def test_kiba_alto_pide_flexionar(izq, der, esperado):
+    correcto, mensaje, color = KarateRules().evaluate_kiba_dachi(izq, der)
 
-    assert correcto is False
-    assert mensaje == "POSTURA: CORREGIR ALTURA"
+    assert (correcto, mensaje, color) == (False, esperado, kb.ROJO)
+
+
+def test_kiba_dentro_del_rango_conserva_su_veredicto():
+    assert KarateRules().evaluate_kiba_dachi(140, 140) == (True, "POSTURA: FIRME", kb.VERDE)
+
+
+def _kiba_recalibrado(minimo, maximo):
+    """
+    Con los cortes del clasificador (130–160°) y el rango de literatura (130–150°),
+    una rodilla de Kiba reconocida nunca queda POR DEBAJO de su rango. Pero los
+    umbrales son datos: si el cuerpo técnico sube el mínimo, sí puede pasar, y la
+    regla tiene que decir hacia dónde corregir también entonces.
+    """
+    return KarateRules({("kiba_dachi", "rodilla"): {
+        "valor_min": float(minimo), "valor_max": float(maximo), "id_umbral": 7}})
+
+
+def test_kiba_demasiado_bajo_pide_extender():
+    _, mensaje, _ = _kiba_recalibrado(140, 150).evaluate_kiba_dachi(133, 135)
+
+    assert mensaje == kb.KIBA_EXTIENDE
+
+
+def test_kiba_con_el_peso_en_una_pierna_pide_repartirlo():
+    """
+    Una rodilla demasiado doblada y la otra demasiado recta: el peso está
+    cargado en una pierna. Decir «sube» o «baja» sería decir la mitad.
+    """
+    _, mensaje, _ = _kiba_recalibrado(140, 150).evaluate_kiba_dachi(155, 135)
+
+    assert mensaje == kb.KIBA_REPARTE
+
+
+def test_kiba_solo_cambia_el_texto_nunca_el_veredicto():
+    reglas = _kiba_recalibrado(135, 150)
+    for izq in range(120, 171, 2):
+        for der in range(120, 171, 2):
+            correcto, _, _ = reglas.evaluate_kiba_dachi(izq, der)
+            esperado = (reglas.dentro(izq, "kiba_dachi", "rodilla")
+                        and reglas.dentro(der, "kiba_dachi", "rodilla"))
+            assert correcto == esperado, (izq, der)
+
+
+def test_todo_veredicto_de_kiba_esta_declarado_y_traducido():
+    emitidos = set()
+    reglas = _kiba_recalibrado(135, 150)
+    for izq in range(120, 171, 2):
+        for der in range(120, 171, 2):
+            correcto, mensaje, _ = reglas.evaluate_kiba_dachi(izq, der)
+            if not correcto:
+                emitidos.add(mensaje)
+
+    assert emitidos == set(kb.VEREDICTOS_KIBA)
+    for veredicto in kb.VEREDICTOS_KIBA:
+        assert veredicto in kb.VEREDICTOS_DECLARADOS
+        assert veredicto in CORRECCIONES, veredicto
+
+
+def test_el_veredicto_viejo_de_kiba_se_sigue_traduciendo_en_el_historial():
+    """
+    Ninguna regla emite ya «CORREGIR ALTURA», pero las sesiones registradas
+    antes del 18-oct-2026 lo llevan, y su reporte se sigue abriendo.
+    """
+    instruccion, motivo = traducir("KIBA DACHI: POSTURA: CORREGIR ALTURA")
+
+    assert instruccion != "KIBA DACHI: POSTURA: CORREGIR ALTURA"
+    assert motivo is not None
 
 
 # ---------------- el booleano no se mueve ----------------

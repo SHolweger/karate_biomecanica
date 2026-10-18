@@ -102,7 +102,19 @@ VEREDICTOS_POR_RODILLA = (FLEXIONA_DELANTERA, EXTIENDE_DELANTERA,
 # un `return` literal sino de un argumento de `_veredicto_asimetrico`.
 ZENKUTSU_CORRECTO = "POSTURA: FIRME"
 KOKUTSU_CORRECTO = "POSTURA: ESTABLE"
-VEREDICTOS_DECLARADOS = VEREDICTOS_POR_RODILLA + (ZENKUTSU_CORRECTO, KOKUTSU_CORRECTO)
+# Kiba Dachi (18-oct-2026). Es simétrica: no hay rodilla delantera ni trasera
+# que nombrar, pero «CORREGIR ALTURA» tampoco decía hacia dónde, y no nombraba
+# el error típico de la postura, que es cargar el peso en una pierna. Los lados
+# NO se nombran a propósito: el analizador trabaja en modo espejo y Kiba se
+# filma de frente, así que la «izquierda» de la pantalla es la pierna derecha
+# del alumno. Decirle «la izquierda» le haría corregir la pierna equivocada.
+KIBA_FLEXIONA = "POSTURA: FLEXIONA MAS LAS RODILLAS"
+KIBA_EXTIENDE = "POSTURA: EXTIENDE LAS RODILLAS"
+KIBA_REPARTE = "POSTURA: REPARTE EL PESO EN LAS DOS PIERNAS"
+VEREDICTOS_KIBA = (KIBA_FLEXIONA, KIBA_EXTIENDE, KIBA_REPARTE)
+
+VEREDICTOS_DECLARADOS = (VEREDICTOS_POR_RODILLA + VEREDICTOS_KIBA
+                         + (ZENKUTSU_CORRECTO, KOKUTSU_CORRECTO))
 
 
 class KarateRules:
@@ -196,11 +208,24 @@ class KarateRules:
         Evalúa postura de jinete (Kiba Dachi).
         Postura simétrica y lateral: ambas rodillas flexionadas por igual, sin
         pierna delantera/trasera definida (a diferencia de Zenkutsu/Kokutsu).
+
+        Si falla, el veredicto dice hacia dónde corregir (18-oct-2026): bajar,
+        subir o —si una rodilla pide lo uno y la otra lo otro— repartir el peso,
+        que es el error típico de esta postura. Hasta esa fecha respondía
+        «POSTURA: CORREGIR ALTURA» en los tres casos. El booleano no cambia.
         """
         if (self._dentro(left_knee_angle, "kiba_dachi", "rodilla")
                 and self._dentro(right_knee_angle, "kiba_dachi", "rodilla")):
             return True, "POSTURA: FIRME", VERDE
-        return False, "POSTURA: CORREGIR ALTURA", ROJO
+
+        correcciones = {c for c in (self._correccion(left_knee_angle, "kiba_dachi", "rodilla"),
+                                    self._correccion(right_knee_angle, "kiba_dachi", "rodilla"))
+                        if c is not None}
+        if correcciones == {"flexionar"}:
+            return False, KIBA_FLEXIONA, ROJO
+        if correcciones == {"extender"}:
+            return False, KIBA_EXTIENDE, ROJO
+        return False, KIBA_REPARTE, ROJO
 
     def _correccion(self, valor, tecnica, articulacion):
         """
