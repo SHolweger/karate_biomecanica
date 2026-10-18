@@ -921,12 +921,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **881 passed** (18-oct, medido en su Mac, lote `rodilla18oct`); **905 esperadas** tras el lote del Tsuki, el Kiba y el RF-01 |
-| CI / sin entorno gráfico | igual | 784 passed, 7 skipped (18-oct, tras ese lote) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **905 passed** (18-oct, medido en su Mac, lote `kime18oct`); **908 esperadas** tras el lote `gitignore18oct` |
+| CI / sin entorno gráfico | igual | 787 passed, 7 skipped (18-oct, tras ese lote) |
 
-Las 881 se predijeron como 848 + 33 y se contaron en su Mac: cuadraron. Las 905
-son otra **expectativa** —881 + 24 pruebas nuevas que corren en los dos
-entornos— y no se citan hasta contarlas. Ojo: una de las 24
+Las 881 y las 905 se predijeron (848 + 33 y 881 + 24) y se contaron en su Mac:
+cuadraron las dos. Las 908 son otra **expectativa** —905 + 3 de
+`test_entrega.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1051,6 +1051,14 @@ borrara tendría que arrastrar su contenido como líneas `-`, con los CRLF
 dentro, que es exactamente lo que no sobrevive a `git am`. `git rm --cached`
 toca el índice y no necesita que ningún contenido coincida. Va **antes** del
 `git am`, para que la suite pase en la primera corrida.
+
+**Y además están en `.gitignore`** (18-oct-2026). Que no estén versionados hoy
+no impedía que volvieran: al regenerarlos aparecían como «sin seguimiento» —se
+vio en su `git status`— y un `git add .` los habría metido otra vez. La entrada
+va **después** de `!docs/*.md`, porque en `.gitignore` gana la última regla que
+coincide; puesta antes, el `.md` quedaba des-ignorado de rebote.
+`test_el_plan_generado_esta_ignorado` lo vigila y se comprobó fallando en los
+dos casos: sin la entrada, y con la entrada en el orden equivocado.
 
 Regla general que queda: **ningún parche debe tocar un archivo que una
 herramienta regenera.** Si uno aparece en `git format-patch --stat`, el lote

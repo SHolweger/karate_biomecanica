@@ -152,6 +152,28 @@ def test_el_plan_generado_no_esta_versionado(ruta):
         f"y se regenera cuando haga falta con `python3 plan_de_pruebas.py`.")
 
 
+@pytest.mark.parametrize("ruta", [PLAN_CSV, PLAN_MD])
+def test_el_plan_generado_esta_ignorado(ruta):
+    """
+    Que no esté versionado HOY no impide que vuelva mañana: al regenerarlo, los
+    dos archivos aparecen como «sin seguimiento» y un `git add .` los mete otra
+    vez. Ignorarlos cierra esa puerta. Hace falta comprobarlo y no darlo por
+    hecho, porque `.gitignore` des-ignora `docs/*.md` y gana la última regla
+    que coincide: puesta antes, la entrada del plan no tendría efecto.
+    """
+    resultado = subprocess.run(["git", "check-ignore", "-q", ruta],
+                               cwd=RAIZ, capture_output=True, text=True)
+    assert resultado.returncode == 0, (
+        f"{ruta} no está ignorado: un `git add .` lo volvería a versionar")
+
+
+def test_lo_demas_de_docs_no_queda_ignorado_de_rebote():
+    """La regla del plan no puede tragarse la documentación que sí se versiona."""
+    resultado = subprocess.run(["git", "check-ignore", "-q", REGISTRO],
+                               cwd=RAIZ, capture_output=True, text=True)
+    assert resultado.returncode == 1, f"{REGISTRO} quedó ignorado"
+
+
 def test_el_registro_de_la_corrida_si_esta_versionado():
     """
     La otra mitad de la decisión, para que no se lea como «lo generado no se

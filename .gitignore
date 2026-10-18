@@ -26,3 +26,10 @@ htmlcov/
 # CLAUDE.md tampoco es un apunte personal: lo lee el asistente al abrir cada
 # sesion de trabajo, asi que solo cumple su funcion si viaja con el repositorio.
 !CLAUDE.md
+
+# El plan de pruebas es una DERIVACIÓN de las fichas @ficha(...) y se regenera
+# con `python3 plan_de_pruebas.py`. No se versiona (ver CLAUDE.md, TC-AUTO-065):
+# versionarlo rompió una entrega el 1-oct-2026. Van después de `!docs/*.md`
+# porque en .gitignore gana la última regla que coincide.
+/docs/plan_de_pruebas.csv
+/docs/plan_de_pruebas.md
