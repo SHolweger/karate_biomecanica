@@ -67,6 +67,43 @@ VERDE = (0, 255, 0)
 ROJO = (0, 0, 255)
 AMARILLO = (0, 255, 255)   # En BGR el amarillo es (0,255,255); (255,255,0) seria cian.
 
+# Veredictos de las posturas ASIMÉTRICAS cuando fallan (18-oct-2026).
+#
+# Zenkutsu y Kokutsu se juzgan con un rango por rodilla, pero respondían
+# «POSTURA: CORREGIR ALTURA» igual que Kiba Dachi. En una postura simétrica eso
+# basta; en una asimétrica no dice qué rodilla corregir ni hacia dónde, y el
+# sistema tenía el dato. Ahora el veredicto nombra la rodilla y el sentido.
+#
+# El sentido se lee del ángulo de la rodilla, donde 180° es la pierna recta:
+# por debajo del rango la rodilla está más doblada de lo que pide la postura
+# («EXTIENDE»); por encima, menos («FLEXIONA MAS»). Sale siempre del rango
+# VIGENTE, así que sigue al criterio si el cuerpo técnico recalibra.
+#
+# Es una decisión que cambia la clave con la que la base agrupa los errores
+# frecuentes, y se tomó a propósito ANTES de la campaña de recolección: lo
+# medido antes del 30-sep ya no sirve para calcular precisión, y la base se
+# aparta antes de empezar. El veredicto booleano no cambia —solo el texto—, así
+# que la precisión, la gráfica de evolución y la reevaluación del historial,
+# que comparan por `correcto`, no se ven afectadas.
+FLEXIONA_DELANTERA = "POSTURA: FLEXIONA MAS LA RODILLA DELANTERA"
+EXTIENDE_DELANTERA = "POSTURA: EXTIENDE LA RODILLA DELANTERA"
+FLEXIONA_TRASERA = "POSTURA: FLEXIONA MAS LA RODILLA TRASERA"
+EXTIENDE_TRASERA = "POSTURA: EXTIENDE LA RODILLA TRASERA"
+CORREGIR_AMBAS = "POSTURA: CORREGIR AMBAS RODILLAS"
+
+# Declarados aquí y no solo en los `return`: `gui/coaching.sin_traduccion()`
+# lee los veredictos de este módulo para avisar si alguno llega al panel sin
+# su corrección, y estos se construyen en un método en vez de en un `return`
+# literal. Una prueba recorre la regla y comprueba que la lista está completa.
+VEREDICTOS_POR_RODILLA = (FLEXIONA_DELANTERA, EXTIENDE_DELANTERA,
+                          FLEXIONA_TRASERA, EXTIENDE_TRASERA, CORREGIR_AMBAS)
+
+# Y los dos de la postura bien ejecutada, por el mismo motivo: ya no salen de
+# un `return` literal sino de un argumento de `_veredicto_asimetrico`.
+ZENKUTSU_CORRECTO = "POSTURA: FIRME"
+KOKUTSU_CORRECTO = "POSTURA: ESTABLE"
+VEREDICTOS_DECLARADOS = VEREDICTOS_POR_RODILLA + (ZENKUTSU_CORRECTO, KOKUTSU_CORRECTO)
+
 
 class KarateRules:
     """
@@ -165,15 +202,52 @@ class KarateRules:
             return True, "POSTURA: FIRME", VERDE
         return False, "POSTURA: CORREGIR ALTURA", ROJO
 
+    def _correccion(self, valor, tecnica, articulacion):
+        """
+        Hacia dónde hay que mover una rodilla para entrar en su rango, o None.
+
+        «extender» si está más doblada de lo que pide el rango; «flexionar» si
+        lo está menos. Usa los mismos límites inclusivos que `_dentro`, de modo
+        que una rodilla que `_dentro` acepta nunca recibe corrección.
+        """
+        minimo, maximo = self.rango(tecnica, articulacion)
+        if valor < minimo:
+            return "extender"
+        if maximo is not None and valor > maximo:
+            return "flexionar"
+        return None
+
+    def _veredicto_asimetrico(self, tecnica, front_knee_angle, back_knee_angle, correcto):
+        """
+        Veredicto de una postura asimétrica: nombra la rodilla que falla.
+
+        `correcto` es el mensaje de la postura bien ejecutada. El booleano es
+        exactamente el de siempre —las dos rodillas dentro de su rango—; lo
+        único que cambia respecto de antes del 18-oct-2026 es que, cuando
+        falla, el texto dice cuál rodilla corregir y hacia dónde en vez de un
+        «CORREGIR ALTURA» que valía igual para cualquiera de las dos.
+        """
+        delantera = self._correccion(front_knee_angle, tecnica, "rodilla_frontal")
+        trasera = self._correccion(back_knee_angle, tecnica, "rodilla_trasera")
+
+        if delantera is None and trasera is None:
+            return True, correcto, VERDE
+        if delantera is not None and trasera is not None:
+            return False, CORREGIR_AMBAS, ROJO
+        if delantera is not None:
+            return False, (FLEXIONA_DELANTERA if delantera == "flexionar"
+                           else EXTIENDE_DELANTERA), ROJO
+        return False, (FLEXIONA_TRASERA if trasera == "flexionar"
+                       else EXTIENDE_TRASERA), ROJO
+
     def evaluate_zenkutsu_dachi(self, front_knee_angle, back_knee_angle):
         """
         Evalúa postura adelantada.
         Rodilla delantera flexionada, rodilla trasera extendida y tensa.
+        Si falla, el veredicto nombra la rodilla: ver `_veredicto_asimetrico`.
         """
-        if (self._dentro(front_knee_angle, "zenkutsu_dachi", "rodilla_frontal")
-                and self._dentro(back_knee_angle, "zenkutsu_dachi", "rodilla_trasera")):
-            return True, "POSTURA: FIRME", VERDE
-        return False, "POSTURA: CORREGIR ALTURA", ROJO
+        return self._veredicto_asimetrico("zenkutsu_dachi", front_knee_angle,
+                                          back_knee_angle, ZENKUTSU_CORRECTO)
 
     def evaluate_kokutsu_dachi(self, front_knee_angle, back_knee_angle):
         """
@@ -183,11 +257,10 @@ class KarateRules:
         profundamente mientras la delantera permanece casi extendida. Es la
         distribución INVERSA a la del Zenkutsu Dachi, y es lo que distingue
         ambas posturas cuando se las mide por ángulos articulares.
+        Si falla, el veredicto nombra la rodilla: ver `_veredicto_asimetrico`.
         """
-        if (self._dentro(front_knee_angle, "kokutsu_dachi", "rodilla_frontal")
-                and self._dentro(back_knee_angle, "kokutsu_dachi", "rodilla_trasera")):
-            return True, "POSTURA: ESTABLE", VERDE
-        return False, "POSTURA: CORREGIR ALTURA", ROJO
+        return self._veredicto_asimetrico("kokutsu_dachi", front_knee_angle,
+                                          back_knee_angle, KOKUTSU_CORRECTO)
 
     # ---------------- PATADAS ----------------
 

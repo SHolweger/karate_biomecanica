@@ -576,6 +576,66 @@ costura, no el reloj.
 impacto». El texto técnico no se cambia porque es la clave con la que la base
 agrupa los errores frecuentes.
 
+**Y ninguna postura llegaba traducida** (encontrado el 18-oct-2026). El
+analizador no entrega el veredicto pelado: le antepone la postura que
+reconoció —`ZENKUTSU (IZQ ADELANTE): POSTURA: CORREGIR ALTURA`,
+`POSTURA NATURAL: HEIKO DACHI: CORRECTO`—, y `traducir` solo sabía quitar el
+prefijo de lado de los golpes. La búsqueda fallaba y, por diseño, un veredicto
+sin entrada se muestra tal cual. **El Tsuki se traducía; Heiko, Kiba, Zenkutsu
+y Kokutsu, nunca**, ni en el panel en vivo ni en el reporte de sesión.
+Reproducido: 8 de 8 geometrías de postura llegaban en lenguaje técnico.
+
+La guarda de la tabla, TC-AUTO-034, pasaba todo ese tiempo, porque comprobaba
+que cada veredicto tuviera entrada **en la tabla**, no que el mensaje que la
+pantalla recibe se tradujera. Es la lección del doble de MediaPipe otra vez: una
+guarda que mira el lugar equivocado no verifica, ratifica.
+
+`traducir` prueba ahora el mensaje entero y lo que queda tras cada «: », del más
+largo al más corto (`veredicto_conocido`). Un veredicto desconocido sigue
+mostrándose tal cual. Lo fija **TC-AUTO-066**
+(`tests/integration/test_correcciones_de_postura.py`), que hace el recorrido
+real —geometría corporal, analizador, mensaje, traducción— y falla sin el
+arreglo.
+
+**El veredicto de postura dice qué rodilla corregir** (18-oct-2026).
+Zenkutsu y Kokutsu se juzgan con un rango por rodilla, pero cuando fallaban
+respondían «POSTURA: CORREGIR ALTURA», igual que Kiba Dachi. En una postura
+simétrica eso basta; en una asimétrica no dice cuál de las dos rodillas
+corregir ni hacia dónde, y el sistema tenía el dato. Ahora:
+
+| Qué falla | Veredicto | Lo que lee el alumno |
+|---|---|---|
+| Delantera menos doblada que su rango | `POSTURA: FLEXIONA MAS LA RODILLA DELANTERA` | Flexiona más la rodilla de adelante |
+| Delantera más doblada que su rango | `POSTURA: EXTIENDE LA RODILLA DELANTERA` | Abre un poco la rodilla de adelante |
+| Trasera menos doblada que su rango | `POSTURA: FLEXIONA MAS LA RODILLA TRASERA` | Flexiona más la rodilla de atrás |
+| Trasera más doblada que su rango | `POSTURA: EXTIENDE LA RODILLA TRASERA` | Estira la pierna de atrás |
+| Las dos | `POSTURA: CORREGIR AMBAS RODILLAS` | Corrige las dos rodillas |
+
+Kiba conserva «CORREGIR ALTURA»: es simétrica y no hay rodilla que nombrar.
+
+Tres cosas que conviene saber de este cambio:
+
+- **El veredicto booleano no se mueve; solo el texto.** Lo fija
+  `test_solo_cambia_el_texto_nunca_el_veredicto`, que recorre una rejilla de
+  ángulos y pasaba **antes y después** del cambio — que es justo lo que tiene
+  que hacer. La precisión del alumno, su gráfica de evolución y
+  `reevaluacion.py` comparan por `correcto`, así que no les afecta.
+- **El sentido sale del rango vigente**, no de números escritos en la regla:
+  si el cuerpo técnico recalibra, la corrección sigue al criterio nuevo.
+- **Sí cambia la clave con que se agrupan los errores frecuentes**, y se
+  decidió hacerlo a propósito **antes de la campaña de recolección**: lo medido
+  antes del 30-sep ya no sirve para precisión y la base se aparta antes de
+  empezar. Hecho después, el reporte habría mostrado el mismo error con dos
+  nombres. A cambio, «errores frecuentes» pasa a decir **qué rodilla** falla
+  más, que es un dato que el sensei puede usar.
+
+Los veredictos que se construyen en un método y no en un `return` literal
+están declarados en `knowledge_base.VEREDICTOS_DECLARADOS`, porque
+`sin_traduccion()` lee el código fuente y no los vería.
+`test_todo_veredicto_por_rodilla_esta_declarado` recorre la regla y comprueba
+que la declaración está completa. Lo fija **TC-AUTO-067**
+(`tests/unit/test_veredicto_por_rodilla.py`).
+
 ---
 
 **Más resolución no mejora el análisis** (medido el 28-sep-2026). MediaPipe
@@ -749,8 +809,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 848 passed |
-| CI / sin entorno gráfico | igual | 727 passed, 7 skipped |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 848 passed (15-oct); **881 esperadas** tras el 18-oct, pendiente de contar |
+| CI / sin entorno gráfico | igual | 760 passed, 7 skipped (18-oct) |
+
+El 18-oct se sumaron 33 pruebas que corren en los dos entornos (11 de
+`test_correcciones_de_postura.py` y 22 de `test_veredicto_por_rodilla.py`), así
+que las 881 son una **expectativa**, no una medición: 848 + 33. Hasta que se
+cuenten en su Mac no se citan.
 
 Las dos cifras están **medidas** el 15-oct-2026 sobre `origin/main`, no
 deducidas: el 727 en el contenedor y el 848 en su Mac (macOS, Python 3.11.0).
@@ -790,7 +855,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-066**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-068**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1136,9 +1201,10 @@ conviene tenerlo firmado antes de la primera visita.
   Dato para cualquier explicación que se intente: la puntuación de visibilidad
   **no delata** el error. MediaPipe infiere articulaciones ocultas sin bajarla.
 
-- **Veredicto por rodilla en posturas asimétricas**: ya se informa cuál rodilla
-  está fuera de su rango, pero las reglas siguen emitiendo un único veredicto de
-  postura. El panel muestra ambos.
+- ~~**Veredicto por rodilla en posturas asimétricas**~~ **Resuelto el
+  18-oct-2026**: el veredicto de Zenkutsu y Kokutsu nombra la rodilla y el
+  sentido de la corrección. Ver «El veredicto de postura dice qué rodilla
+  corregir».
 - **Calibrar `SEPARACION_MINIMA_EN_CADERAS`** contra grabaciones reales antes de
   fijar el número en la tesis.
 

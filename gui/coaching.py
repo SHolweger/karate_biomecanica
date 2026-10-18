@@ -37,9 +37,30 @@ CORRECCIONES = {
         ("Postura firme", "la altura y el reparto de peso son los correctos"),
     "POSTURA: ESTABLE":
         ("Postura estable", "el peso está donde corresponde a esta guardia"),
+    # Desde el 18-oct-2026 solo lo emite Kiba Dachi, que es simétrica: no hay
+    # guardia que nombrar, así que el motivo ya no habla de ella.
     "POSTURA: CORREGIR ALTURA":
         ("Corrige la altura de la postura",
-         "la flexión de rodilla no corresponde a la guardia que estás marcando"),
+         "en el Kiba Dachi las dos rodillas se flexionan por igual, a media altura"),
+
+    # Posturas asimétricas: el veredicto nombra la rodilla y el sentido. El
+    # motivo es el mismo para Zenkutsu y Kokutsu —la tabla se indexa por
+    # veredicto, no por técnica—, así que dice lo que vale para las dos.
+    "POSTURA: FLEXIONA MAS LA RODILLA DELANTERA":
+        ("Flexiona más la rodilla de adelante",
+         "con la rodilla delantera tan recta la postura queda alta y rígida"),
+    "POSTURA: EXTIENDE LA RODILLA DELANTERA":
+        ("Abre un poco la rodilla de adelante",
+         "está más doblada de lo que pide la postura y carga la articulación"),
+    "POSTURA: FLEXIONA MAS LA RODILLA TRASERA":
+        ("Flexiona más la rodilla de atrás",
+         "en el Kokutsu el peso descansa sobre la pierna trasera"),
+    "POSTURA: EXTIENDE LA RODILLA TRASERA":
+        ("Estira la pierna de atrás",
+         "la rodilla trasera está más doblada de lo que pide la postura"),
+    "POSTURA: CORREGIR AMBAS RODILLAS":
+        ("Corrige las dos rodillas",
+         "ninguna de las dos está en su rango: empieza por la que sostiene el peso"),
 
     "MAE GERI: KIME EXCELENTE":
         ("Patada con Kime", "extensión completa y con velocidad"),
@@ -135,4 +156,9 @@ def sin_traduccion():
             'return False, "' if 'return False, "' in linea else None)
         if marca:
             emitidos.add(linea.split(marca, 1)[1].split('"', 1)[0])
+    # Los que la base de conocimientos construye en un método y no en un
+    # `return` literal —el veredicto por rodilla de Zenkutsu y Kokutsu— los
+    # declara ella misma. Una prueba recorre la regla y comprueba que la
+    # declaración está completa.
+    emitidos.update(knowledge_base.VEREDICTOS_DECLARADOS)
     return sorted(emitidos - set(CORRECCIONES))
