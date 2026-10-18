@@ -811,7 +811,7 @@ descartando los primeros 10 s):
 |---|---|---|
 | Encadenamiento de análisis, sin ventana | `test_rendimiento.py --sin-ventana` | **44,1** ✓ |
 | Encadenamiento + ventana de OpenCV | `test_rendimiento.py` | 22,0 ✗ |
-| **La interfaz real** | `test_rendimiento_interfaz.py` | **27,8 media / 29,6 mediana** ✗ |
+| **La interfaz real** | `test_rendimiento_interfaz.py` | **≤ ~20** (cota desde el CSV; ver abajo) ✗ |
 
 La ventana de OpenCV es de depuración y el dojo no la usa, así que la cifra de
 22,0 no describe el producto — pero la de 44,1 tampoco, porque la interfaz hace
@@ -825,41 +825,77 @@ herramienta ya permite medirlo donde importa.
 **La cifra que va a la tesis es la de la interfaz**, porque es la que el dojo
 ejecuta.
 
-**Y estaba medida desde el 27-sep sin que nadie sacara el número**
-(calculado el 15-oct-2026). Las dos corridas de `test_rendimiento_interfaz.py`
-llevaban meses en `evidencias/` —se reconocen porque su CSV trae las columnas
-`grabacion_ms`, `persistencia_ms` y `panel_ms`, que la otra herramienta no
-produce—. Descartando los primeros 10 s de reloj:
+**CORRECCIÓN del 18-oct-2026: la cifra del 15-oct era el cómputo, no la
+cadencia.** El 15-oct se procesaron las dos corridas de
+`test_rendimiento_interfaz.py` que había en `evidencias/` y se escribió aquí que
+la interfaz daba **27,8 fps de media y 29,6 de mediana**, «a 0,4 de cumplir», y
+que apagar la grabación bastaba. **Era falso**, y se le comunicó así a
+Sebastián. Se calculó como 1000 / `total_ms`, y `total_ms` es el **cómputo** de
+cada fotograma; la tasa sostenida se mide entre **inicios** de fotograma
+consecutivos (`PerformanceMonitor.resumen_fps`), e incluye la espera fija de
+`LiveScreen.INTERVALO_MS` (15 ms) y lo que Tk tarda en atender eventos. La
+propia prueba del monitor lo decía —«el fps NO se deduce del tiempo de cómputo,
+sino del intervalo real»— y la herramienta imprimía la cifra correcta en
+pantalla; lo que no hacía era **guardarla**: el CSV solo traía el cómputo.
 
-| Corrida | fotogramas | media | mediana |
-|---|---|---|---|
-| `rendimiento_20260927_205715.csv` | 301 | 25,1 fps | 25,3 fps |
-| `rendimiento_20260927_224259.csv` | **11 520** | **27,8 fps** | **29,6 fps** |
+Lo que la corrida larga (`rendimiento_20260927_224259.csv`, 11 520 fotogramas,
+la misma que el capítulo 5 cita por el «defecto del vigilante») sí permite
+afirmar, descartando los primeros 10 s:
 
-La segunda es la muestra buena, y es la misma corrida que el capítulo 5 cita
-como «un defecto del vigilante procesó 11 515 fotogramas en vez de los 300
-solicitados».
+| | mediana | media |
+|---|---|---|
+| Cómputo por fotograma | 33,8 ms | 36,0 ms |
+| ~~«Tasa» = 1000 / cómputo (lo del 15-oct)~~ | ~~29,6 fps~~ | ~~27,8 fps~~ |
+| **Cota superior de la cadencia** = 1000 / (cómputo + 15 ms) | **20,5 fps** | **19,6 fps** |
 
-Desglose por etapa de esa corrida, en mediana:
+Es cota **superior**: no incluye el tiempo de Tk entre fotogramas. La cifra
+exacta no se puede recuperar de esos CSV. Desde el 18-oct el CSV guarda
+también `intervalo_ms` —el tiempo hasta el inicio del siguiente fotograma— y la
+consola imprime las dos cifras rotuladas («Sostenida» y «Techo por cómputo:
+NO es la tasa sostenida»). Lo fija **TC-AUTO-070**
+(`tests/unit/test_metrics.py`), que escribe el error como prueba: con 34 ms de
+cómputo y 49 ms entre inicios, 1000 / cómputo da 29,4 y la cadencia es 20,4.
+**Hace falta volver a correr `test_rendimiento_interfaz.py` en su Mac** para
+tener la cifra exacta que va a la tesis.
+
+Desglose por etapa de la corrida larga, en mediana (este sí era correcto: son
+tiempos de cómputo):
 
 | Etapa | ms |
 |---|---|
 | Estimación de pose | 17,84 |
 | Despliegue | 8,32 |
 | Captura | 4,62 |
-| **Grabación de sesión** | **1,73** |
+| Grabación de sesión | 1,73 |
 | Análisis + panel + persistencia | 0,66 |
 
-**Contra el criterio del capítulo 3** (cómputo < 500 ms y tasa sostenida
-≥ 30 fps): los 500 ms se cumplen con margen enorme —34 ms de mediana— y los
-**30 fps no se alcanzan por 0,4**. Hay que decidirlo antes de la defensa: o se
-reporta el requisito como cumplido parcialmente con la cifra y su desglose, o
-se apaga la grabación en la demostración —libera 1,73 ms y cruza por mediana—
-y se cumple. Lo que **no** se puede es citar los 44,1 fps como si describieran
-el producto.
+**DECISIÓN de Sebastián (18-oct-2026): el RF-01 se reporta como CUMPLIDO
+PARCIALMENTE.** Lo que se puede sostener ante la terna:
 
-Y queda descartada por medición la sospecha de que la grabación de sesión
-fuera lo que lo hunde: cuesta **1,73 ms**, no diez.
+- **Cómputo < 500 ms: cumple con margen enorme** —34 ms de mediana—.
+- **Cadencia ≥ 30 fps: no cumple en la interfaz**, que va a ~18–20 fps.
+- **El encadenamiento de análisis sí la alcanza**: 44,1 fps sin interfaz. Lo
+  que limita la cadencia en pantalla no es el análisis sino la espera fija del
+  bucle, que se eligió **a propósito** el 30-sep para que la aplicación no se
+  cayera en macOS y respondiera a los clics (ver «El intervalo del bucle en
+  vivo es FIJO»).
+
+**Apagar la grabación NO basta**, al revés de lo que se escribió el 15-oct:
+libera 1,73 ms y la cota sube a ~21 fps. **Con una espera fija de 15 ms los 30
+fps no son alcanzables**: a 30 fps cada fotograma dispone de 33,3 ms, quedan
+18,3 para el cómputo, y la estimación de pose sola gasta 17,8. Cumplirlo exige
+acortar la espera —que es exactamente lo que tumbó la aplicación el 28-sep, y
+que no se toca sin medir en macOS— o sacar la estimación de pose a otro hilo,
+que es un cambio de arquitectura. Ninguna de las dos cosas conviene a tres
+semanas de la defensa.
+
+Lo que sí queda en pie: la sospecha de que la grabación de sesión fuera lo que
+hunde el rendimiento está descartada por medición: cuesta **1,73 ms**.
+
+La lección, para no repetirla: **una cifra que va a la tesis se recalcula con la
+misma definición que usa el criterio, no con la columna que está a mano.** Y una
+evidencia que no guarda la magnitud con que se juzga el criterio no es
+evidencia de ese criterio.
 
 **Encuadre bueno medido el 28-sep**: sobre una grabación con el ejecutante de
 cuerpo completo, la detección de pose es del **98 %** y la visibilidad media de
@@ -885,13 +921,14 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | 848 passed (15-oct); **881 esperadas** tras el 18-oct, pendiente de contar |
-| CI / sin entorno gráfico | igual | 760 passed, 7 skipped (18-oct) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **881 passed** (18-oct, medido en su Mac, lote `rodilla18oct`); **905 esperadas** tras el lote del Tsuki, el Kiba y el RF-01 |
+| CI / sin entorno gráfico | igual | 784 passed, 7 skipped (18-oct, tras ese lote) |
 
-El 18-oct se sumaron 33 pruebas que corren en los dos entornos (11 de
-`test_correcciones_de_postura.py` y 22 de `test_veredicto_por_rodilla.py`), así
-que las 881 son una **expectativa**, no una medición: 848 + 33. Hasta que se
-cuenten en su Mac no se citan.
+Las 881 se predijeron como 848 + 33 y se contaron en su Mac: cuadraron. Las 905
+son otra **expectativa** —881 + 24 pruebas nuevas que corren en los dos
+entornos— y no se citan hasta contarlas. Ojo: una de las 24
+(`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
+donde no esté instalado.
 
 Las dos cifras están **medidas** el 15-oct-2026 sobre `origin/main`, no
 deducidas: el 727 en el contenedor y el 848 en su Mac (macOS, Python 3.11.0).
@@ -931,7 +968,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-070**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-071**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

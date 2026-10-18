@@ -105,6 +105,26 @@ class PerformanceMonitor:
     def resumen_total(self):
         return self._estadisticas(self._estables(self.totales))
 
+    def intervalos_ms(self):
+        """
+        Milisegundos entre el inicio de cada fotograma y el del siguiente.
+
+        Es la magnitud con la que se juzga la tasa SOSTENIDA, y no es el tiempo
+        de cómputo: entre un fotograma y el siguiente el bucle de la interfaz
+        espera su intervalo fijo y Tk atiende eventos. El último fotograma no
+        tiene siguiente y lleva None.
+
+        Existe para que la evidencia en CSV guarde esta cifra y no solo el
+        cómputo (18-oct-2026). Hasta entonces el CSV traía `total_ms` y nada
+        más, y la tasa de la interfaz real se calculó una vez como
+        1000 / `total_ms`: dio 29,6 fps cuando la cadencia real no pasaba de
+        unos 20, porque el cómputo no incluye los 15 ms de espera del bucle.
+        La herramienta imprimía la cifra correcta en pantalla; lo que quedaba
+        guardado como evidencia no permitía recuperarla.
+        """
+        inst = self.instantes
+        return [(b - a) * 1000.0 for a, b in zip(inst, inst[1:])] + ([None] if inst else [])
+
     def resumen_fps(self):
         """
         Tasa sostenida, calculada sobre el tiempo transcurrido entre inicios

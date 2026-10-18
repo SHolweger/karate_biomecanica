@@ -156,12 +156,21 @@ def reportar(monitor, carpeta="evidencias", etapas=None):
     # ---- CSV con el detalle por fotograma ----
     ruta_csv = os.path.join(carpeta, f"rendimiento_{sello}.csv")
     presentes = [e for e in ETAPAS_MEDIDAS if e in monitor.etapas]
+    # `total_ms` es el CÓMPUTO de cada fotograma; `intervalo_ms`, el tiempo
+    # hasta que empieza el siguiente, que incluye la espera del bucle. El
+    # RF-01 se juzga con el segundo. Hasta el 18-oct-2026 el CSV solo guardaba
+    # el primero, y de él se dedujo una tasa de 29,6 fps para la interfaz cuya
+    # cadencia real no pasaba de unos 20.
+    intervalos = monitor.intervalos_ms()
     with open(ruta_csv, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["fotograma"] + [f"{e}_ms" for e in presentes] + ["total_ms"])
+        writer.writerow(["fotograma"] + [f"{e}_ms" for e in presentes]
+                        + ["total_ms", "intervalo_ms"])
         for i, t in enumerate(monitor.totales):
-            fila = [i] + [f"{monitor.etapas[e][i]:.3f}" if i < len(monitor.etapas[e]) else ""
-                          for e in presentes] + [f"{t:.3f}"]
+            intervalo = intervalos[i] if i < len(intervalos) else None
+            fila = ([i] + [f"{monitor.etapas[e][i]:.3f}" if i < len(monitor.etapas[e]) else ""
+                           for e in presentes]
+                    + [f"{t:.3f}", "" if intervalo is None else f"{intervalo:.3f}"])
             writer.writerow(fila)
 
     # ---- Tabla en consola ----
@@ -175,7 +184,9 @@ def reportar(monitor, carpeta="evidencias", etapas=None):
           f"{total['p95']:>9.1f}{total['max']:>9.1f}")
 
     print(f"\n=== TASA DE PROCESAMIENTO ===")
-    print(f"Sostenida (media): {fps['medio']:.1f} fps")
+    print(f"Sostenida (media): {fps['medio']:.1f} fps   <- entre inicios de fotograma; la del RF-01")
+    print(f"Techo por cómputo: {1000.0 / total['media']:.1f} fps   <- NO es la tasa sostenida: "
+          f"no incluye la espera del bucle")
     print(f"Peor fotograma:    {fps['minimo']:.1f} fps")
     print(f"Duración medida:   {fps['duracion_s']:.1f} s")
 

@@ -201,3 +201,97 @@ def test_sigue_siendo_un_monitor_de_rendimiento():
 
     assert len(monitor.totales) == 1
     assert "captura" in monitor.etapas
+
+
+# ---------------------------------------------------------------------------
+# La evidencia guarda la cadencia, no solo el cómputo (18-oct-2026)
+# ---------------------------------------------------------------------------
+
+def _monitor_como_la_interfaz(fotogramas=8, computo_s=0.034, periodo_s=0.049):
+    """
+    Fotogramas con la forma de la interfaz real: 34 ms de trabajo y el siguiente
+    empieza 49 ms después del anterior, porque el bucle espera su intervalo fijo
+    de 15 ms. Son las cifras de la corrida del 27-sep (cómputo mediano 33,8 ms)
+    más `LiveScreen.INTERVALO_MS`.
+    """
+    valores = []
+    for k in range(fotogramas):
+        base = k * periodo_s
+        valores += [base, base + 0.005, base + computo_s]   # iniciar, marcar, cerrar
+    m = PerformanceMonitor(descartar_iniciales=0, reloj=RelojSimulado(valores))
+    for _ in range(fotogramas):
+        m.iniciar_frame()
+        m.marcar("captura")
+        m.cerrar_frame()
+    return m
+
+
+@ficha(
+    id_caso="TC-AUTO-070",
+    nombre="La evidencia de rendimiento guarda la cadencia entre fotogramas y no solo el cómputo",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "el CSV de evidencia solo guardaba el cómputo por fotograma, y de él se "
+        "dedujo el 15-oct-2026 una tasa de 29,6 fps para la interfaz cuya "
+        "cadencia real no pasaba de unos 20: el cómputo no incluye la espera "
+        "fija del bucle. La cifra se escribió en la memoria del proyecto y se "
+        "le comunicó al autor como «a 0,4 fps de cumplir el RF-01»"),
+    componente="biomechanics/metrics.py (intervalos_ms) + test_rendimiento.py (reportar)",
+    requisitos=("RF-01", "RNF-01"),
+    precondiciones="Ninguna. Se inyecta un reloj determinista",
+    datos_entrada="Ocho fotogramas de 34 ms de cómputo que empiezan cada 49 ms",
+    pasos=[
+        Paso("Medir los intervalos entre inicios de fotograma",
+             "assert intervalos == [49.0] * 7 + [None]"),
+        Paso("Comparar la tasa por intervalo con la tasa por cómputo",
+             "assert 1000 / intervalo != 1000 / cómputo"),
+        Paso("Escribir la evidencia con reportar()",
+             "assert la columna intervalo_ms está en el CSV con 49 ms"),
+    ],
+    resultado_esperado="PASSED: la cadencia se puede recuperar de la evidencia guardada",
+)
+def test_los_intervalos_se_miden_entre_inicios_de_fotograma():
+    m = _monitor_como_la_interfaz()
+
+    intervalos = m.intervalos_ms()
+
+    assert intervalos[-1] is None, "el último fotograma no tiene siguiente"
+    assert all(abs(i - 49.0) < 1e-6 for i in intervalos[:-1]), intervalos
+    assert len(intervalos) == len(m.totales)
+
+
+def test_la_cadencia_no_se_deduce_del_computo():
+    """
+    El error del 15-oct-2026, escrito como prueba: 1000 / cómputo da el techo
+    que tendría un bucle sin espera, no la tasa que ve el sensei.
+    """
+    m = _monitor_como_la_interfaz()
+    computo = m.resumen_total()["media"]
+    intervalo = sum(i for i in m.intervalos_ms() if i is not None) / (len(m.totales) - 1)
+
+    assert abs(1000.0 / computo - 29.4) < 0.1     # lo que se dijo
+    assert abs(1000.0 / intervalo - 20.4) < 0.1   # lo que era
+    assert abs(m.resumen_fps()["medio"] - 1000.0 / intervalo) < 1e-6
+
+
+def test_sin_fotogramas_no_hay_intervalos():
+    assert PerformanceMonitor().intervalos_ms() == []
+
+
+def test_el_csv_de_evidencia_guarda_el_intervalo(tmp_path):
+    """
+    La costura: lo que de verdad queda en `evidencias/`. Importa la herramienta
+    de rendimiento, que necesita OpenCV; sin él, esta prueba concreta se omite.
+    """
+    pytest.importorskip("cv2", reason="test_rendimiento.py importa OpenCV")
+    import csv as _csv
+    from test_rendimiento import reportar
+
+    reportar(_monitor_como_la_interfaz(), carpeta=str(tmp_path), etapas=["captura"])
+
+    [ruta] = list(tmp_path.glob("rendimiento_*.csv"))
+    filas = list(_csv.DictReader(open(ruta, newline="")))
+    assert "intervalo_ms" in filas[0]
+    assert all(abs(float(f["intervalo_ms"]) - 49.0) < 1e-3 for f in filas[:-1])
+    assert filas[-1]["intervalo_ms"] == ""
