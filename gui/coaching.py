@@ -74,6 +74,31 @@ def separar_lado(mensaje):
     return mensaje, None
 
 
+def veredicto_conocido(mensaje):
+    """
+    El veredicto de la tabla que contiene el mensaje, o None si no hay ninguno.
+
+    El analizador no entrega el veredicto pelado: a las posturas les antepone la
+    que reconoció —«ZENKUTSU (IZQ ADELANTE): POSTURA: FIRME»,
+    «POSTURA NATURAL: HEIKO DACHI: CORRECTO»—. Se prueba el mensaje entero y
+    luego lo que queda tras cada «: », del más largo al más corto, de modo que
+    gana la entrada más específica de la tabla.
+
+    Hasta el 18-oct-2026 solo se buscaba el mensaje entero, así que **ninguna
+    postura llegaba traducida al panel**: el sensei leía el texto técnico en
+    Heiko, Kiba, Zenkutsu y Kokutsu, y solo el Tsuki —cuyo prefijo es el de
+    lado— se traducía. La guarda de la tabla pasaba igual, porque comprobaba la
+    tabla y no el mensaje que la pantalla recibe. Lo fija TC-AUTO-066.
+    """
+    resto = mensaje
+    while True:
+        if resto in CORRECCIONES:
+            return resto
+        if ": " not in resto:
+            return None
+        resto = resto.split(": ", 1)[1]
+
+
 def traducir(mensaje):
     """
     Corrección legible a partir de un veredicto del motor.
@@ -83,10 +108,13 @@ def traducir(mensaje):
     inventar un consejo que la regla no respalda — si mañana se agrega una regla
     nueva, el panel seguirá siendo correcto aunque suene menos natural.
     """
-    veredicto, lado = separar_lado(mensaje or "")
-    instruccion, motivo = CORRECCIONES.get(veredicto, (veredicto, None))
+    sin_lado, lado = separar_lado(mensaje or "")
+    veredicto = veredicto_conocido(sin_lado)
+    if veredicto is None:
+        return sin_lado, None
 
-    if lado is not None and veredicto in CORRECCIONES:
+    instruccion, motivo = CORRECCIONES[veredicto]
+    if lado is not None:
         instruccion = f"{instruccion} ({lado})"
     return instruccion, motivo
 
