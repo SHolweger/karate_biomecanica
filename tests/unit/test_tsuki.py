@@ -279,3 +279,202 @@ def test_la_velocidad_minima_implicada_deja_fuera_el_gesto_y_dentro_el_golpe():
     tsuki_mas_lento = 125 / 0.250
 
     assert 60 < grados_por_segundo < tsuki_mas_lento / 4
+
+
+# ---------------------------------------------------------------------------
+# El veredicto mientras el brazo sostiene el Kime (18-oct-2026)
+# ---------------------------------------------------------------------------
+#
+# Hasta esta fecha la máquina salía de RECOGIENDO por dos caminos: el brazo
+# recogía, o la ventana de 500 ms dejaba de ver recorrido. El segundo es el que
+# se dispara cuando el brazo se QUEDA en el Kime: la ventana se aplana, el
+# recorrido cae a cero y el aviso volvía a «SIN TSUKI» con el brazo todavía
+# extendido. En una demostración —donde el golpe se sostiene para que la terna
+# lo vea— el texto desaparecía del video mientras la técnica seguía en pantalla.
+#
+# Lo que cambia es CUÁNTO SE VE el veredicto, nunca CUÁNTOS se emiten. Las
+# pruebas de abajo fijan las dos mitades.
+
+def _sostener(angulo, fotogramas):
+    """El brazo quieto en el Kime, con el temblor de ±2° que deja el filtro."""
+    return [angulo + (2 if i % 2 else -2) for i in range(fotogramas)]
+
+
+def _golpe_sostenido(hasta=172.0, fotogramas_sostenidos=90):
+    """Hikite -> extensión -> el brazo se queda arriba (90 fotogramas = 3 s)."""
+    subida = [50.0 + (hasta - 50.0) * (i + 1) / 6 for i in range(6)]
+    return [50.0] * 5 + subida + _sostener(hasta, fotogramas_sostenidos)
+
+
+@ficha(
+    id_caso="TC-AUTO-068",
+    nombre="El veredicto del Tsuki sigue a la vista mientras el brazo sostiene el Kime",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "con el brazo quieto en el Kime la ventana de recorrido se aplana y el "
+        "aviso volvía a «SIN TSUKI» a los 500 ms: en la demostración ante la "
+        "terna, donde el golpe se sostiene para mostrarlo, el veredicto "
+        "desaparecía del video con la técnica todavía en pantalla"),
+    componente="expert_system/tsuki.py (TsukiStateMachine, estado RECOGIENDO)",
+    requisitos=("RF-05", "RF-06"),
+    precondiciones="Ninguna. La máquina es pura y recibe ángulos sintéticos",
+    datos_entrada=(
+        "Un golpe de 50° a 172° sostenido 3 s con temblor de ±2°; la misma "
+        "secuencia con recogida al final; dos golpes separados por sostenidos "
+        "de 0 a 10 s"),
+    pasos=[
+        Paso("Reproducir un golpe y sostener el brazo 3 s",
+             "assert diagnosticos[-1]['mensaje'] == 'TSUKI: EXCELENTE'"),
+        Paso("Recoger el brazo al Hikite",
+             "assert diagnosticos[-1]['mensaje'] == SIN_GOLPE"),
+        Paso("Repetir dos golpes con sostenidos de distinta duración",
+             "assert len(_veredictos(...)) == 2 en todos los casos"),
+    ],
+    resultado_esperado="PASSED: el veredicto dura lo que dura el Kime y el número de golpes no cambia",
+)
+def test_el_veredicto_sigue_a_la_vista_mientras_se_sostiene_el_kime():
+    diagnosticos = _reproducir(TsukiStateMachine(), _golpe_sostenido())
+
+    assert diagnosticos[-1]["mensaje"] == "TSUKI: EXCELENTE", (
+        f"a los 3 s de sostener el Kime el aviso dice {diagnosticos[-1]['mensaje']!r}")
+
+
+def test_al_recoger_el_brazo_el_veredicto_se_retira():
+    """El veredicto acompaña al Kime, no se queda pegado después."""
+    secuencia = _golpe_sostenido() + [130.0, 100.0, 70.0, 50.0] + [50.0] * 5
+
+    assert _reproducir(TsukiStateMachine(), secuencia)[-1]["mensaje"] == SIN_GOLPE
+
+
+def test_bajar_el_brazo_despacio_tambien_retira_el_veredicto():
+    """
+    No hace falta un Hikite enérgico: dejar caer el brazo poco a poco, que es
+    lo que hace alguien al terminar de mostrar el golpe, también lo retira.
+    """
+    bajada_lenta = [172.0 - i for i in range(60)]   # 172° -> 113° en 2 s
+
+    diagnosticos = _reproducir(TsukiStateMachine(), _golpe_sostenido() + bajada_lenta)
+
+    assert diagnosticos[-1]["mensaje"] == SIN_GOLPE
+
+
+@pytest.mark.parametrize("fotogramas_sostenidos", [0, 5, 15, 30, 90, 300])
+def test_sostener_no_cambia_cuantos_golpes_se_cuentan(fotogramas_sostenidos):
+    """
+    La garantía que protege al historial: cuánto se sostiene el Kime no altera
+    el número de veredictos ni su contenido. `MedicionLogger` escribe cuando el
+    mensaje cambia, así que alargar la permanencia del mismo mensaje no añade
+    filas.
+    """
+    golpe = (_golpe_sostenido(fotogramas_sostenidos=fotogramas_sostenidos)
+             + [130.0, 90.0, 50.0] + [50.0] * 5)
+
+    veredictos = _veredictos(_reproducir(TsukiStateMachine(), golpe + golpe))
+
+    assert [v["mensaje"] for v in veredictos] == ["TSUKI: EXCELENTE"] * 2
+
+
+def test_tras_sostener_se_detecta_el_golpe_siguiente_sin_volver_al_hikite():
+    """
+    El camino que la ventana aplanada cubría y no se puede perder: tras
+    sostener, una recogida parcial —sin llegar al Hikite— seguida de otra
+    extensión es un golpe nuevo.
+    """
+    primero = [50.0] * 5 + [70.0, 90.0, 110.0, 130.0, 150.0] + _sostener(150.0, 60)
+    recogida_parcial = [145.0, 140.0, 135.0, 130.0] + [130.0] * 5
+    segundo = [140.0, 150.0, 160.0, 170.0, 172.0] + [150.0, 120.0, 90.0, 60.0]
+
+    veredictos = _veredictos(_reproducir(TsukiStateMachine(),
+                                         primero + recogida_parcial + segundo))
+
+    assert len(veredictos) == 2
+
+
+# Los dos tramos reales que rompieron la primera versión del arreglo. Salen del
+# generador de secuencias de la comparación contra la máquina anterior (semilla
+# 20261018, secuencias 259 y 797), recortados al tramo que importa, y con la
+# máquina anterior producen dos golpes cada uno — comprobado al extraerlos.
+
+# Paso de 16 ms. Una extensión lenta que se juzga por TIEMPO_MAXIMO_EXTENSION_MS
+# en torno a 127° y luego sigue subiendo, rápido, hasta 158°.
+SIGUE_SUBIENDO_TRAS_JUZGARSE = [
+    9.7, 4.8, 0.0, 1.0, 2.2, 3.3, 4.5, 5.6, 6.7, 7.9, 9.0, 10.2, 11.3, 12.5, 13.6,
+    14.8, 15.9, 17.1, 18.2, 19.4, 20.5, 21.7, 22.8, 24.0, 25.1, 26.2, 27.4, 28.5,
+    29.7, 30.8, 32.0, 33.1, 34.3, 35.4, 36.6, 37.7, 38.9, 40.0, 41.2, 42.3, 43.5,
+    44.6, 45.7, 46.9, 48.0, 49.2, 50.3, 51.5, 52.6, 53.8, 54.9, 56.1, 57.2, 58.4,
+    59.5, 60.7, 61.8, 63.0, 64.1, 65.3, 66.4, 67.5, 68.7, 69.8, 71.0, 72.1, 73.3,
+    74.4, 75.6, 76.7, 77.9, 79.0, 80.2, 81.3, 82.5, 83.6, 84.8, 85.9, 87.0, 88.2,
+    89.3, 90.5, 91.6, 92.8, 93.9, 95.1, 96.2, 97.4, 98.5, 99.7, 100.8, 102.0, 102.5,
+    102.1, 102.9, 102.4, 101.4, 102.7, 101.2, 102.2, 101.3, 101.3, 101.2, 101.5,
+    101.6, 102.8, 101.5, 101.5, 101.3, 101.1, 101.4, 102.4, 102.3, 101.3, 102.0,
+    101.1, 101.4, 102.1, 101.8, 101.0, 101.3, 101.8, 102.8, 102.4, 108.2, 114.4,
+    120.7, 126.9, 133.1, 139.4, 145.6, 151.8, 158.1, 128.4, 98.8, 69.1]
+
+# Paso de 40 ms. Un golpe a 151°, una recogida parcial de 31° —menos que
+# RECORRIDO_MINIMO— y otra extensión que atraviesa la altura del pico al subir.
+RECOGIDA_PARCIAL_Y_OTRO_GOLPE = [
+    51.4, 51.5, 50.0, 49.4, 47.6, 47.8, 50.5, 51.4, 51.6, 49.8, 51.4, 49.9, 50.8, 48.8,
+    47.7, 51.0, 48.1, 48.1, 48.4, 49.2, 49.8, 75.2, 100.4, 125.6, 150.9, 143.1, 135.2,
+    127.4, 119.6, 123.7, 127.7, 131.7, 135.8, 139.8, 143.8, 147.8, 151.9, 155.9, 159.9,
+    164.0, 162.5, 165.3, 162.1, 165.4, 163.1, 162.8, 165.9, 161.9, 165.3, 163.3, 165.0,
+    163.4, 162.1, 163.7, 164.9, 162.6, 162.7, 162.5, 161.8, 162.0, 161.7, 165.0, 165.3,
+    165.8, 163.5, 165.2, 164.8, 165.8, 163.2, 163.5, 163.6, 163.8, 165.4, 166.4, 165.2,
+    162.6, 165.9, 161.8, 162.7, 165.4]
+
+
+@pytest.mark.parametrize("secuencia, paso", [
+    (SIGUE_SUBIENDO_TRAS_JUZGARSE, 16),
+    (RECOGIDA_PARCIAL_Y_OTRO_GOLPE, 40),
+], ids=["sigue-subiendo-tras-juzgarse", "recogida-parcial-y-otro-golpe"])
+def test_los_dos_casos_que_rompieron_la_primera_version(secuencia, paso):
+    """
+    Una primera versión de este arreglo cambiaba la condición de salida de
+    RECOGIENDO y perdía el segundo golpe en estos dos tramos: leía como
+    «sostener» una extensión que seguía subiendo y una que volvía a pasar por la
+    altura del pico. Pasar por la altura del Kime no es sostenerlo.
+    """
+    assert len(_veredictos(_reproducir(TsukiStateMachine(), secuencia, paso=paso))) == 2
+
+
+def test_sostener_solo_cambia_el_texto_nunca_los_golpes(monkeypatch):
+    """
+    La garantía, en forma de propiedad. Con el sostenido anulado, la máquina es
+    exactamente la de antes del 18-oct-2026, porque el sostenido solo decide
+    qué texto se muestra en los fotogramas de reposo. Sobre secuencias
+    aleatorias de golpes, sostenidos, recogidas parciales y temblor, los golpes
+    emitidos —fotograma, mensaje y ángulo— tienen que coincidir uno a uno.
+    """
+    import random
+
+    def secuencia(rng):
+        a, out = 50.0, []
+        for _ in range(rng.randint(3, 10)):
+            accion = rng.choice(["golpe", "sostener", "recoger", "parcial", "lento"])
+            if accion == "sostener":
+                out += [a + rng.uniform(-2.5, 2.5) for _ in range(rng.randint(5, 120))]
+                continue
+            destino = {"golpe": rng.uniform(140, 180), "recoger": rng.uniform(45, 70),
+                       "parcial": a - rng.uniform(5, 50), "lento": rng.uniform(50, 178)}[accion]
+            n = rng.randint(40, 120) if accion == "lento" else rng.randint(2, 12)
+            out += [a + (destino - a) * (i + 1) / n for i in range(n)]
+            a = destino
+        return [min(180.0, max(0.0, x)) for x in out]
+
+    def golpes(diagnosticos):
+        eventos, anterior = [], None
+        for i, d in enumerate(diagnosticos):
+            if d["mensaje"] != anterior and d["correcto"] is not None:
+                eventos.append((i, d["mensaje"], d["angulos_regla"]))
+            anterior = d["mensaje"]
+        return eventos
+
+    rng = random.Random(20261018)
+    casos = [(rng.choice([16, 33, 40]), secuencia(rng)) for _ in range(800)]
+
+    con_sostenido = [golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
+    monkeypatch.setattr(TsukiStateMachine, "_sostiene_el_kime", lambda self: False)
+    sin_sostenido = [golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
+
+    assert sum(map(len, sin_sostenido)) > 300, "las secuencias no producen golpes que comparar"
+    assert con_sostenido == sin_sostenido

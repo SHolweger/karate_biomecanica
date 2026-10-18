@@ -176,6 +176,11 @@ class TsukiStateMachine:
         self.pico = None
         self.t_inicio_extension_ms = None
         self.ultimo_veredicto = None
+        # Ángulo del codo cuando se juzgó el último golpe, y si el brazo sigue
+        # ahí desde entonces. Solo deciden qué TEXTO se muestra; las
+        # transiciones de la máquina no los consultan. Ver `_sostiene_el_kime`.
+        self._angulo_kime = None
+        self._sosteniendo = False
 
     # -----------------------------------------------------------------
     # La ventana deslizante
@@ -218,13 +223,21 @@ class TsukiStateMachine:
         es None: el ángulo está medido, pero no hay técnica que calificar.
         """
         recorrido, abriendose = self._recorrido(angulo, t_ms)
+        # El sostenido se vigila en TODOS los fotogramas, no solo en los de
+        # reposo: si el brazo sale de la banda y vuelve mientras todavía se
+        # está recogiendo, eso ya no es sostener.
+        if self._sosteniendo and abs(angulo - self._angulo_kime) > MARGEN_PICO:
+            self._sosteniendo = False
 
         if self.estado == REPOSO:
             if recorrido >= self.recorrido_minimo and abriendose:
                 self.estado = EXTENDIENDO
                 self.pico = angulo
                 self.t_inicio_extension_ms = t_ms
+                self._sosteniendo = False
                 return self._transitorio(angulo, EN_EXTENSION, NARANJA)
+            if self._sostiene_el_kime():
+                return dict(self.ultimo_veredicto, angulo=angulo)
             return self._transitorio(angulo, SIN_GOLPE, GRIS)
 
         if self.estado == EXTENDIENDO:
@@ -254,6 +267,42 @@ class TsukiStateMachine:
 
     # -----------------------------------------------------------------
 
+    def _sostiene_el_kime(self):
+        """
+        ¿El brazo sigue en el Kime del último golpe juzgado, sin haberse ido?
+
+        Responde a un problema de PRESENTACIÓN, no de detección (18-oct-2026).
+        Con el brazo quieto en el Kime, la ventana de recorrido se aplana a los
+        500 ms y la máquina vuelve a REPOSO, como debe: el golpe terminó. Pero
+        el aviso pasaba a «SIN TSUKI» con el brazo todavía extendido, y en una
+        demostración —donde el golpe se sostiene para que la terna lo vea— el
+        veredicto desaparecía del video con la técnica en pantalla.
+
+        Esto solo cambia qué se MUESTRA en esos fotogramas de reposo. Las
+        transiciones no lo consultan, así que la máquina detecta exactamente
+        los mismos golpes, en el mismo fotograma y con el mismo ángulo que
+        antes, por construcción. Una primera versión cambiaba la condición de
+        salida de RECOGIENDO, y una comparación contra la máquina anterior
+        sobre 20 000 secuencias aleatorias encontró que perdía golpes en el
+        0,6 % de ellas: una extensión que seguía subiendo tras juzgarse por
+        tiempo, o una recogida parcial que volvía a subir atravesando la altura
+        del pico, se leían como «sostener». Decidir la presentación sin tocar
+        la detección elimina esa clase de error en vez de perseguir sus casos.
+
+        Sostener exige que el brazo no se haya ALEJADO del ángulo en que se
+        juzgó el golpe en ningún fotograma desde entonces: no basta con estar
+        cerca ahora, porque pasar por esa altura al volver a subir no es
+        sostener. En cuanto se sale de la banda de `MARGEN_PICO`, el sostenido
+        termina y no vuelve hasta el próximo golpe.
+
+        `MedicionLogger` escribe cuando el mensaje de una categoría cambia, y
+        lo que se muestra aquí es el mismo veredicto que ya se escribió: no
+        añade filas. Lo fija TC-AUTO-068.
+        """
+        # La banda ya se comprobó al principio de `update`, en este mismo
+        # fotograma y en todos los anteriores.
+        return self._sosteniendo and self.ultimo_veredicto is not None
+
     def _transitorio(self, angulo, mensaje, color):
         """
         Hay ángulo pero no hay veredicto.
@@ -275,6 +324,8 @@ class TsukiStateMachine:
         `angulo_maximo_extension`.
         """
         es_correcto, mensaje, color = self.reglas.evaluate_tsuki(self.pico)
+        self._angulo_kime = angulo
+        self._sosteniendo = True
         self.ultimo_veredicto = {
             "angulo": self.pico, "mensaje": mensaje, "color": color,
             "correcto": es_correcto,

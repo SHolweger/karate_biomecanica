@@ -380,13 +380,67 @@ fotograma. El panel de correcciones de esa misma sesión tenía por la mañana
 cuatro entradas de Tsuki en los dos primeros segundos, **con el ejecutante
 quieto**.
 
-**Un efecto de diseño que conviene tener presente el 9 de noviembre:** sostener
-el brazo extendido más de `VENTANA_RECORRIDO_MS` devuelve el aviso a «SIN
-TSUKI». Es correcto —el golpe terminó, y su veredicto queda fechado en el panel
-de correcciones— pero en una demostración, donde la postura se sostiene para
-que la terna la vea, el texto del brazo desaparece del video mientras la
-postura sigue en pantalla. Decidir antes de la defensa si eso se explica o se
-cambia.
+**El veredicto sigue a la vista mientras se sostiene el Kime** (18-oct-2026;
+antes era un efecto de diseño pendiente de decidir para la defensa). Sostener
+el brazo extendido más de `VENTANA_RECORRIDO_MS` aplanaba la ventana, la
+máquina volvía a REPOSO —correctamente: el golpe terminó— y el aviso pasaba a
+«SIN TSUKI» con el brazo todavía extendido. En la demostración el texto
+desaparecía del video mientras la terna miraba.
+
+**Se resolvió en la presentación, no en la detección, y el primer intento
+enseñó por qué.** Ese intento cambiaba la condición de salida de RECOGIENDO
+para que «estar cerca del pico» no contara como reposo. Pasaba las pruebas
+escritas para él. Una comparación contra la máquina anterior sobre 20 000
+secuencias aleatorias —golpes, sostenidos, recogidas parciales, extensiones
+lentas, temblor— encontró que **perdía golpes en el 0,6 %**: una extensión que
+seguía subiendo tras juzgarse por `TIEMPO_MAXIMO_EXTENSION_MS`, o una recogida
+parcial que volvía a subir atravesando la altura del pico, se leían como
+«sostener». Corregir esos casos los bajó a 7 de 20 000, no a cero: perseguirlos
+uno por uno no cerraba la clase de error.
+
+La versión que queda no toca ninguna transición. `_sostiene_el_kime` solo
+decide qué texto se devuelve en los fotogramas de REPOSO: si el brazo **no se ha
+alejado** más de `MARGEN_PICO` del ángulo en que se juzgó el golpe, **en ningún
+fotograma desde entonces**, se sigue mostrando el veredicto. La banda se vigila
+en todos los fotogramas —también mientras se recoge—, porque pasar por la altura
+del Kime al volver a subir no es sostenerlo. Medido contra la máquina anterior,
+60 000 secuencias con tres semillas:
+
+| | resultado |
+|---|---|
+| Golpes emitidos (fotograma, mensaje, ángulo) | **idénticos en todas** |
+| Filas de veredicto cerrado en la base | **idénticas en todas** |
+| Secuencias donde el veredicto se ve más tiempo | ~34 % |
+| Filas totales | ~1,5 % menos |
+
+Las filas que desaparecen son todas **«SIN TSUKI»** —`correcto` NULL—, que la
+máquina anterior escribía al aplanarse la ventana cuando el brazo pasaba del
+sostenido directamente a otro golpe. No cuentan para la precisión: todas las
+consultas agregadas filtran `correcto IS NOT NULL`.
+
+Tres pruebas en TC-AUTO-068 (`tests/unit/test_tsuki.py`), y cada una se comprobó
+**fallando contra lo que debe impedir**:
+
+- `test_el_veredicto_sigue_a_la_vista_mientras_se_sostiene_el_kime` falla con la
+  máquina anterior;
+- `test_los_dos_casos_que_rompieron_la_primera_version` lleva los dos tramos
+  **reales** que delató la comparación —extraídos del generador, no escritos a
+  mano: una primera versión aproximada a mano no reproducía el caso ni siquiera
+  con la máquina vieja— y falla contra el primer intento;
+- `test_sostener_solo_cambia_el_texto_nunca_los_golpes` anula el sostenido sobre
+  800 secuencias y exige los mismos golpes; falla si alguien conecta
+  `_sostiene_el_kime` a una transición.
+
+Un efecto que conviene saber: el falso positivo confirmado del 30-sep —estirar
+el brazo y sostenerlo, juzgado «HIPEREXTENDIDO» por tiempo— ahora también se ve
+mientras se sostiene, en vez de desaparecer a los 500 ms. No escribe más filas;
+solo dura más en pantalla.
+
+La lección, que vale para cualquier cambio en una máquina de estados ya
+validada en vivo: **las pruebas escritas para el arreglo comprueban lo que uno
+pensó; una comparación contra la versión anterior sobre entradas aleatorias
+comprueba lo que uno no pensó.** Esta encontró en un minuto dos casos que ninguna
+de las pruebas escritas a mano cubría.
 
 **Y deja el historial anterior inservible para calcular precisión.** Todo lo
 medido antes del 30-sep lleva filas de Tsuki producidas por brazos que no
@@ -855,7 +909,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-068**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-069**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
