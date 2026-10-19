@@ -125,12 +125,14 @@ def test_un_kokutsu_con_la_derecha_adelante_no_intercambia_las_rodillas(sesion_d
     db, id_sesion, _, _ = sesion_de_prueba
     db.sembrar_umbrales(UMBRALES_LITERATURA)
     analizador = TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=1)
-    resultados = analizador.analyze_stance(
-        pose_sintetica(angulo_rodilla_izq=105, angulo_rodilla_der=165,
-                       z_tobillo_izq=0.3, z_tobillo_der=-0.3), 1000, 1000)
+    pose = pose_sintetica(angulo_rodilla_izq=105, angulo_rodilla_der=165,
+                          z_tobillo_izq=0.3, z_tobillo_der=-0.3)
+    logger = MedicionLogger(db, id_sesion)
+    for t_ms in range(0, 600, 33):  # sostenida 0,6 s, como en vivo
+        resultados = analizador.analyze_stance(pose, 1000, 1000)
+        logger.registrar(resultados, t_ms)
     assert "KOKUTSU (DER ADELANTE)" in next(
         r for r in resultados if r["categoria"] == "postura")["mensaje"]
-    MedicionLogger(db, id_sesion).registrar(resultados, 0)
 
     instante = db.detalle_sesion(id_sesion)["hora_inicio"]
 

@@ -38,7 +38,10 @@ def _medir_kokutsu(db, id_sesion, frontal, trasera):
 
     pose = pose_sintetica(angulo_rodilla_izq=frontal, angulo_rodilla_der=trasera,
                           z_tobillo_izq=-0.3, z_tobillo_der=0.3)
-    logger.registrar(analizador.analyze_stance(pose, ANCHO, ALTO), timestamp_ms=33)
+    # Sostenida 0,6 s, como en vivo: una postura que dura menos no se registra
+    # (ver expert_system/estabilidad.py).
+    for t_ms in range(0, 600, 33):
+        logger.registrar(analizador.analyze_stance(pose, ANCHO, ALTO), timestamp_ms=t_ms)
 
 
 @ficha(

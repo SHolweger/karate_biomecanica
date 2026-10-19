@@ -11,6 +11,8 @@ Lo que consume son los diccionarios de diagnóstico que emite `TechniqueAnalyzer
 — las mismas estructuras que el renderizador dibuja sobre el video.
 """
 
+from expert_system.estabilidad import SOSTENIDO_MINIMO_MS, Estabilizador
+
 # Articulaciones que el sistema mide hoy, con el nombre que el sensei usa y el
 # orden en que se leen. La clave es la `categoria` que trae cada diagnóstico.
 #
@@ -165,10 +167,13 @@ class FeedCorrecciones:
     ahí el alumno recayó, y esa recaída es información.
     """
 
-    def __init__(self, maximo=8):
+    def __init__(self, maximo=8, sostenido_minimo_ms=SOSTENIDO_MINIMO_MS):
         self.maximo = maximo
         self.entradas = []
         self._vigente_por_categoria = {}
+        # La misma regla que la base: una postura que asoma uno o dos
+        # fotogramas no es una corrección. Ver expert_system/estabilidad.py.
+        self._estabilizador = Estabilizador(sostenido_minimo_ms)
 
     def registrar(self, diagnosticos, timestamp_ms):
         """
@@ -176,9 +181,12 @@ class FeedCorrecciones:
         """
         anotadas = 0
         for diagnostico in _aplanar(diagnosticos):
+            categoria = diagnostico.get("categoria")
+            if diagnostico.get("mensaje") and not self._estabilizador.sostenido(
+                    categoria, diagnostico["mensaje"], timestamp_ms):
+                continue
             if not self._es_anotable(diagnostico):
                 continue
-            categoria = diagnostico.get("categoria")
             mensaje = diagnostico["mensaje"]
             if self._vigente_por_categoria.get(categoria) == mensaje:
                 continue

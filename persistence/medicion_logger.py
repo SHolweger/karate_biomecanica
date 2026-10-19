@@ -1,3 +1,5 @@
+from expert_system.estabilidad import SOSTENIDO_MINIMO_MS, Estabilizador
+
 NOMBRES_TECNICA = {
     "codo_izq": "Tsuki (brazo izquierdo)",
     "codo_der": "Tsuki (brazo derecho)",
@@ -15,12 +17,18 @@ class MedicionLogger:
     CAMBIA respecto al último guardado — evita llenar la base de datos con
     el mismo mensaje repetido ~30 veces por segundo mientras el usuario se
     mantiene quieto o sostiene la misma postura.
+
+    Y en la postura, además, solo cuando el mensaje lleva medio segundo sin
+    cambiar: sin eso, el temblor sobre el límite de un rango y los fotogramas
+    de paso entre dos posturas escribían filas con veredicto cerrado que nadie
+    ejecutó. Ver expert_system/estabilidad.py.
     """
 
-    def __init__(self, db, id_sesion):
+    def __init__(self, db, id_sesion, sostenido_minimo_ms=SOSTENIDO_MINIMO_MS):
         self.db = db
         self.id_sesion = id_sesion
         self._ultimo_mensaje = {}  # categoria -> último mensaje ya guardado
+        self._estabilizador = Estabilizador(sostenido_minimo_ms)
 
     def registrar(self, diagnostico, timestamp_ms):
         """Recibe una lista de dicts de diagnóstico (el formato que ya arma TechniqueAnalyzer)."""
@@ -32,6 +40,11 @@ class MedicionLogger:
         mensaje = d.get("mensaje")
         if not categoria or not mensaje:
             return  # sin categoría o mensaje vacío (ej. la segunda entrada de postura)
+
+        # Se consulta en todos los fotogramas, antes de mirar si cambió: es lo
+        # que le permite medir cuánto dura cada mensaje.
+        if not self._estabilizador.sostenido(categoria, mensaje, timestamp_ms):
+            return
 
         if self._ultimo_mensaje.get(categoria) == mensaje:
             return  # sin cambios respecto a la última vez, no duplicar

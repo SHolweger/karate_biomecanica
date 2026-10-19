@@ -11,6 +11,12 @@ import pytest
 from persistence.medicion_logger import NOMBRES_TECNICA, MedicionLogger
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
+# Las pruebas que miran QUÉ se guarda en una fila de postura —qué técnica, qué
+# ángulos— la registran con un solo fotograma, y para eso desactivan la espera
+# de medio segundo. Cuándo se registra una postura lo prueba
+# tests/unit/test_estabilidad.py, que es la que vigila esa regla.
+SIN_ESPERA = 0
+
 pytestmark = pytest.mark.integracion
 
 
@@ -100,7 +106,7 @@ def test_las_categorias_se_rastrean_por_separado(sesion_de_prueba):
     postura de piernas: cada categoría lleva su propia memoria.
     """
     db, id_sesion, _, _ = sesion_de_prueba
-    logger = MedicionLogger(db, id_sesion)
+    logger = MedicionLogger(db, id_sesion, sostenido_minimo_ms=SIN_ESPERA)
 
     logger.registrar(_diagnostico("codo_izq", "IZQ - TSUKI: EXCELENTE"), 0)
     logger.registrar(_diagnostico("postura", "ZENKUTSU (IZQ ADELANTE): POSTURA: FIRME"), 0)
@@ -193,7 +199,7 @@ def _diagnostico_completo(categoria, mensaje, tecnica, angulos_regla, correcto=T
 
 def test_la_fila_guarda_que_tecnica_se_detecto(sesion_de_prueba):
     db, id_sesion, _, _ = sesion_de_prueba
-    logger = MedicionLogger(db, id_sesion)
+    logger = MedicionLogger(db, id_sesion, sostenido_minimo_ms=SIN_ESPERA)
 
     logger.registrar(_diagnostico_completo(
         "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",
@@ -205,7 +211,7 @@ def test_la_fila_guarda_que_tecnica_se_detecto(sesion_de_prueba):
 
 def test_la_fila_guarda_los_dos_angulos_de_una_postura_de_dos_articulaciones(sesion_de_prueba):
     db, id_sesion, _, _ = sesion_de_prueba
-    logger = MedicionLogger(db, id_sesion)
+    logger = MedicionLogger(db, id_sesion, sostenido_minimo_ms=SIN_ESPERA)
 
     logger.registrar(_diagnostico_completo(
         "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",
@@ -231,7 +237,7 @@ def test_una_tecnica_de_un_solo_angulo_deja_el_segundo_vacio(sesion_de_prueba):
 
 def test_una_transicion_se_guarda_sin_tecnica_ni_angulos_de_regla(sesion_de_prueba):
     db, id_sesion, _, _ = sesion_de_prueba
-    logger = MedicionLogger(db, id_sesion)
+    logger = MedicionLogger(db, id_sesion, sostenido_minimo_ms=SIN_ESPERA)
 
     logger.registrar([{"categoria": "postura", "mensaje": "MOVIENDOSE: EN TRANSICION...",
                        "angulo": 145.0, "color": (0, 165, 255), "correcto": None,
@@ -264,7 +270,7 @@ def test_las_mediciones_reevaluables_excluyen_las_que_no_se_pueden_juzgar(sesion
     consumidor a repetir el filtro.
     """
     db, id_sesion, _, _ = sesion_de_prueba
-    logger = MedicionLogger(db, id_sesion)
+    logger = MedicionLogger(db, id_sesion, sostenido_minimo_ms=SIN_ESPERA)
 
     logger.registrar(_diagnostico_completo(
         "postura", "KOKUTSU (IZQ ADELANTE): POSTURA: ESTABLE",

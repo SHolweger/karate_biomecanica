@@ -807,6 +807,54 @@ confirmarlo; si se confirma, va a la tesis como limitación.
 
 ---
 
+**Una postura se registra cuando se sostiene medio segundo** (19-oct-2026,
+decisión de Sebastián sobre el valor). Pasada por el analizador real su
+sesión en vivo `s10` (107 s a 11 fps): de **101 veredictos de postura
+escritos**, 56 duraron menos de 0,2 s y 75 menos de 0,5 s. La precisión
+registrada era del **26 %**; contando solo los sostenidos, del **58 %**. Dos
+causas ajenas a la técnica: el **temblor sobre el límite de un rango** —de
+pie, las rodillas rondan los 165°, el mínimo del Heiko, y cada cruce alternaba
+CORRECTO y DEMASIADO FLEXIONADO— y los **fotogramas de paso** entre posturas,
+que el clasificador reconocía uno o dos fotogramas como Kiba, Kokutsu o
+Zenkutsu. Otra vez **no falla, inventa**: un alumno quieto sacaba ~50 % por
+temblor.
+
+`expert_system/estabilidad.py` (puro): en la categoría `postura`, un mensaje
+solo se registra —en la base y en la lista de correcciones— cuando lleva
+`SOSTENIDO_MINIMO_MS` (500) sin cambiar, medido en tiempo del video. **El video
+y las métricas siguen al fotograma**; el Tsuki y la Mae Geri no esperan, porque
+sus máquinas ya juzgan una transición. Un parpadeo entre dos tramos de la misma
+postura ya no la parte en dos. La prueba usa **el tramo real** de los segundos
+70–88 de s10, codificado por tramos: sin la regla escribe 34 veredictos
+cerrados; con ella, 3. TC-AUTO-076.
+
+El coste, que conviene decir en la tesis: una postura que el clasificador
+reconoce de forma intermitente —uno o dos fotogramas sí, uno no— ya no se
+registra. En ese tramo de s10 se perdieron así varios Kiba y Zenkutsu; es lo
+honesto: no se sostuvo el reconocimiento, así que no hay medición que afirmar.
+
+**La sesión se graba sin espejo** (19-oct-2026). Se grababa el fotograma ya
+volteado y, al re-analizarlo —los archivos también se voltean—, el espejo se
+aplicaba dos veces: izquierda y derecha quedaban **intercambiadas respecto de
+la sesión en vivo**. Medido sobre s10: la guardia izquierda en 56 fotogramas en
+vivo pasaba a 38 al re-analizar y la derecha de 38 a 62. Las posturas se
+reconocían igual; lo que cambiaba era el lado, y con él el desempeño por lado
+y la asimetría del reporte de prevención. `Camera.fotograma_crudo` guarda el
+fotograma antes del espejo y es el que se graba. TC-AUTO-077.
+
+**Las grabaciones hechas hasta el 19-oct (s10 y anteriores) están volteadas.**
+Re-analizarlas desde la interfaz intercambia los lados; para análisis con las
+herramientas de consola hay que leerlas con `Camera(ruta, espejo=False)`.
+
+**En vivo, el bucle corrió a ~11 fps** en esa sesión (la grabación sale a la
+velocidad real del bucle: 11,02 fps). Con cámara, cada vuelta además espera al
+siguiente fotograma del sensor, así que la cadencia en vivo puede salir
+**peor** que sobre un archivo. La cifra del RF-01 que va a la tesis tiene que
+medirse **con la cámara y con alguien delante**: `test_rendimiento_interfaz.py
+0 900`, sin tocar la ventana mientras mide. La primera corrida del 19-oct se
+cortó a los 79 fotogramas porque se navegó a otra pantalla durante la medición
+y no había nadie en cuadro: sus 17,2 fps no valen.
+
 **Más resolución no mejora el análisis** (medido el 28-sep-2026). MediaPipe
 redimensiona el fotograma a la entrada fija de su modelo, así que la etapa de
 estimación de pose cuesta prácticamente lo mismo a 1080×1920 (13,4 ms), a
@@ -1024,13 +1072,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1023 passed** (19-oct, medido en su Mac, lote `ideal19oct`); **1033 esperadas** tras `kime19oct` |
-| CI / sin entorno gráfico | igual | 908 passed, 7 skipped (19-oct, tras `kime19oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1033 passed** (19-oct, medido en su Mac, lote `kime19oct`); **1041 esperadas** tras `estable19oct` |
+| CI / sin entorno gráfico | igual | 915 passed, 7 skipped (19-oct, tras `estable19oct`) |
 
-Las 881, 905, 908, 922 y 1023 se predijeron y se contaron en su Mac: cuadraron
-todas, incluidas las 4 de interfaz de `ideal19oct`, que el contenedor no puede
-ejecutar porque no tiene Tk. Las 1033 son otra **expectativa** —1023 + 10 de
-`test_tsuki.py`— y no se citan hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023 y 1033 se predijeron y se contaron en su Mac:
+cuadraron todas, incluidas las de interfaz que el contenedor no puede ejecutar
+porque no tiene Tk. Las 1041 son otra **expectativa** —1033 + 7 de
+`test_estabilidad.py` + 1 de interfaz— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1072,7 +1120,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-076**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-078**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash

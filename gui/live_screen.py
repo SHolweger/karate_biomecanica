@@ -580,7 +580,13 @@ class LiveScreen(ctk.CTkFrame):
             # se puede, y grabar el anotado dejaría las conclusiones de hoy
             # cocidas dentro de la evidencia.
             if self.grabador is not None:
-                self.grabador.escribir(frame, timestamp_ms)
+                # Y crudo quiere decir también sin espejo: la grabación tiene
+                # que poder re-analizarse como cualquier otro archivo, que el
+                # sistema voltea al leer. Grabada ya volteada, el espejo se
+                # aplicaba dos veces e intercambiaba izquierda y derecha. Los
+                # dobles de prueba no voltean y no exponen el crudo.
+                crudo = getattr(self.cam, "fotograma_crudo", None)
+                self.grabador.escribir(frame if crudo is None else crudo, timestamp_ms)
                 # El grabador puede renunciar aquí mismo —disco lleno, códec,
                 # permisos— y la sesión sigue midiendo, que es lo decidido. Pero
                 # el aviso tiene que enterarse: si no, la sesión entera

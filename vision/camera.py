@@ -149,6 +149,9 @@ class Camera:
         self.fuente = normalizar(source)
         self.espejo = espejo
         self.cap = cv2.VideoCapture(self.fuente)
+        # El último fotograma tal como lo entregó la fuente, ANTES del espejo.
+        # Es el que se graba: ver `get_frame`.
+        self.fotograma_crudo = None
 
         # De dónde sale el tiempo de cada fotograma. Ver marca_de_tiempo_ms().
         self._es_grabacion = es_archivo(source)
@@ -171,7 +174,16 @@ class Camera:
         """Un fotograma listo para analizar, o None si la fuente dejó de entregar."""
         leido, frame = self.cap.read()
         if not leido:
+            self.fotograma_crudo = None
             return None
+        # Se guarda antes de voltear porque es lo que se graba. Hasta el
+        # 19-oct-2026 se grababa el fotograma ya volteado, y al re-analizar la
+        # grabación —que es un archivo, y los archivos también se voltean— el
+        # espejo se aplicaba dos veces: la imagen quedaba al derecho e
+        # izquierda y derecha se intercambiaban respecto de la sesión en vivo.
+        # Medido sobre la sesión s10: la guardia izquierda en 56 fotogramas en
+        # vivo pasaba a 38 al re-analizar, y la derecha de 38 a 62.
+        self.fotograma_crudo = frame
 
         if self._es_grabacion:
             # La posición se consulta DESPUÉS de leer, y no antes, porque este

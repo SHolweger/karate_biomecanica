@@ -709,3 +709,22 @@ def test_el_panel_de_tecnica_ideal_sigue_a_la_tecnica_reconocida(vivo):
     transicion = {"categoria": "postura", "tecnica": None, "mensaje": "MOVIENDOSE: EN TRANSICION..."}
     vivo._refrescar_tecnica_ideal([[], [transicion], []])
     assert vivo._tecnica_ideal == "zenkutsu_dachi"
+
+
+def test_la_sesion_se_graba_sin_espejo(vivo):
+    """
+    La costura: lo que llega al grabador es el fotograma crudo de la cámara, no
+    el volteado. Grabado volteado, re-analizar la sesión aplicaba el espejo dos
+    veces e intercambiaba izquierda y derecha (TC-AUTO-077).
+    """
+    import numpy as np
+
+    assert vivo.grabador is not None, "la sesión de prueba debería estar grabando"
+    crudo = np.full((480, 640, 3), 7, dtype=np.uint8)
+    vivo.cam.fotograma_crudo = crudo
+    escritos = []
+    vivo.grabador.escribir = lambda fotograma, t_ms: escritos.append(fotograma)
+
+    vivo._procesar_fotograma()
+
+    assert escritos and escritos[-1] is crudo
