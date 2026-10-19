@@ -50,3 +50,25 @@ class SkeletonRenderer:
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, res['color'], 2)
                 
         return frame
+
+    # Rojo de error, el mismo del prototipo (#ff4d4d), en BGR.
+    ROJO_ALERTA = (77, 77, 255)
+
+    def draw_alertas(self, frame, puntos):
+        """
+        Marca con un anillo rojo cada articulación que el sistema juzgó mal.
+
+        El tamaño se toma de la altura del fotograma y no en píxeles fijos: el
+        mismo anillo de 12 px que se lee en 640x480 desaparece en un video
+        vertical de 1080x1920. Qué articulaciones marcar lo decide
+        `gui.panel_vivo.articulaciones_con_error`, que es puro.
+        """
+        if not puntos:
+            return frame
+        alto = frame.shape[0]
+        radio = max(12, alto // 40)
+        grosor = max(2, alto // 300)
+        for x, y in puntos:
+            cv2.circle(frame, (int(x), int(y)), radio, self.ROJO_ALERTA, grosor)
+            cv2.circle(frame, (int(x), int(y)), max(4, radio // 3), self.ROJO_ALERTA, cv2.FILLED)
+        return frame

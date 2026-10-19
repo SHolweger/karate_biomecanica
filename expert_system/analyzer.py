@@ -105,6 +105,9 @@ class TechniqueAnalyzer:
             resultados.append(dict(
                 diagnostico,
                 pos_angulo=(codo_izq[0] + 20, codo_izq[1]),
+                # Dónde está la articulación juzgada, sin el desplazamiento del
+                # número. Es lo que permite marcarla sobre el video cuando falla.
+                pos_articulacion=codo_izq,
                 mensaje=f"IZQ - {diagnostico['mensaje']}",
                 y_offset=50, categoria="codo_izq",
             ))
@@ -140,6 +143,7 @@ class TechniqueAnalyzer:
             resultados.append(dict(
                 diagnostico,
                 pos_angulo=(codo_der[0] - 60, codo_der[1]),  # -60 para que no tape el codo
+                pos_articulacion=codo_der,
                 mensaje=f"DER - {diagnostico['mensaje']}",
                 y_offset=90, categoria="codo_der",           # más abajo para no chocar con el texto izq
             ))
@@ -355,11 +359,12 @@ class TechniqueAnalyzer:
             # Van con `mensaje` vacío a propósito: el registro de la postura ya
             # lo lleva la entrada `postura`, y duplicarlo llenaría la base de
             # datos y el panel de correcciones con la misma medición dos veces.
-            for categoria, angulo_rodilla, criterio in (
-                    ("rodilla_izq", angulo_izq, criterio_izq),
-                    ("rodilla_der", angulo_der, criterio_der)):
+            for categoria, angulo_rodilla, criterio, rodilla in (
+                    ("rodilla_izq", angulo_izq, criterio_izq, rodilla_izq),
+                    ("rodilla_der", angulo_der, criterio_der, rodilla_der)):
                 resultados.append({
                     "angulo": angulo_rodilla, "pos_angulo": None,
+                    "pos_articulacion": rodilla,
                     "mensaje": "", "color": color, "y_offset": 130,
                     "categoria": categoria,
                     "correcto": (None if criterio is None
@@ -415,6 +420,7 @@ class TechniqueAnalyzer:
                 resultados.append({
                     "angulo": res["angulo"],
                     "pos_angulo": (rodilla_px[0] + 20, rodilla_px[1]) if rodilla_px else None,
+                    "pos_articulacion": rodilla_px,
                     "mensaje": f"{lado.upper()} - {res['mensaje']}",
                     "color": res["color"],
                     "y_offset": y_offset,

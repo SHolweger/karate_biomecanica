@@ -15,7 +15,8 @@ from gui import componentes as cp
 from gui import tecnica_ideal
 from gui.camara_screen import fuente_configurada
 from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
-                            etiqueta_alumno, metricas_articulares, veredicto_legible)
+                            articulaciones_con_error, etiqueta_alumno,
+                            metricas_articulares, veredicto_legible)
 from expert_system.guardia import orientacion_frente_a_camara
 from vision.encuadre import NIVEL_ALTO, NIVEL_MEDIO
 from vision.encuadre import evaluar as evaluar_encuadre
@@ -608,6 +609,10 @@ class LiveScreen(ctk.CTkFrame):
 
                 for diagnostico in diagnosticos:
                     frame = self.renderer.draw_diagnostics(frame, diagnostico)
+                # La articulación que falla, marcada en rojo sobre el esqueleto:
+                # desde el 18-oct el veredicto dice qué rodilla corregir, y aquí
+                # se ve cuál es sin leer el texto.
+                frame = self.renderer.draw_alertas(frame, articulaciones_con_error(diagnosticos))
                 if self.monitor is not None:
                     self.monitor.marcar("renderizado")
 

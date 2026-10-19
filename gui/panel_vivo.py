@@ -117,6 +117,39 @@ def metricas_articulares(diagnosticos):
     return filas
 
 
+# Articulaciones con veredicto propio, que se pueden marcar sobre el video. La
+# categoría `postura` no está a propósito: su veredicto es el de la postura
+# entera, y teñir con él las dos rodillas escondería justo cuál de las dos
+# falla, que es lo que el veredicto por rodilla del 18-oct-2026 empezó a decir.
+ARTICULACIONES_MARCABLES = ("codo_izq", "codo_der", "rodilla_izq", "rodilla_der",
+                            "mae_geri_izq", "mae_geri_der")
+
+
+def articulaciones_con_error(diagnosticos):
+    """
+    Dónde marcar en rojo, sobre el video, la articulación que falla.
+
+    Solo las que tienen un veredicto **incorrecto** propio y una posición en la
+    imagen. Las correctas no se marcan: el prototipo resaltaba solo el error, y
+    un esqueleto lleno de círculos verdes distrae de él. Un veredicto nulo
+    —transición, brazo en reposo, articulación oculta— tampoco: no hay nada
+    que corregir, y marcarlo inventaría un fallo. Es la misma regla de toda la
+    presentación: no se muestra lo que no se midió.
+
+    El Tsuki y la Mae Geri sostienen su veredicto mientras se ve en pantalla,
+    así que la marca dura lo mismo que el texto que la explica.
+    """
+    puntos = []
+    for diagnostico in _aplanar(diagnosticos):
+        if (diagnostico.get("categoria") in ARTICULACIONES_MARCABLES
+                and diagnostico.get("correcto") is False
+                and diagnostico.get("pos_articulacion") is not None):
+            punto = tuple(diagnostico["pos_articulacion"])
+            if punto not in puntos:
+                puntos.append(punto)
+    return puntos
+
+
 class FeedCorrecciones:
     """
     Las últimas correcciones del sistema experto, en orden inverso.
