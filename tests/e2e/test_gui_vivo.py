@@ -679,3 +679,33 @@ def test_la_pantalla_avisa_cuando_la_imagen_deja_de_llegar(vivo):
     pantalla._procesar_fotograma()
     assert pantalla.senal_var.get() == "", (
         f"el aviso «{aviso}» siguió puesto después de recuperarse la imagen")
+
+
+# ---------------- la técnica ideal ----------------
+
+def _textos_del_lienzo(lienzo):
+    return {lienzo.itemcget(i, "text") for i in lienzo.find_all() if lienzo.type(i) == "text"}
+
+
+def test_el_panel_de_tecnica_ideal_sigue_a_la_tecnica_reconocida(vivo):
+    """
+    Sin técnica reconocida, el panel lo dice; reconocida una, la dibuja con su
+    criterio. Se le entrega el fotograma ya analizado porque la cámara
+    sintética no produce una pose que MediaPipe reconozca: lo que se verifica
+    es la costura entre el análisis y el panel, no la estimación de pose.
+    """
+    assert vivo._tecnica_ideal is None
+    assert any(t.startswith("Aparece") for t in _textos_del_lienzo(vivo.lienzo_ideal))
+
+    zenkutsu = {"categoria": "postura", "tecnica": "zenkutsu_dachi",
+                "mensaje": "ZENKUTSU (DER ADELANTE): POSTURA: FIRME"}
+    vivo._refrescar_tecnica_ideal([[], [zenkutsu], []])
+
+    assert vivo._tecnica_ideal == "zenkutsu_dachi"
+    assert "Zenkutsu" in vivo.titulo_ideal.cget("text")
+    assert {"90–115°", "165–180°"} <= _textos_del_lienzo(vivo.lienzo_ideal)
+
+    # Una transición no borra la guía: se queda la última técnica reconocida.
+    transicion = {"categoria": "postura", "tecnica": None, "mensaje": "MOVIENDOSE: EN TRANSICION..."}
+    vivo._refrescar_tecnica_ideal([[], [transicion], []])
+    assert vivo._tecnica_ideal == "zenkutsu_dachi"

@@ -9,6 +9,8 @@ detalle visual obligara a tocar cuatro lugares. Aquí vive una sola vez.
 Solo se ocupa de presentación: ninguna función consulta la base de datos ni
 decide reglas. Lo que reciben ya viene calculado por la capa de persistencia.
 """
+import tkinter
+
 import customtkinter as ctk
 
 from gui import theme
@@ -137,3 +139,17 @@ def metrica(padre, etiqueta, valor, color=None):
     ctk.CTkLabel(caja, text=valor, font=(theme.FUENTE, 19, "bold"),
                  text_color=color or theme.TEXTO).pack(anchor="w")
     return caja
+
+
+def lienzo_figura(padre, ancho, alto, fondo=theme.CARD):
+    """
+    Lienzo para la figura de la técnica ideal.
+
+    Es un `tkinter.Canvas` y no un widget de CustomTkinter porque lo que se
+    dibuja son líneas y círculos calculados, no controles. El fondo tiene que
+    ser el de la tarjeta que lo contiene, o se vería un recuadro. Lo que se
+    traza encima lo decide `tecnica_ideal.dibujar`, que no importa Tk y por eso
+    se verifica en integración continua.
+    """
+    return tkinter.Canvas(padre, width=ancho, height=alto, bg=fondo,
+                          highlightthickness=0, bd=0)

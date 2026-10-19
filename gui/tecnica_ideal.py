@@ -38,6 +38,7 @@ import math
 from dataclasses import dataclass
 
 from expert_system.knowledge_base import KarateRules
+from gui import theme
 
 # Longitudes de segmento en fracciones de la estatura (Drillis y Contini, 1966).
 MUSLO = 0.245
@@ -389,3 +390,183 @@ def texto_rango(rango):
 
 
 TECNICAS = tuple(NOMBRES)
+
+
+# ------------------------------------------------------------ dibujarla
+
+# Espacio que se reserva a cada lado para las etiquetas de rango («165–180°»).
+# El cálculo no conoce la fuente con que se escribirán, así que reserva lo que
+# ocupan ocho caracteres a 10 puntos, que es la etiqueta más larga posible.
+RESERVA_ETIQUETAS = 62
+
+
+# Dónde se escribe la etiqueta respecto de la articulación: (dx, dy, ancla de Tk).
+DESPLAZAMIENTO_ETIQUETA = {
+    "derecha": (8, 0, "w"),
+    "izquierda": (-8, 0, "e"),
+    "abajo": (4, 9, "nw"),
+}
+ALTO_ETIQUETA = 14
+
+
+def fases_a_dibujar(figura):
+    """
+    `(fantasma, principal)`: qué fase se dibuja tenue y cuál encima.
+
+    En una postura hay una sola fase y no hay fantasma. En el Tsuki y en la Mae
+    Geri, la fase de salida —Hikite, Carga— se dibuja tenue detrás del Kime,
+    que es donde se juzga: así una figura quieta enseña el movimiento sin
+    necesitar animación. Animarla exigiría otro temporizador compitiendo con el
+    bucle de análisis, que es justo lo que tumbó la aplicación en macOS el
+    28-sep-2026.
+    """
+    if len(figura.fases) == 1:
+        return None, figura.fases[0]
+    kime = next(f for f in figura.fases if f.nombre == "Kime")
+    return figura.fases[0], kime
+
+
+def _lado_de_la_etiqueta(tecnica, vertice):
+    """
+    Hacia dónde se escribe el rango de una articulación.
+
+    En las posturas se decide por la pierna y no por la posición: en el Kokutsu
+    la rodilla trasera se dobla hacia adelante y queda casi bajo la delantera,
+    así que por posición las dos etiquetas caerían del mismo lado, una encima
+    de otra. En el Tsuki y la Mae Geri va debajo: a la derecha la taparía el
+    propio antebrazo o la pierna extendida, que es justo lo que se juzga.
+    """
+    if tecnica in ("tsuki", "mae_geri"):
+        return "abajo"
+    return "izquierda" if vertice.endswith(("_tras", "_izq")) else "derecha"
+
+
+def trazos(figura, ancho, alto, margen=8, reserva=RESERVA_ETIQUETAS):
+    """
+    La figura en píxeles de un lienzo de `ancho` x `alto`, lista para trazar.
+
+    Conserva la proporción —una figura estirada mostraría ángulos que no son los
+    del criterio, el mismo motivo por el que el video no se deforma— y la centra
+    dejando sitio a los lados para las etiquetas. Devuelve:
+
+    - `fantasma` y `principal`: `{"lineas": [(x1, y1, x2, y2)], "cabeza": (x, y, r)}`;
+      `fantasma` es None cuando la técnica tiene una sola fase.
+    - `juzgadas`: `{"x", "y", "texto", "lado"}` por cada articulación que la
+      regla juzga, con el rango escrito y hacia dónde va la etiqueta
+      («derecha», «izquierda» o «abajo»).
+    - `suelo`: `(x1, y, x2)` de la línea del suelo.
+    """
+    fantasma, principal = fases_a_dibujar(figura)
+    fases = [f for f in (fantasma, principal) if f is not None]
+    xs = [x for f in fases for x, _ in f.puntos.values()]
+    ys = [y for f in fases for _, y in f.puntos.values()]
+    min_x, max_x = min(xs) - RADIO_CABEZA, max(xs) + RADIO_CABEZA
+    min_y, max_y = min(ys) - RADIO_CABEZA, 1.0
+
+    util_ancho = max(ancho - 2 * (margen + reserva), 1)
+    util_alto = max(alto - 2 * margen, 1)
+    escala = min(util_ancho / (max_x - min_x), util_alto / (max_y - min_y))
+    ox = (ancho - (max_x - min_x) * escala) / 2 - min_x * escala
+    oy = (alto - (max_y - min_y) * escala) / 2 - min_y * escala
+
+    def px(punto):
+        return (ox + punto[0] * escala, oy + punto[1] * escala)
+
+    def capa(fase):
+        if fase is None:
+            return None
+        lineas = []
+        for a, b in fase.segmentos:
+            (x1, y1), (x2, y2) = px(fase.puntos[a]), px(fase.puntos[b])
+            lineas.append((x1, y1, x2, y2))
+        cx, cy = px(fase.puntos["cabeza"])
+        return {"lineas": lineas, "cabeza": (cx, cy, RADIO_CABEZA * escala)}
+
+    juzgadas = []
+    for articulacion in principal.juzgadas:
+        x, y = px(principal.puntos[articulacion.vertice])
+        juzgadas.append({"x": x, "y": y, "texto": texto_rango(articulacion.rango),
+                         "lado": _lado_de_la_etiqueta(figura.tecnica,
+                                                         articulacion.vertice)})
+
+    suelo = oy + 1.0 * escala
+    return {"fantasma": capa(fantasma), "principal": capa(principal),
+            "juzgadas": juzgadas, "suelo": (margen, suelo, ancho - margen)}
+
+
+def dibujar(lienzo, figura, ancho, alto):
+    """
+    Traza la figura en un lienzo de Tk.
+
+    Solo usa `delete`, `create_line`, `create_oval` y `create_text`, sin
+    importar Tk: así un lienzo simulado verifica en integración continua qué se
+    dibuja, en qué orden y de qué color, aunque allí no haya pantalla. La
+    geometría ya viene resuelta por `trazos`.
+    """
+    lienzo.delete("all")
+    t = trazos(figura, ancho, alto)
+
+    x1, y, x2 = t["suelo"]
+    lienzo.create_line(x1, y, x2, y, fill=theme.BORDE_CLARO, width=1)
+
+    # El fantasma primero, para que el Kime quede encima.
+    for capa, color in ((t["fantasma"], theme.FIGURA_FANTASMA), (t["principal"], theme.FIGURA)):
+        if capa is None:
+            continue
+        for linea in capa["lineas"]:
+            lienzo.create_line(*linea, fill=color, width=3, capstyle="round")
+        cx, cy, r = capa["cabeza"]
+        lienzo.create_oval(cx - r, cy - r, cx + r, cy + r, outline=color, width=3)
+
+    for juzgada in t["juzgadas"]:
+        x, y = juzgada["x"], juzgada["y"]
+        lienzo.create_oval(x - 4.5, y - 4.5, x + 4.5, y + 4.5,
+                           fill=theme.ACENTO_VERDE, outline="")
+        dx, dy, ancla = DESPLAZAMIENTO_ETIQUETA[juzgada["lado"]]
+        lienzo.create_text(x + dx, y + dy, text=juzgada["texto"], anchor=ancla,
+                           fill=theme.ACENTO_VERDE, font=(theme.FUENTE, 10, "bold"))
+
+
+def mensaje(lienzo, texto, ancho, alto):
+    """Un texto centrado en el lienzo vacío: todavía no hay técnica que enseñar."""
+    lienzo.delete("all")
+    lienzo.create_text(ancho / 2, alto / 2, text=texto, fill=theme.TEXTO_TENUE,
+                       font=(theme.FUENTE, 11), justify="center", width=ancho - 24)
+
+
+# ------------------------------------------------------------ en vivo
+
+# Familias de técnica según la categoría con que las entrega el analizador.
+_CATEGORIAS_TSUKI = ("codo_izq", "codo_der")
+_CATEGORIAS_MAE_GERI = ("mae_geri_izq", "mae_geri_der")
+
+
+def tecnica_a_mostrar(diagnosticos, anterior=None):
+    """
+    Qué técnica ideal enseñar en el panel en vivo, a partir de un fotograma.
+
+    El sistema no pide elegir la técnica: la reconoce. El panel sigue a lo que
+    reconoció, con esta prioridad, que es la de lo que está ocurriendo:
+
+    1. Una Mae Geri en curso o recién juzgada: mientras la pierna patea, la
+       postura de apoyo no es ninguna de las del catálogo.
+    2. Un Tsuki en extensión o con su veredicto a la vista.
+    3. La postura reconocida.
+
+    Sin nada de eso —una transición, la guardia indefinida, nadie en cuadro— se
+    conserva la anterior. Cambiar a «nada» en cada transición haría parpadear
+    el panel entre repetición y repetición, justo cuando el alumno lo mira.
+    """
+    diagnosticos = [d for grupo in diagnosticos for d in grupo]
+
+    for d in diagnosticos:
+        if d.get("categoria") in _CATEGORIAS_MAE_GERI and "MAE GERI" in (d.get("mensaje") or ""):
+            return "mae_geri"
+    for d in diagnosticos:
+        if d.get("categoria") in _CATEGORIAS_TSUKI and (
+                d.get("tecnica") == "tsuki" or "EXTENDIENDO" in (d.get("mensaje") or "")):
+            return "tsuki"
+    for d in diagnosticos:
+        if d.get("categoria") == "postura" and d.get("tecnica") in NOMBRES:
+            return d["tecnica"]
+    return anterior

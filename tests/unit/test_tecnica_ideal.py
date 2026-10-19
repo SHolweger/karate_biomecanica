@@ -29,6 +29,7 @@ from expert_system.kick_state_machine import MARGEN_PIE_AIRE, UMBRAL_CARGA
 from expert_system.knowledge_base import KarateRules
 from expert_system.tsuki import RECORRIDO_MINIMO
 from gui import tecnica_ideal as ti
+from gui import theme
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 from vision.encuadre import PLANO as AVISO_DE_PLANO
 
@@ -222,3 +223,181 @@ def test_hay_figura_para_cada_tecnica_que_se_evalua_en_vivo():
 @pytest.mark.parametrize("rango, texto", [((90.0, 115.0), "90–115°"), ((400.0, None), "≥ 400°")])
 def test_el_rango_se_escribe_como_lo_lee_el_sensei(rango, texto):
     assert ti.texto_rango(rango) == texto
+
+
+# ---------------- el dibujo en píxeles ----------------
+
+LIENZOS = [(300, 150), (160, 180), (288, 160)]
+
+
+@pytest.mark.parametrize("tecnica", ti.TECNICAS)
+@pytest.mark.parametrize("ancho, alto", LIENZOS)
+def test_todo_lo_que_se_traza_cabe_en_el_lienzo(tecnica, ancho, alto):
+    t = ti.trazos(ti.figura(tecnica), ancho, alto)
+    capas = [c for c in (t["fantasma"], t["principal"]) if c is not None]
+    for capa in capas:
+        for x1, y1, x2, y2 in capa["lineas"]:
+            assert 0 <= min(x1, x2) and max(x1, x2) <= ancho
+            assert 0 <= min(y1, y2) and max(y1, y2) <= alto
+        cx, cy, r = capa["cabeza"]
+        assert cx - r >= 0 and cy - r >= 0 and cx + r <= ancho
+    for etiqueta in t["juzgadas"]:
+        # La etiqueta se escribe hacia su lado; lo que reserva el cálculo es
+        # justo lo que necesita para no salirse del lienzo.
+        dx, dy, _ = ti.DESPLAZAMIENTO_ETIQUETA[etiqueta["lado"]]
+        if etiqueta["lado"] == "izquierda":
+            assert etiqueta["x"] + dx - ti.RESERVA_ETIQUETAS >= 0
+        else:
+            assert etiqueta["x"] + dx + ti.RESERVA_ETIQUETAS <= ancho
+        assert etiqueta["y"] + dy + ti.ALTO_ETIQUETA <= alto
+
+
+@pytest.mark.parametrize("tecnica", ti.TECNICAS)
+def test_dibujar_no_deforma_la_figura(tecnica):
+    """
+    Una figura estirada en un eje mostraría ángulos que no son los del
+    criterio. Medido en píxeles, cada ángulo sigue siendo el que se declaró.
+    """
+    figura = ti.figura(tecnica)
+    _, principal = ti.fases_a_dibujar(figura)
+    t = ti.trazos(figura, 300, 150)
+    puntos = {}
+    for (a, b), (x1, y1, x2, y2) in zip(principal.segmentos, t["principal"]["lineas"]):
+        puntos[a], puntos[b] = (x1, y1), (x2, y2)
+    for articulacion in principal.juzgadas:
+        extremo_1, extremo_2 = articulacion.extremos
+        medido = BiomechanicsMath.calculate_angle(
+            puntos[extremo_1], puntos[articulacion.vertice], puntos[extremo_2])
+        assert medido == pytest.approx(articulacion.angulo, abs=0.5)
+
+
+def test_las_etiquetas_dicen_el_rango_y_no_un_numero_suelto():
+    """
+    El criterio es un rango, y así se escribe. Un «102°» invitaría a perseguir
+    un número exacto que la regla no exige.
+    """
+    t = ti.trazos(ti.figura("zenkutsu_dachi"), 300, 150)
+    textos = sorted(e["texto"] for e in t["juzgadas"])
+    assert textos == ["165–180°", "90–115°"]
+    lados = {e["texto"]: e["lado"] for e in t["juzgadas"]}
+    assert lados["90–115°"] == "derecha" and lados["165–180°"] == "izquierda"
+
+
+def test_solo_las_tecnicas_en_movimiento_llevan_fantasma():
+    for tecnica in ti.TECNICAS:
+        fantasma, principal = ti.fases_a_dibujar(ti.figura(tecnica))
+        if tecnica in ("tsuki", "mae_geri"):
+            assert fantasma is not None and principal.nombre == "Kime"
+        else:
+            assert fantasma is None
+
+
+# ---------------- qué técnica enseña el panel en vivo ----------------
+
+def _postura(tecnica, mensaje="ZENKUTSU (IZQ ADELANTE): POSTURA: FIRME"):
+    return {"categoria": "postura", "tecnica": tecnica, "mensaje": mensaje}
+
+
+def test_el_panel_sigue_a_la_postura_reconocida():
+    fotograma = [[], [_postura("zenkutsu_dachi")], []]
+    assert ti.tecnica_a_mostrar(fotograma) == "zenkutsu_dachi"
+
+
+def test_un_golpe_en_curso_manda_sobre_la_postura():
+    golpe = {"categoria": "codo_izq", "tecnica": None, "mensaje": "IZQ - TSUKI: EXTENDIENDO..."}
+    assert ti.tecnica_a_mostrar([[golpe], [_postura("zenkutsu_dachi")], []]) == "tsuki"
+    juzgado = {"categoria": "codo_der", "tecnica": "tsuki", "mensaje": "DER - TSUKI: EXCELENTE"}
+    assert ti.tecnica_a_mostrar([[juzgado], [_postura("zenkutsu_dachi")], []]) == "tsuki"
+
+
+def test_la_patada_manda_sobre_todo_lo_demas():
+    patada = {"categoria": "mae_geri_izq", "mensaje": "IZQ - MAE GERI: CARGA"}
+    golpe = {"categoria": "codo_izq", "tecnica": "tsuki", "mensaje": "IZQ - TSUKI: EXCELENTE"}
+    assert ti.tecnica_a_mostrar([[golpe], [_postura("kiba_dachi")], [patada]]) == "mae_geri"
+
+
+def test_un_brazo_en_reposo_no_cambia_lo_que_se_ensena():
+    reposo = {"categoria": "codo_izq", "tecnica": None,
+              "mensaje": "IZQ - SIN TSUKI: BRAZO EN REPOSO"}
+    assert ti.tecnica_a_mostrar([[reposo], [_postura("heiko_dachi")], []]) == "heiko_dachi"
+
+
+@pytest.mark.parametrize("mensaje", ["MOVIENDOSE: EN TRANSICION...",
+                                     "GUARDIA INDEFINIDA: NO SE DISTINGUE QUE PIERNA VA ADELANTE",
+                                     "PIERNAS: OCULTAS/NO VISIBLES"])
+def test_sin_tecnica_reconocida_se_conserva_la_anterior(mensaje):
+    """Volver a «nada» en cada transición haría parpadear el panel entre repeticiones."""
+    fotograma = [[], [_postura(None, mensaje)], []]
+    assert ti.tecnica_a_mostrar(fotograma, anterior="kokutsu_dachi") == "kokutsu_dachi"
+    assert ti.tecnica_a_mostrar(fotograma) is None
+
+
+# ---------------- lo que llega al lienzo ----------------
+
+class LienzoSimulado:
+    """Registra las llamadas de dibujo, en orden, como las recibiría un tkinter.Canvas."""
+
+    def __init__(self):
+        self.llamadas = []
+
+    def delete(self, *etiquetas):
+        self.llamadas.append(("delete", etiquetas, {}))
+
+    def create_line(self, *coords, **opciones):
+        self.llamadas.append(("line", coords, opciones))
+
+    def create_oval(self, *coords, **opciones):
+        self.llamadas.append(("oval", coords, opciones))
+
+    def create_text(self, *coords, **opciones):
+        self.llamadas.append(("text", coords, opciones))
+
+    def de(self, tipo):
+        return [c for c in self.llamadas if c[0] == tipo]
+
+
+def test_dibujar_borra_lo_anterior_y_pone_el_kime_encima_del_fantasma():
+    """
+    Redibujar sin borrar dejaría la técnica anterior debajo de la nueva. Y el
+    fantasma va primero: si fuera después, la fase de salida taparía el Kime,
+    que es donde se juzga.
+    """
+    lienzo = LienzoSimulado()
+    ti.dibujar(lienzo, ti.figura("tsuki"), 280, 150)
+
+    assert lienzo.llamadas[0] == ("delete", ("all",), {})
+    colores = [op.get("fill") for tipo, _, op in lienzo.llamadas if tipo == "line"][1:]
+    ultimo_fantasma = max(i for i, c in enumerate(colores) if c == theme.FIGURA_FANTASMA)
+    primero_principal = min(i for i, c in enumerate(colores) if c == theme.FIGURA)
+    assert ultimo_fantasma < primero_principal
+
+
+def test_cada_articulacion_juzgada_lleva_su_rango_escrito():
+    lienzo = LienzoSimulado()
+    ti.dibujar(lienzo, ti.figura("kokutsu_dachi"), 190, 150)
+
+    textos = {op["text"]: op["anchor"] for _, _, op in lienzo.de("text")}
+    assert textos == {"145–175°": "w", "90–120°": "e"}
+
+
+def test_una_postura_no_dibuja_fantasma():
+    lienzo = LienzoSimulado()
+    ti.dibujar(lienzo, ti.figura("kiba_dachi"), 190, 150)
+    assert all(op.get("fill") != theme.FIGURA_FANTASMA for _, _, op in lienzo.de("line"))
+
+
+def test_sin_tecnica_el_lienzo_lo_dice_en_vez_de_quedar_vacio():
+    lienzo = LienzoSimulado()
+    ti.mensaje(lienzo, "Aparece cuando el sistema reconoce una técnica.", 280, 150)
+    assert lienzo.llamadas[0][0] == "delete"
+    assert lienzo.de("text")[0][2]["text"].startswith("Aparece")
+
+
+@pytest.mark.parametrize("tecnica", ["tsuki", "mae_geri"])
+def test_en_las_tecnicas_en_movimiento_la_etiqueta_no_tapa_el_segmento_juzgado(tecnica):
+    """
+    A la derecha del codo está el antebrazo, y a la derecha de la rodilla, la
+    pierna extendida: justo lo que se juzga. La etiqueta va debajo.
+    """
+    t = ti.trazos(ti.figura(tecnica), 280, 150)
+    assert [e["lado"] for e in t["juzgadas"]] == ["abajo"]

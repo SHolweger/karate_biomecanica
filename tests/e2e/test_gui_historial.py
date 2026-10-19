@@ -216,6 +216,39 @@ def test_la_biblioteca_refleja_una_recalibracion_del_entrenador(app, db, entrena
     assert vigente["fuente"] == "modelado_experto"
 
 
+def _textos_del_lienzo(lienzo):
+    return {lienzo.itemcget(i, "text") for i in lienzo.find_all() if lienzo.type(i) == "text"}
+
+
+def test_cada_tecnica_evaluada_en_vivo_lleva_su_figura_ideal(app, entrenador_registrado):
+    """Las seis técnicas que se evalúan en vivo, con la figura dibujada y su rango escrito."""
+    from gui import tecnica_ideal
+
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("tecnicas")
+    pantalla = app.pantalla_actual
+
+    assert set(pantalla.lienzos) == set(tecnica_ideal.TECNICAS)
+    for tecnica, lienzo in pantalla.lienzos.items():
+        assert lienzo.find_all(), f"la figura de {tecnica} quedó vacía"
+    assert "160–175°" in _textos_del_lienzo(pantalla.lienzos["tsuki"])
+
+
+def test_la_figura_ideal_sigue_a_una_recalibracion(app, db, entrenador_registrado):
+    """
+    La figura sale del criterio vigente, no de un dibujo fijo: si el dojo
+    recalibra el Zenkutsu, la guía enseña el rango nuevo.
+    """
+    db.actualizar_umbral("zenkutsu_dachi", "rodilla_frontal", 100.0, 120.0,
+                         id_entrenador=entrenador_registrado["id_entrenador"],
+                         fuente="modelado_experto")
+    app.on_login_exitoso(entrenador_registrado)
+    app._navegar("tecnicas")
+
+    textos = _textos_del_lienzo(app.pantalla_actual.lienzos["zenkutsu_dachi"])
+    assert "100–120°" in textos and "90–115°" not in textos
+
+
 def test_desde_la_biblioteca_se_llega_a_la_calibracion(app, entrenador_registrado):
     app.on_login_exitoso(entrenador_registrado)
     app._navegar("tecnicas")

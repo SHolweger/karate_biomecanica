@@ -11,6 +11,8 @@ from expert_system.analyzer import TechniqueAnalyzer
 from expert_system.knowledge_base import KarateRules
 from gui import theme
 from gui import coaching
+from gui import componentes as cp
+from gui import tecnica_ideal
 from gui.camara_screen import fuente_configurada
 from gui.panel_vivo import (FeedCorrecciones, PUNTOS_IMU, SIN_ALUMNOS, SIN_DATO,
                             etiqueta_alumno, metricas_articulares, veredicto_legible)
@@ -62,6 +64,10 @@ class LiveScreen(ctk.CTkFrame):
     # Tamaño con el que se dibuja el primer fotograma, antes de que Tk haya
     # asignado su espacio al contenedor del video.
     VIDEO_ARRANQUE = (560, 420)
+    # Lienzo de la técnica ideal: el ancho de la columna menos el margen de la
+    # tarjeta a cada lado.
+    ANCHO_FIGURA = 280
+    ALTO_FIGURA = 150
     # Con el hardware inercial montado, este interruptor pasa a True y el
     # bloque de sensores arranca desplegado (RF-02, RF-04).
     SENSORES_DISPONIBLES = False
@@ -288,6 +294,7 @@ class LiveScreen(ctk.CTkFrame):
         derecha = ctk.CTkFrame(cuerpo, fg_color="transparent", width=self.ANCHO_PANEL)
         derecha.pack(side="left", fill="both")
         derecha.pack_propagate(False)
+        self._panel_tecnica_ideal(derecha)
         self._panel_sensores(derecha)
         self._panel_correcciones(derecha)
 
@@ -306,6 +313,58 @@ class LiveScreen(ctk.CTkFrame):
                                  text_color=theme.TEXTO_TENUE)
             valor.pack(anchor="w", padx=12, pady=(0, 10))
             self.filas_metricas[fila["categoria"]] = valor
+
+    def _panel_tecnica_ideal(self, padre):
+        """
+        La técnica que el sistema está reconociendo, dibujada con su criterio.
+
+        El prototipo tenía este panel y mostraba el mismo muñeco para todas las
+        técnicas. Este se calcula: cada articulación juzgada va al centro de su
+        rango vigente, con el rango escrito al lado, en el plano en que se filma
+        la técnica (ver gui/tecnica_ideal.py). Es una guía para el alumno, así
+        que enseña lo que el sistema exige y nada más.
+
+        No hay que elegir la técnica: el panel sigue a la que el sistema
+        reconoce, y conserva la anterior durante las transiciones para no
+        parpadear entre repeticiones.
+        """
+        caja = ctk.CTkFrame(padre, fg_color=theme.CARD, border_color=theme.BORDE,
+                            border_width=1, corner_radius=10)
+        caja.pack(fill="x", pady=(0, 10))
+
+        self.titulo_ideal = ctk.CTkLabel(caja, text="Técnica ideal",
+                                         font=(theme.FUENTE, 13, "bold"),
+                                         text_color=theme.TEXTO)
+        self.titulo_ideal.pack(anchor="w", padx=16, pady=(12, 0))
+
+        self.lienzo_ideal = cp.lienzo_figura(caja, self.ANCHO_FIGURA, self.ALTO_FIGURA)
+        self.lienzo_ideal.pack(padx=20, pady=(4, 0))
+        tecnica_ideal.mensaje(self.lienzo_ideal,
+                             "Aparece cuando el sistema reconoce una técnica.",
+                             self.ANCHO_FIGURA, self.ALTO_FIGURA)
+
+        self.pie_ideal = ctk.CTkLabel(caja, text="", font=(theme.FUENTE, 10),
+                                      text_color=theme.TEXTO_TENUE)
+        self.pie_ideal.pack(anchor="w", padx=16, pady=(0, 10))
+        self._tecnica_ideal = None
+
+    def _refrescar_tecnica_ideal(self, diagnosticos):
+        """
+        Redibuja la figura solo cuando cambia la técnica reconocida.
+
+        Se consulta en cada fotograma, pero redibujar en cada uno costaría
+        tiempo de Tk sin que nadie lo note: es la misma regla que el aviso de
+        encuadre. Las reglas son las del analizador de esta sesión, así que la
+        figura usa el criterio con que se está juzgando.
+        """
+        tecnica = tecnica_ideal.tecnica_a_mostrar(diagnosticos, self._tecnica_ideal)
+        if tecnica is None or tecnica == self._tecnica_ideal:
+            return
+        self._tecnica_ideal = tecnica
+        figura = tecnica_ideal.figura(tecnica, self.analyzer.reglas)
+        tecnica_ideal.dibujar(self.lienzo_ideal, figura, self.ANCHO_FIGURA, self.ALTO_FIGURA)
+        self.titulo_ideal.configure(text=f"Técnica ideal · {figura.nombre}")
+        self.pie_ideal.configure(text=f"Cámara {figura.plano} · rangos del criterio vigente")
 
     def _panel_sensores(self, padre):
         """
@@ -560,6 +619,7 @@ class LiveScreen(ctk.CTkFrame):
                 if self.feed.registrar(diagnosticos, timestamp_ms):
                     self._pintar_correcciones()
                 self._refrescar_metricas(diagnosticos)
+                self._refrescar_tecnica_ideal(diagnosticos)
             if self.monitor is not None:
                 self.monitor.marcar("panel")
 

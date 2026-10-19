@@ -1,6 +1,8 @@
 import customtkinter as ctk
 
+from expert_system.knowledge_base import KarateRules
 from gui import componentes as cp
+from gui import tecnica_ideal
 from gui import theme
 from gui.umbrales_screen import FUENTE_LEGIBLE, NOMBRE_ARTICULACION, NOMBRE_TECNICA
 
@@ -22,6 +24,14 @@ DESCRIPCION = {
                       "y delantera casi extendida. Es la distribución inversa al Zenkutsu."),
     "mae_geri": ("Patada frontal. Se evalúa por fases: carga, extensión con velocidad "
                  "(Kime) y recojo de la pierna antes de bajarla (Hikiashi)."),
+}
+
+# Técnicas con criterio cargado que el análisis en vivo todavía no evalúa. La
+# regla existe y se puede recalibrar, pero ningún fotograma la consulta: sin
+# decirlo, la biblioteca daría a entender que el sistema mide un Age Uke.
+NO_EVALUADAS_EN_VIVO = {
+    "age_uke": ("El análisis en vivo todavía no evalúa esta técnica. Su criterio "
+                "queda cargado para cuando se incorpore."),
 }
 
 # Técnicas que el motor evalúa pero que no se miden contra un rango angular, de
@@ -47,6 +57,10 @@ class TecnicasScreen(ctk.CTkFrame):
     recalibra un umbral, esta pantalla muestra el criterio nuevo. Por eso también
     señala el origen de cada valor, bibliográfico o de modelado experto.
     """
+
+    # Tamaño de la figura de la técnica ideal en cada tarjeta.
+    ANCHO_FIGURA = 190
+    ALTO_FIGURA = 150
 
     def __init__(self, master, db, entrenador=None, app=None):
         super().__init__(master, fg_color=theme.FONDO)
@@ -79,6 +93,11 @@ class TecnicasScreen(ctk.CTkFrame):
             cp.vacio(self.lista, "No hay umbrales cargados en la base de datos.")
             return
 
+        # Las mismas reglas con que se juzga en vivo: la figura de cada tarjeta
+        # sale del criterio vigente, así que sigue a una recalibración.
+        self.reglas = KarateRules(vigentes)
+        self.lienzos = {}
+
         # Agrupa los umbrales por técnica conservando el orden de enseñanza.
         por_tecnica = {}
         for (tecnica, articulacion), umbral in vigentes.items():
@@ -94,8 +113,16 @@ class TecnicasScreen(ctk.CTkFrame):
 
     def _tarjeta_tecnica(self, tecnica, articulaciones):
         caja = cp.tarjeta(self.lista, pady=5)
+        con_figura = tecnica in tecnica_ideal.TECNICAS
+        if con_figura:
+            self._figura(caja, tecnica)
 
-        cabecera = ctk.CTkFrame(caja, fg_color="transparent")
+        # Con la figura a la izquierda, el texto se reparte el resto del ancho.
+        contenido = ctk.CTkFrame(caja, fg_color="transparent")
+        contenido.pack(side="left", fill="both", expand=True)
+        ancho_texto = 620 if con_figura else 820
+
+        cabecera = ctk.CTkFrame(contenido, fg_color="transparent")
         cabecera.pack(fill="x", padx=18, pady=(14, 4))
         ctk.CTkLabel(cabecera, text=NOMBRE_TECNICA.get(tecnica, cp.nombre_legible(tecnica)),
                      font=(theme.FUENTE, 14, "bold"),
@@ -106,12 +133,18 @@ class TecnicasScreen(ctk.CTkFrame):
             ctk.CTkLabel(cabecera, text="CALIBRADA EN EL DOJO", font=(theme.FUENTE, 10),
                          text_color=theme.ACENTO_VERDE).pack(side="left", padx=(10, 0))
 
-        ctk.CTkLabel(caja, text=DESCRIPCION.get(tecnica, "Técnica evaluada por el sistema."),
+        ctk.CTkLabel(contenido, text=DESCRIPCION.get(tecnica, "Técnica evaluada por el sistema."),
                      font=(theme.FUENTE, 11.5), text_color=theme.TEXTO_MUTED,
-                     wraplength=820, justify="left").pack(anchor="w", padx=18, pady=(0, 10))
+                     wraplength=ancho_texto, justify="left").pack(anchor="w", padx=18,
+                                                                  pady=(0, 10))
+        if tecnica in NO_EVALUADAS_EN_VIVO:
+            ctk.CTkLabel(contenido, text=NO_EVALUADAS_EN_VIVO[tecnica],
+                         font=(theme.FUENTE, 11), text_color=theme.ACENTO_AMARILLO,
+                         wraplength=ancho_texto, justify="left").pack(anchor="w", padx=18,
+                                                                      pady=(0, 8))
 
         for articulacion, umbral in sorted(articulaciones):
-            fila = ctk.CTkFrame(caja, fg_color="transparent")
+            fila = ctk.CTkFrame(contenido, fg_color="transparent")
             fila.pack(fill="x", padx=18, pady=(0, 6))
             ctk.CTkLabel(fila, text=NOMBRE_ARTICULACION.get(articulacion,
                                                             cp.nombre_legible(articulacion)),
@@ -124,7 +157,25 @@ class TecnicasScreen(ctk.CTkFrame):
                          anchor="w", font=(theme.FUENTE, 11),
                          text_color=theme.TEXTO_TENUE).pack(side="left")
 
-        ctk.CTkFrame(caja, fg_color="transparent", height=6).pack()
+        ctk.CTkFrame(contenido, fg_color="transparent", height=6).pack()
+
+    def _figura(self, caja, tecnica):
+        """
+        La técnica ideal, calculada con el criterio vigente (ver gui/tecnica_ideal.py).
+
+        Debajo dice con qué cámara se filma: la figura ya está dibujada en ese
+        plano, y decirlo con palabras evita que se lea como una preferencia de
+        estilo cuando es una condición para poder medir.
+        """
+        figura = tecnica_ideal.figura(tecnica, self.reglas)
+        marco = ctk.CTkFrame(caja, fg_color="transparent")
+        marco.pack(side="left", padx=(12, 0), pady=10)
+        lienzo = cp.lienzo_figura(marco, self.ANCHO_FIGURA, self.ALTO_FIGURA)
+        lienzo.pack()
+        tecnica_ideal.dibujar(lienzo, figura, self.ANCHO_FIGURA, self.ALTO_FIGURA)
+        ctk.CTkLabel(marco, text=f"Cámara {figura.plano}", font=(theme.FUENTE, 10),
+                     text_color=theme.TEXTO_TENUE).pack()
+        self.lienzos[tecnica] = lienzo
 
     def _tarjeta_sin_umbral(self, clave, descripcion):
         caja = cp.tarjeta(self.lista, pady=5)
