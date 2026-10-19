@@ -711,6 +711,31 @@ class Database:
 
     # ---------------- Umbrales: historial ----------------
 
+    def umbral_en(self, nombre_tecnica, articulacion, instante):
+        """
+        La versión de un umbral que regía en `instante` (marca ISO), o None.
+
+        Cada medición guarda el `id_umbral` de su articulación principal, pero
+        una postura de dos rodillas se juzga también contra la otra, cuya
+        versión no queda en la fila. Para mostrar contra qué se midió una
+        sesión pasada hace falta reconstruirla por fecha: la última versión
+        modificada antes del instante. Si el instante es anterior a todas —una
+        base sembrada después—, se toma la más antigua, que es la que más se le
+        acerca.
+        """
+        fila = self.conn.execute(
+            "SELECT * FROM umbral_referencia WHERE nombre_tecnica = ? AND articulacion = ? "
+            "AND fecha_modificacion <= ? ORDER BY id_umbral DESC LIMIT 1",
+            (nombre_tecnica, articulacion, instante),
+        ).fetchone()
+        if fila is None:
+            fila = self.conn.execute(
+                "SELECT * FROM umbral_referencia WHERE nombre_tecnica = ? AND articulacion = ? "
+                "ORDER BY id_umbral ASC LIMIT 1",
+                (nombre_tecnica, articulacion),
+            ).fetchone()
+        return dict(fila) if fila else None
+
     def historial_umbral(self, nombre_tecnica, articulacion):
         """Todas las versiones de un umbral, de la más reciente a la más antigua."""
         filas = self.conn.execute(

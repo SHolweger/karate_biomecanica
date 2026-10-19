@@ -305,3 +305,27 @@ def _textos_de(widget):
             pass
         pendientes.extend(actual.winfo_children())
     return " | ".join(textos)
+
+
+def test_el_reporte_muestra_lo_medido_contra_el_criterio(app, db, entrenador_registrado,
+                                                         dojo_con_historia):
+    """
+    Cada articulación juzgada, con su mediana, el rango y cuántas cupieron. Las
+    filas llevan los argumentos con que se juzgaron, como las escribe el
+    registro desde el 19-sep-2026.
+    """
+    sesion = db.iniciar_sesion(dojo_con_historia["atleta"],
+                               entrenador_registrado["id_entrenador"])
+    for delantera, correcto in ((105.0, True), (120.0, False), (108.0, True)):
+        db.guardar_medicion(sesion, "Postura de piernas", delantera,
+                            "ZENKUTSU (IZQ ADELANTE): POSTURA: FIRME", 0, correcto,
+                            tecnica_clave="zenkutsu_dachi", angulo_regla_1=delantera,
+                            angulo_regla_2=172.0)
+    db.cerrar_sesion(sesion)
+
+    app.on_login_exitoso(entrenador_registrado)
+    app.on_abrir_reporte(sesion)
+
+    textos = _textos_de(app.pantalla_actual)
+    assert "Zenkutsu Dachi · Rodilla delantera" in textos
+    assert "mediana 108° · criterio 90–115° · 2 de 3 dentro" in textos

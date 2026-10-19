@@ -3,6 +3,7 @@ import customtkinter as ctk
 from expert_system import riesgos
 from gui import coaching
 from gui import componentes as cp
+from gui import medido_contra_rango
 from gui import theme
 from vision.grabacion import nombre_visible
 
@@ -59,6 +60,7 @@ class ReporteScreen(ctk.CTkFrame):
 
         self._resumen()
         self._por_tecnica()
+        self._medido_contra_criterio()
         self._errores()
         self._prevencion()
 
@@ -113,6 +115,56 @@ class ReporteScreen(ctk.CTkFrame):
             ctk.CTkLabel(caja, text=f"{tecnica['aciertos']} de {tecnica['evaluaciones']} correctas",
                          anchor="w", font=(theme.FUENTE, 11.5),
                          text_color=theme.TEXTO_MUTED).pack(side="left", padx=(14, 4))
+
+    def _medido_contra_criterio(self):
+        """
+        Cada articulación juzgada: la mediana medida, el rango y cuántas cupieron.
+
+        Es la versión con datos de los «puntos de control» del prototipo. El
+        rango es el que regía al empezar la sesión, no el de hoy: un reporte
+        viejo leído después de recalibrar tiene que decir contra qué se midió.
+        El porqué de cada decisión está en gui/medido_contra_rango.py.
+        """
+        if not self.sesion["evaluaciones"]:
+            return  # sin evaluaciones cerradas ya lo dijo la sección anterior
+
+        ctk.CTkLabel(self.cuerpo, text="Ángulos medidos contra el criterio",
+                     font=(theme.FUENTE, 15, "bold"),
+                     text_color=theme.TEXTO).pack(anchor="w", pady=(20, 2))
+        ctk.CTkLabel(self.cuerpo,
+                     text="Mediana de las evaluaciones de la sesión, contra el rango que regía al empezarla",
+                     font=(theme.FUENTE, 11.5),
+                     text_color=theme.TEXTO_MUTED).pack(anchor="w", pady=(0, 8))
+
+        instante = self.sesion["hora_inicio"]
+
+        def rango_de(tecnica, articulacion):
+            umbral = self.db.umbral_en(tecnica, articulacion, instante)
+            return None if umbral is None else (umbral["valor_min"], umbral["valor_max"])
+
+        puntos = medido_contra_rango.puntos_de_control(
+            self.db.mediciones_reevaluables(id_sesion=self.id_sesion), rango_de)
+        if not puntos:
+            cp.vacio(self.cuerpo, "Esta sesión no guardó los ángulos con que se juzgó.",
+                     "Las mediciones anteriores al 19-sep-2026 no los registraban, y la "
+                     "Mae Geri no se resume aquí: su veredicto depende también de la "
+                     "velocidad, que no se guarda por medición.")
+            return
+
+        for punto in puntos:
+            caja = cp.tarjeta(self.cuerpo)
+            ctk.CTkLabel(caja, text="✓" if punto["cumple"] else "✗", width=30,
+                         font=(theme.FUENTE, 16, "bold"),
+                         text_color=theme.ACENTO_VERDE if punto["cumple"]
+                         else theme.ACENTO_ROJO).pack(side="left", padx=(12, 4), pady=9)
+            textos = ctk.CTkFrame(caja, fg_color="transparent")
+            textos.pack(side="left", fill="x", expand=True, pady=6)
+            ctk.CTkLabel(textos, text=f"{punto['nombre']} · {punto['etiqueta']}", anchor="w",
+                         font=(theme.FUENTE, 12.5, "bold"),
+                         text_color=theme.TEXTO).pack(anchor="w")
+            ctk.CTkLabel(textos, text=medido_contra_rango.texto_punto(punto), anchor="w",
+                         font=(theme.FUENTE, 11.5),
+                         text_color=theme.TEXTO_MUTED).pack(anchor="w")
 
     def _errores(self):
         ctk.CTkLabel(self.cuerpo, text="Correcciones sugeridas",
