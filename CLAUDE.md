@@ -431,6 +431,25 @@ Tres pruebas en TC-AUTO-068 (`tests/unit/test_tsuki.py`), y cada una se comprob�
   800 secuencias y exige los mismos golpes; falla si alguien conecta
   `_sostiene_el_kime` a una transición.
 
+**Y el codo solo no bastaba** (19-oct-2026, visto en su Mac sobre «Zenkusu
+dachi.mp4»): «IZQ - TSUKI: EXCELENTE» seguía en pantalla **con el brazo
+colgando junto a la cadera**. Bajar el brazo estirado deja el codo en los mismos
+~160°, así que para el sostenido era lo mismo que mantener el Kime. Ahora
+`TsukiStateMachine.update` recibe además, opcional, la **dirección del brazo**
+(de hombro a muñeca, en grados sobre la imagen; la calcula el analizador), y el
+sostenido termina si gira más de `MARGEN_DIRECCION` (25°) respecto de la que
+tenía **cuando el codo llegó a su máximo** —no cuando se juzgó: un brazo que se
+queda extendido se juzga a los 1,5 s, cuando quizá ya bajó; la primera versión
+del arreglo guardaba esa y las pruebas la delataron—. Bajarlo al costado gira
+~90°; el vaivén de sostener, ±8° en la prueba.
+
+Sigue siendo **solo texto**: `test_la_direccion_solo_cambia_el_texto_nunca_los_golpes`
+compara 800 secuencias aleatorias con direcciones que vagan al azar contra no
+informar dirección, y los golpes salen idénticos. Quien no la informe
+—`revisar_tsuki.py`, las pruebas viejas— tiene la máquina de antes. Lo que sí
+cambia: el anillo rojo de un Tsuki incorrecto ya no se queda sobre el codo de
+un brazo bajado. TC-AUTO-075.
+
 Un efecto que conviene saber: el falso positivo confirmado del 30-sep —estirar
 el brazo y sostenerlo, juzgado «HIPEREXTENDIDO» por tiempo— ahora también se ve
 mientras se sostiene, en vez de desaparecer a los 500 ms. No escribe más filas;
@@ -1005,15 +1024,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **908 passed** (18-oct, medido en su Mac, lote `gitignore18oct`); **922 esperadas** tras `separacion19oct` y **1023** tras `ideal19oct` |
-| CI / sin entorno gráfico | igual | 898 passed, 7 skipped (19-oct, tras `ideal19oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1023 passed** (19-oct, medido en su Mac, lote `ideal19oct`); **1033 esperadas** tras `kime19oct` |
+| CI / sin entorno gráfico | igual | 908 passed, 7 skipped (19-oct, tras `kime19oct`) |
 
-Las 881, las 905 y las 908 se predijeron (848 + 33, 881 + 24 y 905 + 3) y se
-contaron en su Mac: cuadraron las tres. Las 922 y las 1023 son
-**expectativas** —908 + 14 de `test_comparar_2d_3d.py`; luego + 97 unitarias y
-+ 4 de interfaz del lote `ideal19oct`— y no se citan hasta contarlas. Las 4 de
-interfaz **no se pudieron ejecutar en el contenedor**, que no tiene Tk: son
-las primeras que corren solo allá. Una de las pruebas
+Las 881, 905, 908, 922 y 1023 se predijeron y se contaron en su Mac: cuadraron
+todas, incluidas las 4 de interfaz de `ideal19oct`, que el contenedor no puede
+ejecutar porque no tiene Tk. Las 1033 son otra **expectativa** —1023 + 10 de
+`test_tsuki.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1055,7 +1072,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-075**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-076**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1438,6 +1455,14 @@ conviene tenerlo firmado antes de la primera visita.
 **Pendiente de escritura:**
 
 - Empaquetado: `.command` para Mac, `.exe` para Windows (lo compila él).
+  **Antes, la carpeta de grabaciones**: `vision/grabacion.DIRECTORIO_POR_DEFECTO`
+  es `"grabaciones"`, una ruta **relativa**, el mismo defecto que `rutas.py`
+  corrigió el 30-sep para la base. Lanzado desde la carpeta del proyecto
+  funciona —ahí aparecieron sus videos del 19-oct—, pero un `.command` abierto
+  con doble clic arranca en la carpeta personal y un ejecutable de
+  PyInstaller en una temporal: los videos irían a parar a otro lado o se
+  perderían. Tiene que resolverse como la base: carpeta de datos del sistema,
+  con excepción para la que ya existe junto al código.
 - Ajustar el prototipo `.dc.html` para que no prometa «340 reglas» ni «red
   neuronal v0.9 entrenando».
 

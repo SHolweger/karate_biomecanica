@@ -11,9 +11,11 @@ la pantalla durante una ejecución correcta, porque cuando el alumno golpea de
 verdad el veredicto es el mismo; se nota en el historial, semanas después,
 cuando la precisión del alumno la dominan los minutos que pasó de pie.
 """
+import random
+
 import pytest
 
-from expert_system.tsuki import (EN_EXTENSION, RECORRIDO_MINIMO, SIN_GOLPE,
+from expert_system.tsuki import (EN_EXTENSION, RECORRIDO_MINIMO, SIN_GOLPE, diferencia_angular,
                                  TsukiStateMachine, VENTANA_RECORRIDO_MS)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
 
@@ -437,6 +439,32 @@ def test_los_dos_casos_que_rompieron_la_primera_version(secuencia, paso):
     assert len(_veredictos(_reproducir(TsukiStateMachine(), secuencia, paso=paso))) == 2
 
 
+def _secuencia_aleatoria(rng):
+    """Golpes, sostenidos, recogidas completas y parciales, extensiones lentas y temblor."""
+    a, out = 50.0, []
+    for _ in range(rng.randint(3, 10)):
+        accion = rng.choice(["golpe", "sostener", "recoger", "parcial", "lento"])
+        if accion == "sostener":
+            out += [a + rng.uniform(-2.5, 2.5) for _ in range(rng.randint(5, 120))]
+            continue
+        destino = {"golpe": rng.uniform(140, 180), "recoger": rng.uniform(45, 70),
+                   "parcial": a - rng.uniform(5, 50), "lento": rng.uniform(50, 178)}[accion]
+        n = rng.randint(40, 120) if accion == "lento" else rng.randint(2, 12)
+        out += [a + (destino - a) * (i + 1) / n for i in range(n)]
+        a = destino
+    return [min(180.0, max(0.0, x)) for x in out]
+
+
+def _golpes(diagnosticos):
+    """Cada golpe emitido: fotograma, mensaje y ángulo con que se juzgó."""
+    eventos, anterior = [], None
+    for i, d in enumerate(diagnosticos):
+        if d["mensaje"] != anterior and d["correcto"] is not None:
+            eventos.append((i, d["mensaje"], d["angulos_regla"]))
+        anterior = d["mensaje"]
+    return eventos
+
+
 def test_sostener_solo_cambia_el_texto_nunca_los_golpes(monkeypatch):
     """
     La garantía, en forma de propiedad. Con el sostenido anulado, la máquina es
@@ -445,36 +473,147 @@ def test_sostener_solo_cambia_el_texto_nunca_los_golpes(monkeypatch):
     aleatorias de golpes, sostenidos, recogidas parciales y temblor, los golpes
     emitidos —fotograma, mensaje y ángulo— tienen que coincidir uno a uno.
     """
-    import random
-
-    def secuencia(rng):
-        a, out = 50.0, []
-        for _ in range(rng.randint(3, 10)):
-            accion = rng.choice(["golpe", "sostener", "recoger", "parcial", "lento"])
-            if accion == "sostener":
-                out += [a + rng.uniform(-2.5, 2.5) for _ in range(rng.randint(5, 120))]
-                continue
-            destino = {"golpe": rng.uniform(140, 180), "recoger": rng.uniform(45, 70),
-                       "parcial": a - rng.uniform(5, 50), "lento": rng.uniform(50, 178)}[accion]
-            n = rng.randint(40, 120) if accion == "lento" else rng.randint(2, 12)
-            out += [a + (destino - a) * (i + 1) / n for i in range(n)]
-            a = destino
-        return [min(180.0, max(0.0, x)) for x in out]
-
-    def golpes(diagnosticos):
-        eventos, anterior = [], None
-        for i, d in enumerate(diagnosticos):
-            if d["mensaje"] != anterior and d["correcto"] is not None:
-                eventos.append((i, d["mensaje"], d["angulos_regla"]))
-            anterior = d["mensaje"]
-        return eventos
-
     rng = random.Random(20261018)
-    casos = [(rng.choice([16, 33, 40]), secuencia(rng)) for _ in range(800)]
+    casos = [(rng.choice([16, 33, 40]), _secuencia_aleatoria(rng)) for _ in range(800)]
 
-    con_sostenido = [golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
+    con_sostenido = [_golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
     monkeypatch.setattr(TsukiStateMachine, "_sostiene_el_kime", lambda self: False)
-    sin_sostenido = [golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
+    sin_sostenido = [_golpes(_reproducir(TsukiStateMachine(), s, paso=p)) for p, s in casos]
 
     assert sum(map(len, sin_sostenido)) > 300, "las secuencias no producen golpes que comparar"
     assert con_sostenido == sin_sostenido
+
+
+
+# ---------------------------------------------------------------------------
+# El sostenido mira también hacia dónde apunta el brazo (19-oct-2026)
+# ---------------------------------------------------------------------------
+#
+# Visto en la Mac de Sebastián sobre «Zenkusu dachi.mp4»: «IZQ - TSUKI:
+# EXCELENTE» seguía en pantalla con el brazo colgando junto a la cadera. El
+# sostenido solo miraba el ángulo del codo, y bajar el brazo ESTIRADO lo deja
+# en los mismos ~160°: para el codo, sostener el Kime y dejar caer el brazo
+# son lo mismo. Hace falta la dirección del brazo.
+
+def _reproducir_con_direccion(maquina, pares, paso=MS_POR_FOTOGRAMA):
+    """Pares (ángulo del codo, dirección del brazo) a la cadencia de la cámara."""
+    return [maquina.update(angulo, i * paso, direccion=direccion)
+            for i, (angulo, direccion) in enumerate(pares)]
+
+
+def _golpe_y_brazo_bajado(direccion_final=90.0):
+    """
+    Golpe al frente sostenido 1 s y luego el brazo, estirado, cae al costado.
+
+    La dirección va en grados sobre la imagen, con y hacia abajo: 0° es el
+    puño al frente y 90° el brazo colgando.
+    """
+    golpe = [(a, 0.0) for a in _golpe_sostenido(fotogramas_sostenidos=30)]
+    caida = [(172.0 + (2 if i % 2 else -2), direccion_final * (i + 1) / 15) for i in range(15)]
+    colgando = [(172.0 + (2 if i % 2 else -2), direccion_final) for i in range(30)]
+    return golpe + caida + colgando
+
+
+@ficha(
+    id_caso="TC-AUTO-075",
+    nombre="Bajar el brazo estirado retira el veredicto del Tsuki aunque el codo no cambie",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo=(
+        "el sostenido del 18-oct solo miraba el ángulo del codo, y con el brazo "
+        "estirado ese ángulo es el mismo al frente que colgando: en la Mac se vio "
+        "«TSUKI: EXCELENTE» con el brazo junto a la cadera. En la demostración "
+        "el sistema afirmaría un Kime que no hay, y si el veredicto fuera "
+        "incorrecto el anillo rojo seguiría sobre el codo"),
+    componente="expert_system/tsuki.py (MARGEN_DIRECCION), expert_system/analyzer.py",
+    requisitos=("RF-05", "RF-06"),
+    precondiciones="Ninguna. La máquina es pura y recibe ángulos y direcciones sintéticos",
+    datos_entrada=(
+        "Un golpe sostenido 1 s y luego el brazo estirado que cae 90°; el mismo "
+        "golpe sostenido 3 s con un vaivén de dirección de ±8°; 800 secuencias "
+        "aleatorias con y sin dirección"),
+    pasos=[
+        Paso("Golpear, sostener y dejar caer el brazo estirado",
+             "assert diagnosticos[-1]['mensaje'] == SIN_GOLPE"),
+        Paso("Sostener el Kime con el vaivén natural de la dirección",
+             "assert diagnosticos[-1]['mensaje'] == 'TSUKI: EXCELENTE'"),
+        Paso("Comparar los golpes con dirección y sin ella en 800 secuencias",
+             "assert los golpes emitidos son idénticos"),
+    ],
+    resultado_esperado="PASSED: el veredicto se retira al bajar el brazo y los golpes no cambian",
+)
+def test_bajar_el_brazo_estirado_retira_el_veredicto():
+    diagnosticos = _reproducir_con_direccion(TsukiStateMachine(), _golpe_y_brazo_bajado())
+
+    assert diagnosticos[-1]["mensaje"] == SIN_GOLPE, (
+        f"con el brazo colgando el aviso dice {diagnosticos[-1]['mensaje']!r}")
+
+
+def test_sin_la_direccion_el_codo_no_puede_distinguirlo():
+    """
+    Por qué hace falta la dirección: con el mismo recorrido del codo y sin
+    decirle hacia dónde apunta el brazo, la máquina no tiene cómo saber que
+    se bajó. Es el comportamiento de antes, que se conserva para quien no la
+    informe, y es exactamente lo que se vio en la Mac.
+    """
+    angulos = [a for a, _ in _golpe_y_brazo_bajado()]
+    assert _reproducir(TsukiStateMachine(), angulos)[-1]["mensaje"] == "TSUKI: EXCELENTE"
+
+
+def test_el_vaiven_natural_de_sostener_no_retira_el_veredicto():
+    pares = [(a, (8.0 if i % 2 else -8.0)) for i, a in enumerate(_golpe_sostenido())]
+    assert _reproducir_con_direccion(TsukiStateMachine(), pares)[-1]["mensaje"] == "TSUKI: EXCELENTE"
+
+
+def test_bajar_el_brazo_a_medias_tambien_lo_retira():
+    """Del frente a 45° ya no es el Kime, aunque el brazo no llegue a colgar."""
+    pares = _golpe_y_brazo_bajado(direccion_final=45.0)
+    assert _reproducir_con_direccion(TsukiStateMachine(), pares)[-1]["mensaje"] == SIN_GOLPE
+
+
+def test_la_direccion_solo_cambia_el_texto_nunca_los_golpes():
+    """
+    La misma garantía que el sostenido del 18-oct: sobre 800 secuencias
+    aleatorias, con direcciones que vagan al azar, los golpes emitidos
+    —fotograma, mensaje y ángulo— son idénticos a los de no informar dirección.
+    """
+    rng = random.Random(20261019)
+    casos = []
+    for _ in range(800):
+        angulos = _secuencia_aleatoria(rng)
+        direccion, direcciones = rng.uniform(-180, 180), []
+        for _ in angulos:
+            direccion += rng.uniform(-20, 20)
+            direcciones.append(direccion)
+        casos.append((rng.choice([16, 33, 40]), angulos, direcciones))
+
+    sin = [_golpes(_reproducir(TsukiStateMachine(), a, paso=p)) for p, a, _ in casos]
+    con = [_golpes(_reproducir_con_direccion(TsukiStateMachine(), list(zip(a, d)), paso=p))
+           for p, a, d in casos]
+
+    assert sum(map(len, sin)) > 300, "las secuencias no producen golpes que comparar"
+    assert con == sin
+
+
+@pytest.mark.parametrize("a, b, esperado", [(10, 350, 20), (170, -170, 20), (0, 90, 90), (-90, 90, 180)])
+def test_la_diferencia_de_direccion_no_salta_en_360(a, b, esperado):
+    assert diferencia_angular(a, b) == pytest.approx(esperado)
+
+
+def test_el_analizador_informa_la_direccion_del_brazo(monkeypatch):
+    """La costura: sin esto el arreglo existiría en la máquina y no en la pantalla."""
+    from expert_system.analyzer import TechniqueAnalyzer
+    from helpers.fakes import pose_sintetica
+
+    recibidas = []
+    original = TsukiStateMachine.update
+
+    def espia(self, angulo, t_ms, direccion=None):
+        recibidas.append(direccion)
+        return original(self, angulo, t_ms, direccion=direccion)
+
+    monkeypatch.setattr(TsukiStateMachine, "update", espia)
+    TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=1).analyze_tsuki(
+        pose_sintetica(), 1000, 1000, 0)
+
+    assert len(recibidas) == 2 and all(d is not None for d in recibidas)

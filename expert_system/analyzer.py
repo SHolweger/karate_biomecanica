@@ -1,3 +1,5 @@
+import math
+
 from biomechanics.geometry import BiomechanicsMath
 from biomechanics.filters import MovingAverageFilter
 from expert_system.guardia import (IZQ_ADELANTE, pierna_adelantada,
@@ -100,7 +102,12 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_izq, codo_izq, muneca_izq)
             angulo_izq = self.filtros["codo_izq"].update(angulo_crudo)
-            diagnostico = self.maquinas_tsuki["izq"].update(angulo_izq, timestamp_ms)
+            # Hacia dónde apunta el brazo: solo la usa el sostenido del Kime,
+            # para no seguir mostrando el golpe con el brazo ya bajado.
+            direccion = math.degrees(math.atan2(muneca_izq[1] - hombro_izq[1],
+                                                muneca_izq[0] - hombro_izq[0]))
+            diagnostico = self.maquinas_tsuki["izq"].update(angulo_izq, timestamp_ms,
+                                                               direccion=direccion)
 
             resultados.append(dict(
                 diagnostico,
@@ -138,7 +145,12 @@ class TechniqueAnalyzer:
             # Ángulo crudo (con jitter) -> filtro -> ángulo suavizado
             angulo_crudo = BiomechanicsMath.calculate_angle(hombro_der, codo_der, muneca_der)
             angulo_der = self.filtros["codo_der"].update(angulo_crudo)
-            diagnostico = self.maquinas_tsuki["der"].update(angulo_der, timestamp_ms)
+            # Hacia dónde apunta el brazo: solo la usa el sostenido del Kime,
+            # para no seguir mostrando el golpe con el brazo ya bajado.
+            direccion = math.degrees(math.atan2(muneca_der[1] - hombro_der[1],
+                                                muneca_der[0] - hombro_der[0]))
+            diagnostico = self.maquinas_tsuki["der"].update(angulo_der, timestamp_ms,
+                                                               direccion=direccion)
 
             resultados.append(dict(
                 diagnostico,

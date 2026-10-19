@@ -135,8 +135,22 @@ MARGEN_PICO = 6.0
 # observación sobre el Hikite, no motivo para no evaluar el Kime.
 TIEMPO_MAXIMO_EXTENSION_MS = 1500
 
+# Cuánto puede girar el brazo —la dirección de hombro a muñeca— desde el Kime
+# sin dejar de «sostenerlo». Solo decide el texto que se muestra, nunca los
+# golpes. Existe porque el ángulo del codo no basta (19-oct-2026): bajar el
+# brazo estirado deja el codo en los mismos ~160°, y el veredicto seguía en
+# pantalla con el brazo colgando junto a la cadera. Bajarlo del frente al
+# costado gira unos 90°; el temblor de sostener el golpe, muy por debajo de 25.
+MARGEN_DIRECCION = 25.0
+
 SIN_GOLPE = "SIN TSUKI: BRAZO EN REPOSO"
 EN_EXTENSION = "TSUKI: EXTENDIENDO..."
+
+def diferencia_angular(a, b):
+    """La separación entre dos direcciones en grados, de 0 a 180, sin el salto de 360."""
+    d = abs(a - b) % 360.0
+    return 360.0 - d if d > 180.0 else d
+
 
 NARANJA = (0, 165, 255)
 GRIS = (150, 150, 150)
@@ -181,6 +195,11 @@ class TsukiStateMachine:
         # transiciones de la máquina no los consultan. Ver `_sostiene_el_kime`.
         self._angulo_kime = None
         self._sosteniendo = False
+        # Hacia dónde apuntaba el brazo al juzgar el golpe, y hacia dónde en el
+        # fotograma en curso. None cuando quien llama no la informa.
+        self._direccion_kime = None
+        self._direccion_pico = None
+        self._direccion = None
 
     # -----------------------------------------------------------------
     # La ventana deslizante
@@ -214,25 +233,36 @@ class TsukiStateMachine:
     # El ciclo
     # -----------------------------------------------------------------
 
-    def update(self, angulo, t_ms):
+    def update(self, angulo, t_ms, direccion=None):
         """
         Procesa un fotograma y devuelve el diagnóstico del brazo.
 
         El veredicto cerrado (`correcto` True/False) aparece UNA vez por golpe,
         en el fotograma en que se cierra el Kime. El resto del tiempo `correcto`
         es None: el ángulo está medido, pero no hay técnica que calificar.
+
+        `direccion` es hacia dónde apunta el brazo, en grados (de hombro a
+        muñeca, sobre la imagen). Es opcional y solo la usa el sostenido: sin
+        ella, la máquina detecta exactamente los mismos golpes.
         """
         recorrido, abriendose = self._recorrido(angulo, t_ms)
+        self._direccion = direccion
         # El sostenido se vigila en TODOS los fotogramas, no solo en los de
         # reposo: si el brazo sale de la banda y vuelve mientras todavía se
         # está recogiendo, eso ya no es sostener.
         if self._sosteniendo and abs(angulo - self._angulo_kime) > MARGEN_PICO:
+            self._sosteniendo = False
+        # Ni tampoco si el brazo, estirado, cambió de sitio: el codo mide lo
+        # mismo con el puño al frente que con el brazo colgando.
+        if (self._sosteniendo and direccion is not None and self._direccion_kime is not None
+                and diferencia_angular(direccion, self._direccion_kime) > MARGEN_DIRECCION):
             self._sosteniendo = False
 
         if self.estado == REPOSO:
             if recorrido >= self.recorrido_minimo and abriendose:
                 self.estado = EXTENDIENDO
                 self.pico = angulo
+                self._direccion_pico = self._direccion
                 self.t_inicio_extension_ms = t_ms
                 self._sosteniendo = False
                 return self._transitorio(angulo, EN_EXTENSION, NARANJA)
@@ -241,6 +271,11 @@ class TsukiStateMachine:
             return self._transitorio(angulo, SIN_GOLPE, GRIS)
 
         if self.estado == EXTENDIENDO:
+            # La dirección del Kime es la del instante en que el codo llegó más
+            # arriba, no la del fotograma en que se juzga: un brazo que se
+            # queda extendido se juzga a los 1,5 s, cuando quizá ya bajó.
+            if angulo > self.pico:
+                self._direccion_pico = self._direccion
             self.pico = max(self.pico, angulo)
             sostenido = t_ms - self.t_inicio_extension_ms > TIEMPO_MAXIMO_EXTENSION_MS
 
@@ -325,6 +360,7 @@ class TsukiStateMachine:
         """
         es_correcto, mensaje, color = self.reglas.evaluate_tsuki(self.pico)
         self._angulo_kime = angulo
+        self._direccion_kime = self._direccion_pico
         self._sosteniendo = True
         self.ultimo_veredicto = {
             "angulo": self.pico, "mensaje": mensaje, "color": color,
