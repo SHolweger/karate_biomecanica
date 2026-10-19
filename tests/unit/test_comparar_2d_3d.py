@@ -121,3 +121,125 @@ def test_las_posturas_simetricas_no_dependen_de_la_guardia():
     for guardia in (None, IZQ_ADELANTE, DER_ADELANTE):
         assert _clasificar(172, 172, guardia) == "heiko_dachi"
         assert _clasificar(140, 140, guardia) == "kiba_dachi"
+
+
+# ---------------- calibración del umbral de abstención de la guardia ----------------
+
+from comparar_2d_3d import (UMBRALES_SEPARACION, _separacion_de,
+                            analizar_separaciones, guardia_que_explica)
+from expert_system.guardia import SEPARACION_MINIMA_EN_CADERAS, pierna_adelantada
+
+IZQ, DER = IZQ_ADELANTE, DER_ADELANTE
+
+
+@ficha(
+    id_caso="TC-AUTO-071",
+    nombre="El barrido del umbral de abstención de la guardia cuenta aciertos, "
+           "guardias contrarias y abstenciones contra una referencia que no sale de los pies",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="SEPARACION_MINIMA_EN_CADERAS decide cuándo el sistema "
+                         "se abstiene de afirmar qué pierna va adelante, y "
+                         "equivocarse de guardia es el único defecto conocido que "
+                         "corrompe datos: registra un Zenkutsu como Kokutsu con "
+                         "veredicto positivo. El valor vigente salió de la "
+                         "definición de las posturas y falta contrastarlo contra "
+                         "grabaciones reales; esta es la herramienta que lo hace, y "
+                         "una cuenta mal hecha fijaría en la tesis un umbral falso",
+    componente="comparar_2d_3d.py (analizar_separaciones, guardia_que_explica)",
+    requisitos="RF-03",
+    precondiciones="Ninguna: opera sobre separaciones y ángulos, sin cámara",
+    datos_entrada="Pares (separación con signo, guardia de referencia) escritos a mano "
+                  "y las poses sintéticas del catálogo",
+    pasos=[
+        Paso("Barrer cuatro muestras conocidas con umbrales 0, 0,5 y 1",
+             "assert las cuentas de acierta / contraria / abstiene son las calculadas a mano"),
+        Paso("Comprobar que la fila vigente decide igual que pierna_adelantada",
+             "assert acierta + contraria == fotogramas con guardia decidida"),
+        Paso("Deducir la referencia de las rodillas en poses sintéticas",
+             "assert coincide con la guardia que deduce el sistema de los pies"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_el_barrido_cuenta_aciertos_contrarias_y_abstenciones():
+    muestras = [(0.9, IZQ), (0.3, IZQ), (-0.2, IZQ), (-0.8, DER)]
+    filas = {f["umbral"]: f for f in
+             analizar_separaciones(muestras, umbrales=(0.0, 0.5, 1.0))["filas"]}
+
+    assert filas[0.0] == {"umbral": 0.0, "acierta": 3, "contraria": 1, "abstiene": 0}
+    assert filas[0.5] == {"umbral": 0.5, "acierta": 2, "contraria": 0, "abstiene": 2}
+    assert filas[1.0] == {"umbral": 1.0, "acierta": 0, "contraria": 0, "abstiene": 4}
+
+
+def test_la_contraria_maxima_acota_el_umbral_por_abajo():
+    """Por encima de la mayor separación equivocada, no pasa ningún error."""
+    muestras = [(0.9, IZQ), (0.3, IZQ), (-0.2, IZQ), (-0.45, IZQ), (-0.8, DER)]
+    resultado = analizar_separaciones(muestras, umbrales=(0.44, 0.46))
+
+    assert resultado["contraria_maxima"] == pytest.approx(0.45)
+    contrarias = {f["umbral"]: f["contraria"] for f in resultado["filas"]}
+    assert contrarias[0.44] == 1
+    assert contrarias[0.46] == 0
+
+
+def test_sin_errores_no_hay_cota():
+    resultado = analizar_separaciones([(0.9, IZQ), (-0.7, DER)])
+    assert resultado["contraria_maxima"] is None
+    assert resultado["correcta"]["mediana"] in (0.7, 0.9)
+
+
+def test_la_fila_vigente_decide_igual_que_el_sistema():
+    """
+    El barrido incluye el umbral vigente, y en esa fila decide exactamente lo
+    que decide `pierna_adelantada` con su valor por omisión. Si alguien cambia
+    la constante, la fila marcada «vigente» la sigue.
+    """
+    assert SEPARACION_MINIMA_EN_CADERAS in UMBRALES_SEPARACION
+    muestras = [(s / 20.0, IZQ if i % 3 else DER)
+                for i, s in enumerate(range(-30, 31))]
+    fila = next(f for f in analizar_separaciones(muestras)["filas"]
+                if f["umbral"] == SEPARACION_MINIMA_EN_CADERAS)
+    decididas = sum(1 for s, _ in muestras if pierna_adelantada(s) is not None)
+
+    assert fila["acierta"] + fila["contraria"] == decididas
+    assert fila["abstiene"] == len(muestras) - decididas
+
+
+@pytest.mark.parametrize("nombre, izq, der, z_izq, z_der, esperada",
+                         [c for c in CASOS if c[5] in ("zenkutsu_dachi", "kokutsu_dachi")])
+def test_la_referencia_de_las_rodillas_coincide_con_la_guardia_del_sistema(
+        nombre, izq, der, z_izq, z_der, esperada):
+    """
+    La referencia del barrido se deduce de las rodillas y la guardia del
+    sistema de los pies. Sobre una pose limpia tienen que coincidir; si no, el
+    barrido contaría como «contraria» cada fotograma correcto.
+    """
+    pose = pose_sintetica(angulo_rodilla_izq=izq, angulo_rodilla_der=der,
+                          z_tobillo_izq=z_izq, z_tobillo_der=z_der)
+
+    referencia = guardia_que_explica(izq, der, esperada)
+    assert referencia is not None, nombre
+    assert pierna_adelantada(_separacion_de(pose)) == referencia, nombre
+
+
+@pytest.mark.parametrize("izq, der, esperado", [
+    (172, 172, "zenkutsu_dachi"),   # de pie: no está en la postura
+    (140, 140, "zenkutsu_dachi"),   # Kiba
+    (145, 175, "zenkutsu_dachi"),   # transición
+    (100, 175, "heiko_dachi"),      # postura simétrica: la guardia no importa
+    (100, 175, None),
+])
+def test_fuera_de_la_postura_declarada_no_hay_referencia(izq, der, esperado):
+    assert guardia_que_explica(izq, der, esperado) is None
+
+
+def test_zenkutsu_y_kokutsu_dan_referencias_opuestas_para_la_misma_geometria():
+    """
+    Son la misma postura con las piernas intercambiadas: por eso la referencia
+    exige saber cuál se ejecutó, y por eso la herramienta solo calibra con
+    `--esperado`.
+    """
+    assert guardia_que_explica(100, 175, "zenkutsu_dachi") == IZQ
+    assert guardia_que_explica(100, 175, "kokutsu_dachi") == DER

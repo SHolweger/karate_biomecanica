@@ -43,6 +43,7 @@ from expert_system.analyzer import (KOKUTSU_FRONTAL_MINIMA, KOKUTSU_TRASERA_MAXI
                                     RODILLA_EXTENDIDA, RODILLA_FLEXIONADA,
                                     ZENKUTSU_TRASERA_MINIMA)
 from expert_system.guardia import (DER_ADELANTE, IZQ_ADELANTE,
+                                   SEPARACION_MINIMA_EN_CADERAS,
                                    orientacion_frente_a_camara,
                                    pierna_adelantada, separacion_sagital)
 
@@ -126,13 +127,81 @@ def _angulos_3d(mundo):
             BiomechanicsMath.calculate_angle_3d(xyz(CADERA_DER), xyz(RODILLA_DER), xyz(TOBILLO_DER)))
 
 
-def _guardia_de(puntos):
-    """La guardia deducida de un juego de puntos, cada uno con `.x` y `.z`."""
-    return pierna_adelantada(separacion_sagital(
+def _separacion_de(puntos):
+    """La separación sagital de los tobillos, en anchos de cadera, con signo."""
+    return separacion_sagital(
         (puntos[CADERA_IZQ].x, puntos[CADERA_IZQ].z),
         (puntos[CADERA_DER].x, puntos[CADERA_DER].z),
         (puntos[TOBILLO_IZQ].x, puntos[TOBILLO_IZQ].z),
-        (puntos[TOBILLO_DER].x, puntos[TOBILLO_DER].z)))
+        (puntos[TOBILLO_DER].x, puntos[TOBILLO_DER].z))
+
+
+def _guardia_de(puntos):
+    """La guardia deducida de un juego de puntos, cada uno con `.x` y `.z`."""
+    return pierna_adelantada(_separacion_de(puntos))
+
+
+# Umbrales que se barren para calibrar SEPARACION_MINIMA_EN_CADERAS. Incluye el
+# vigente para que su fila se pueda leer junto a las demás.
+UMBRALES_SEPARACION = (0.0, 0.25, 0.5, 0.75, 1.0, 1.5)
+
+
+def guardia_que_explica(angulo_izq, angulo_der, esperado):
+    """
+    La guardia con la que estos ángulos SON la postura declarada, o None.
+
+    Es la verdad de referencia para calibrar el umbral de abstención, y no sale
+    de la separación de los pies —que es lo que se quiere juzgar— sino de las
+    rodillas: en un Zenkutsu la delantera es la flexionada, en un Kokutsu la
+    trasera. Si el video contiene esa postura, solo una de las dos guardias
+    hace que el clasificador la reconozca. Con ninguna, el fotograma no está en
+    la postura (transición, Heiko, Kiba) y no sirve para calibrar.
+    """
+    if esperado not in ("zenkutsu_dachi", "kokutsu_dachi"):
+        return None
+    candidatas = [g for g in (IZQ_ADELANTE, DER_ADELANTE)
+                  if _clasificar(angulo_izq, angulo_der, g) == esperado]
+    return candidatas[0] if len(candidatas) == 1 else None
+
+
+def analizar_separaciones(muestras, umbrales=UMBRALES_SEPARACION):
+    """
+    Qué haría la guardia con cada umbral de abstención, contra la verdad.
+
+    `muestras` son pares (separación con signo, guardia de referencia). Por
+    umbral cuenta cuántos fotogramas deciden la guardia correcta, cuántos la
+    CONTRARIA —el error que corrompe datos: un Zenkutsu registrado como
+    Kokutsu con veredicto positivo— y cuántos se abstienen.
+
+    No elige el umbral. Devuelve también la mayor separación con que se
+    decidió la guardia contraria, que es la cifra que lo acota por abajo: un
+    umbral por encima de ella no habría dejado pasar ninguno de esos errores
+    en esta grabación.
+    """
+    filas = []
+    for umbral in umbrales:
+        acierta = contraria = abstiene = 0
+        for separacion, verdad in muestras:
+            decidida = pierna_adelantada(separacion, minimo=umbral)
+            if decidida is None:
+                abstiene += 1
+            elif decidida == verdad:
+                acierta += 1
+            else:
+                contraria += 1
+        filas.append({"umbral": umbral, "acierta": acierta,
+                      "contraria": contraria, "abstiene": abstiene})
+
+    contrarias = [abs(s) for s, verdad in muestras
+                  if pierna_adelantada(s, minimo=0.0) not in (None, verdad)]
+    correctas = [abs(s) for s, verdad in muestras
+                 if pierna_adelantada(s, minimo=0.0) == verdad]
+    return {
+        "n": len(muestras),
+        "filas": filas,
+        "contraria_maxima": max(contrarias) if contrarias else None,
+        "correcta": _estadisticas(correctas),
+    }
 
 
 def _invertir(guardia):
@@ -208,6 +277,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
     # izquierda de la pantalla. El doble de prueba lo supone al revés que
     # MediaPipe, y de ese supuesto salió el signo del eje sagital.
     x_cadera_24, x_cadera_23 = [], []
+    # (separacion con signo, guardia que dicen las rodillas) en los fotogramas
+    # que estan en la postura declarada: calibra el umbral de abstencion.
+    separaciones = []
     leidos = analizados = sin_pose = sin_mundo = 0
 
     try:
@@ -300,6 +372,9 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
                 (landmarks[CADERA_DER].x, landmarks[CADERA_DER].z)))
             x_cadera_24.append(landmarks[CADERA_IZQ].x)
             x_cadera_23.append(landmarks[CADERA_DER].x)
+            verdad = guardia_que_explica(a2_izq, a2_der, esperado)
+            if verdad is not None:
+                separaciones.append((_separacion_de(landmarks), verdad))
             analizados += 1
 
             if analizados % 100 == 0:
@@ -326,8 +401,36 @@ def comparar(fuente, desde_seg=0.0, cada=1, esperado=None, umbral_visibilidad=0.
         "visibilidad_izq": visibilidad_izq, "visibilidad_der": visibilidad_der,
         "descartados_visibilidad": descartados_visibilidad,
         "x_cadera_24": x_cadera_24, "x_cadera_23": x_cadera_23,
+        "separaciones": separaciones,
         "esperado": esperado,
     }
+
+
+def informar_separaciones(muestras):
+    """El barrido del umbral de abstención de la guardia, para la consola."""
+    a = analizar_separaciones(muestras)
+    if not a["n"]:
+        return
+    print(f"\n=== UMBRAL DE ABSTENCION DE LA GUARDIA ({a['n']} fotogramas en la postura) ===")
+    print("  La referencia sale de las RODILLAS, no de los pies: con que guardia")
+    print("  estos angulos son la postura declarada.")
+    print(f"  {'umbral':>8s} {'acierta':>14s} {'CONTRARIA':>14s} {'se abstiene':>14s}")
+    for f in a["filas"]:
+        marca = "  <- vigente" if f["umbral"] == SEPARACION_MINIMA_EN_CADERAS else ""
+        celdas = " ".join(f"{f[k]:6d} ({100*f[k]/a['n']:4.1f}%)"
+                          for k in ("acierta", "contraria", "abstiene"))
+        print(f"  {f['umbral']:8.2f} {celdas}{marca}")
+    if a["contraria_maxima"] is None:
+        print("  Ningun fotograma decidio la guardia contraria, ni sin umbral.")
+    else:
+        print(f"  La guardia contraria se decidio con hasta {a['contraria_maxima']:.2f}"
+              " anchos de cadera.")
+        print("  Un umbral por debajo de esa cifra la deja pasar en esta grabacion.")
+    if a["correcta"]:
+        c = a["correcta"]
+        print(f"  Separacion cuando acierta: mediana {c['mediana']:.2f}, P5 {c['p5']:.2f}.")
+    print("  CONTRARIA es el error que corrompe datos: un Zenkutsu registrado como")
+    print("  Kokutsu con veredicto positivo. Abstenerse solo cuesta cobertura.")
 
 
 def informar(r):
@@ -529,6 +632,8 @@ def informar(r):
                 print("  La postura se reconoce practicamente con una sola guardia.")
                 print("  Si en el video se ejecuta de los dos lados, el sistema está")
                 print("  ciego a uno de ellos, y eso no lo explica el ángulo de cámara.")
+
+        informar_separaciones(r.get("separaciones", []))
 
         juzgados = r["juzgados"]
         if juzgados and esperado in ARTICULACIONES_DE:

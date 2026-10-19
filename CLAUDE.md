@@ -846,10 +846,20 @@ afirmar, descartando los primeros 10 s:
 |---|---|---|
 | Cómputo por fotograma | 33,8 ms | 36,0 ms |
 | ~~«Tasa» = 1000 / cómputo (lo del 15-oct)~~ | ~~29,6 fps~~ | ~~27,8 fps~~ |
-| **Cota superior de la cadencia** = 1000 / (cómputo + 15 ms) | **20,5 fps** | **19,6 fps** |
+| **Proyección con el intervalo fijo de hoy** = 1000 / (cómputo + 15 ms) | **20,5 fps** | **19,6 fps** |
 
-Es cota **superior**: no incluye el tiempo de Tk entre fotogramas. La cifra
-exacta no se puede recuperar de esos CSV. Desde el 18-oct el CSV guarda
+**Precisión del 19-oct-2026 a lo anterior:** esa corrida **no** tenía la espera
+de 15 ms. Se lanzó a las 22:42 del 27-sep, una hora después de aplicar la espera
+adaptativa (commit de las 21:31, `espera_hasta_el_siguiente`, revertida el
+30-sep), así que el bucle se reprogramaba con ~1 ms. Su cadencia propia es la
+que imprimió la consola y cita el capítulo 5: **24,2 fps**, y el capítulo la
+atribuye bien a «la configuración experimental cuya espera adaptativa después
+se revirtió». Los 20,5 / 19,6 no describen esa corrida: **proyectan** el mismo
+cómputo sobre el intervalo fijo que hoy usa la interfaz. Son techo de esa
+proyección, porque no incluyen el tiempo de Tk. La decisión de abajo no cambia;
+la cifra que la sostiene sale de la corrida nueva.
+
+La cifra exacta de hoy no se puede recuperar de esos CSV. Desde el 18-oct el CSV guarda
 también `intervalo_ms` —el tiempo hasta el inicio del siguiente fotograma— y la
 consola imprime las dos cifras rotuladas («Sostenida» y «Techo por cómputo:
 NO es la tasa sostenida»). Lo fija **TC-AUTO-070**
@@ -921,12 +931,12 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **905 passed** (18-oct, medido en su Mac, lote `kime18oct`); **908 esperadas** tras el lote `gitignore18oct` |
-| CI / sin entorno gráfico | igual | 787 passed, 7 skipped (18-oct, tras ese lote) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **908 passed** (18-oct, medido en su Mac, lote `gitignore18oct`); **922 esperadas** tras el lote `separacion19oct` |
+| CI / sin entorno gráfico | igual | 801 passed, 7 skipped (19-oct, tras ese lote) |
 
-Las 881 y las 905 se predijeron (848 + 33 y 881 + 24) y se contaron en su Mac:
-cuadraron las dos. Las 908 son otra **expectativa** —905 + 3 de
-`test_entrega.py`— y no se citan hasta contarlas. Una de las pruebas
+Las 881, las 905 y las 908 se predijeron (848 + 33, 881 + 24 y 905 + 3) y se
+contaron en su Mac: cuadraron las tres. Las 922 son otra **expectativa** —908 +
+14 de `test_comparar_2d_3d.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -968,7 +978,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-071**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-072**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1327,7 +1337,21 @@ conviene tenerlo firmado antes de la primera visita.
   sentido de la corrección. Ver «El veredicto de postura dice qué rodilla
   corregir».
 - **Calibrar `SEPARACION_MINIMA_EN_CADERAS`** contra grabaciones reales antes de
-  fijar el número en la tesis.
+  fijar el número en la tesis. **Desde el 19-oct la herramienta existe**:
+  `comparar_2d_3d.py --esperado zenkutsu_dachi` (o `kokutsu_dachi`) imprime
+  «UMBRAL DE ABSTENCION DE LA GUARDIA», un barrido de 0 a 1,5 anchos de cadera
+  que cuenta por umbral los fotogramas que deciden la guardia correcta, la
+  **contraria** y los que se abstienen, y la mayor separación con que se
+  decidió la contraria — la cifra que acota el umbral por abajo. Antes, la
+  herramienta calculaba la separación y no la informaba, así que ninguna
+  grabación podía calibrarlo.
+
+  La referencia **no sale de los pies**, que es lo que se juzga, sino de las
+  rodillas: con qué guardia esos ángulos son la postura declarada. Eso tiene un
+  límite que conviene decir en la tesis: solo entran los fotogramas que el
+  clasificador **reconoce** con alguna de las dos guardias. Si el sesgo de 34°
+  impide reconocer una guardia, sus fotogramas no aparecen en el barrido.
+  No elige el umbral: lo dice. TC-AUTO-071.
 
 **Pendiente de escritura:**
 
