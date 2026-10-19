@@ -712,6 +712,80 @@ están declarados en `knowledge_base.VEREDICTOS_DECLARADOS`, porque
 que la declaración está completa. Lo fija **TC-AUTO-067**
 (`tests/unit/test_veredicto_por_rodilla.py`).
 
+**Lo que se trajo del prototipo y lo que no** (19-oct-2026, a pedido de
+Sebastián, tras revisar sus dos videos del `.dc.html`). Tres cosas se
+trajeron, **con datos reales en vez de cifras de adorno**:
+
+1. **La técnica ideal se calcula, no se dibuja.** En el prototipo era decoración:
+   el código interpolaba entre dos poses fijas de puñetazo para *todas* las
+   técnicas, así que «Técnica ideal · Mae-geri» lanzaba un puño.
+   `gui/tecnica_ideal.py` (puro, corre en CI) coloca cada articulación juzgada
+   en el **centro de su rango vigente**, con proporciones antropométricas fijas
+   (ningún segmento se estira para que el ángulo cuadre) y **en el plano en que
+   se filma la técnica**. Sale del mismo `KarateRules` que juzga, así que
+   recalibrar cambia la figura. Las pruebas no miran el dibujo sino lo que el
+   sistema concluye de él: medida con `calculate_angle`, la figura da los
+   ángulos del criterio, el clasificador la reconoce y la regla la aprueba —la
+   guía no puede enseñar algo que el sistema reprobaría—. El Tsuki y la Mae
+   Geri se dibujan en dos fases, la de salida tenue detrás del Kime.
+   Aparece en cada tarjeta de «Técnicas» y en un panel de «Análisis en vivo»
+   que **sigue a la última técnica reconocida** (Mae Geri en curso > Tsuki en
+   extensión o juzgado > postura) y conserva la anterior en las transiciones
+   para no parpadear. Solo se redibuja al cambiar. **Sin animación, a
+   propósito**: otro temporizador junto al bucle de análisis es lo que tumbó la
+   aplicación en macOS el 28-sep. El trazado no importa Tk —usa
+   `create_line`/`create_oval`/`create_text` sobre el lienzo que le pasen—, y
+   un lienzo simulado lo verifica en CI. TC-AUTO-072.
+
+   Límite que conviene saber: las pruebas comprueban que el clasificador
+   reconoce la figura **con los rangos de literatura**. Si el cuerpo técnico
+   recalibra un rango de modo que su centro caiga fuera de los cortes del
+   clasificador (130°, 150°, 160°), la guía enseñaría una postura que el
+   sistema no reconoce. Hoy no ocurre con ningún rango.
+
+2. **La articulación que falla, en rojo sobre el video.** Solo las de veredicto
+   **incorrecto propio**: rodilla por rodilla (no el veredicto de la postura
+   entera, que teñiría las dos y escondería cuál falla), el codo del Tsuki
+   juzgado y la rodilla de la Mae Geri. Ni las correctas ni los veredictos
+   nulos, que inventarían un fallo. El analizador entrega ahora
+   `pos_articulacion` junto a cada veredicto por articulación, y
+   `gui/panel_vivo.articulaciones_con_error` (puro) decide. TC-AUTO-073.
+
+3. **El reporte dice lo medido contra el criterio.** Por articulación juzgada:
+   mediana, rango y cuántas evaluaciones cupieron, con ✓/✗ **sobre la
+   mediana** —por eso va al lado la cuenta: una mediana dentro con la mitad
+   fuera no es una técnica dominada—. Sale de `angulo_regla_1/2`, no del número
+   que se dibuja. El rango es **el que regía al empezar la sesión**:
+   `Database.umbral_en` lo reconstruye por fecha, porque la fila solo guarda la
+   versión de la articulación principal. Si se recalibra *durante* una sesión,
+   se muestra el del inicio. Kiba resume las dos rodillas sin nombrar el lado;
+   la Mae Geri queda fuera porque su veredicto usa la velocidad, que no se
+   guarda. TC-AUTO-074.
+
+**Lo que NO se trae, y es decisión, no pendiente**: puntaje 0–100 y «puntaje
+global», «AUTO 94 %» (MediaPipe no da una confianza de qué técnica se
+ejecutó), rotación de cadera, velocidad del puño en m/s, balance, alineación
+hombro-puño en cm, «Datos IMU de la sesión», técnicas que el sistema no
+distingue ni evalúa (Oi / Gyaku / Kizami-zuki, Mawashi-geri, Gedan-barai),
+«Kata · pronto», «Kumite · pronto», «Voz activa», el QR de una app móvil que
+no existe, «4/4 sensores», «340 reglas» y «red neuronal v0.9». Todo eso es lo
+que el criterio de presentación prohíbe.
+
+**Y una incoherencia del sistema que salió al hacerlo**: la biblioteca
+listaba **Age Uke** como técnica evaluada, y el análisis en vivo nunca la
+consulta —`evaluate_age_uke` solo la usa `reevaluacion.py`—. La tarjeta lo
+dice ahora. No se le dibuja figura.
+
+**Hallazgo pendiente de confirmar con video: la Mae Geri sin Hikiashi no
+recibe veredicto** (19-oct-2026, leyendo el código y simulándolo). Si la pierna
+baja estirada, la rodilla nunca vuelve a doblarse por debajo de
+`UMBRAL_CARGA` (75°), la máquina sigue en EXTENSION y a los
+`TIMEOUT_EXTENSION_MS` (3 s) **descarta el intento en silencio**. «Recoge la
+pierna antes de bajarla» solo aparece si se recoge **tarde**, no si no se
+recoge. Es el mismo tipo de silencio que el del Tsuki lento. La toma
+`err_mae_geri_sin_recoger.mp4` del protocolo del 19-oct existe para
+confirmarlo; si se confirma, va a la tesis como limitación.
+
 ---
 
 **Más resolución no mejora el análisis** (medido el 28-sep-2026). MediaPipe
@@ -931,12 +1005,15 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **908 passed** (18-oct, medido en su Mac, lote `gitignore18oct`); **922 esperadas** tras el lote `separacion19oct` |
-| CI / sin entorno gráfico | igual | 801 passed, 7 skipped (19-oct, tras ese lote) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **908 passed** (18-oct, medido en su Mac, lote `gitignore18oct`); **922 esperadas** tras `separacion19oct` y **1023** tras `ideal19oct` |
+| CI / sin entorno gráfico | igual | 898 passed, 7 skipped (19-oct, tras `ideal19oct`) |
 
 Las 881, las 905 y las 908 se predijeron (848 + 33, 881 + 24 y 905 + 3) y se
-contaron en su Mac: cuadraron las tres. Las 922 son otra **expectativa** —908 +
-14 de `test_comparar_2d_3d.py`— y no se citan hasta contarlas. Una de las pruebas
+contaron en su Mac: cuadraron las tres. Las 922 y las 1023 son
+**expectativas** —908 + 14 de `test_comparar_2d_3d.py`; luego + 97 unitarias y
++ 4 de interfaz del lote `ideal19oct`— y no se citan hasta contarlas. Las 4 de
+interfaz **no se pudieron ejecutar en el contenedor**, que no tiene Tk: son
+las primeras que corren solo allá. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -978,7 +1055,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-072**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-075**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1193,6 +1270,11 @@ historial, perfil del alumno con gráfica de evolución, reporte de sesión con
 prevención de lesiones, biblioteca de técnicas, calibración de umbrales,
 selección de cámara, **grabación del video crudo de cada sesión** y
 **re-análisis de una grabación** desde la pantalla de cámara.
+
+**Hecho el 19-oct y pendiente de verlo en su Mac** (el contenedor no tiene Tk,
+así que la parte de pantalla solo se verificó con un lienzo simulado): la
+técnica ideal en «Técnicas» y en «Análisis en vivo», la articulación que falla
+en rojo sobre el video y los ángulos contra el criterio en el reporte.
 
 **Bloqueado por hardware:** RF-02 y RF-04 (sensores inerciales). Sebastián
 tiene los IMU —**Adafruit BNO055**, 9-DOF con fusión en el propio
