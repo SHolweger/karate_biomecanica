@@ -81,8 +81,8 @@ del módulo.
 `RECORRIDO_MINIMO` sale de la definición de la técnica —el Hikite parte del
 puño en la cadera, con el codo muy flexionado, y hasta un Kizami Tsuki desde
 kamae recorre bastante más de 35°— pero **conviene contrastarlo contra
-grabaciones reales antes de fijarlo en la tesis**, igual que
-`SEPARACION_MINIMA_EN_CADERAS`.
+grabaciones reales antes de fijarlo en la tesis**, como ya se hizo con
+`SEPARACION_MINIMA_EN_CADERAS` el 20-oct-2026.
 
 ---------------------------------------------------------------------------
 QUÉ CAMBIA EN LA BASE DE DATOS

@@ -78,14 +78,29 @@ DER_ADELANTE = "DER ADELANTE"
 # persona y no en unidades normalizadas de MediaPipe, para que no dependa de
 # la resolución de la cámara ni de a qué distancia esté el ejecutante.
 #
-# El valor sale de la definición de las posturas, no de un ajuste empírico: un
-# Zenkutsu o un Kokutsu son, por construcción, posturas con un pie claramente
-# adelantado respecto del otro. Si los pies no llegan a separarse medio ancho
-# de cadera en el eje adelante/atrás, todavía no es ninguna de las dos —es una
-# postura simétrica o una transición—, y afirmar una guardia sería inventar.
+# Calibrado el 20-oct-2026 con las cuatro tomas de control (las dos guardias
+# de Zenkutsu, cada una filmada de perfil desde los dos costados; 2005
+# fotogramas en la postura, barridos con `comparar_2d_3d.py`):
 #
-# Conviene contrastarlo contra grabaciones reales antes de fijarlo en la tesis.
-SEPARACION_MINIMA_EN_CADERAS = 0.5
+#     umbral   acierta   contraria   se abstiene
+#     0,00      1975        30            0
+#     0,25      1968        24           13
+#     0,50      1605        24          376     <- el valor anterior
+#     0,75       939        13         1053
+#
+# 0,25 comete los MISMOS errores que 0,5 y decide 363 fotogramas más. El valor
+# anterior salía de la definición de las posturas y se abstenía en el 65 % de
+# un Zenkutsu correcto con la izquierda adelante, cuyos pies se separaron 0,48
+# anchos de cadera de mediana (P5 0,42).
+#
+# Los 24 errores que quedan no los quita ningún umbral: están todos en una toma
+# y se decidieron con separaciones de hasta 0,92, por encima de la mediana de
+# los aciertos (0,84). La separación era grande y el SENTIDO estaba invertido:
+# la firma de MediaPipe estimando al revés la profundidad de las caderas, que
+# es la que orienta el eje de perfil. Lo que los contiene es la regla de
+# sostenido de `estabilidad.py`: 24 fotogramas a 60 fps son 0,4 s, aunque
+# fueran seguidos.
+SEPARACION_MINIMA_EN_CADERAS = 0.25
 
 # Por debajo de esta fracción, la línea de caderas se considera degenerada
 # (las dos caderas prácticamente en el mismo punto) y no define ningún eje.

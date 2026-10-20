@@ -164,12 +164,12 @@ de Sebastián, no la suite.
   magnitud más fiable de MediaPipe, y justo la toma que estas posturas
   requieren—, Z cuando es frontal. Antes se usaba siempre el peor dato
   disponible.
-- Por debajo de **medio ancho de cadera** de separación, devuelve `None`. El
-  umbral se expresa en anchos de cadera de la propia persona, no en unidades de
-  MediaPipe, para que no dependa de la resolución ni de la distancia al sensor.
-  El valor sale de la definición de las posturas —un Zenkutsu tiene por
-  construcción un pie claramente adelantado—, pero **conviene contrastarlo
-  contra grabaciones reales antes de fijarlo en la tesis**.
+- Por debajo de **un cuarto de ancho de cadera** de separación, devuelve
+  `None`. El umbral se expresa en anchos de cadera de la propia persona, no en
+  unidades de MediaPipe, para que no dependa de la resolución ni de la
+  distancia al sensor. Empezó en medio ancho, deducido de la definición de las
+  posturas; **se calibró el 20-oct-2026** contra las cuatro tomas de control y
+  quedó en 0,25. Ver «El sesgo de 34° no se reproduce» en los pendientes.
 
 Con `guardia is None`, las ramas de Zenkutsu y Kokutsu no se pueden tomar y el
 sistema informa «GUARDIA INDEFINIDA», que es distinto de «EN TRANSICION»: el
@@ -1072,13 +1072,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1033 passed** (19-oct, medido en su Mac, lote `kime19oct`); **1041 esperadas** tras `estable19oct` |
-| CI / sin entorno gráfico | igual | 915 passed, 7 skipped (19-oct, tras `estable19oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1041 passed** (19-oct, medido en su Mac, lote `estable19oct`); **1047 esperadas** tras `guardia20oct` |
+| CI / sin entorno gráfico | igual | 921 passed, 7 skipped (20-oct, tras `guardia20oct`) |
 
-Las 881, 905, 908, 922, 1023 y 1033 se predijeron y se contaron en su Mac:
-cuadraron todas, incluidas las de interfaz que el contenedor no puede ejecutar
-porque no tiene Tk. Las 1041 son otra **expectativa** —1033 + 7 de
-`test_estabilidad.py` + 1 de interfaz— y no se citan hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023, 1033 y 1041 se predijeron y se contaron en su
+Mac: cuadraron todas, incluidas las de interfaz que el contenedor no puede
+ejecutar porque no tiene Tk. Las 1047 son otra **expectativa** —1041 + 6 de
+`test_guardia.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1120,7 +1120,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-078**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-079**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1450,8 +1450,10 @@ conviene tenerlo firmado antes de la primera visita.
   media. MediaPipe infiere articulaciones ocultas sin bajar esa cifra, así
   que no sirve como guardia contra este fallo.
 
-- **ABIERTO: por qué una guardia mide la rodilla delantera 34° más
-  estirada que la otra** (29-sep-2026). Sobre el video de Zenkutsu, los 637
+- ~~**ABIERTO: por qué una guardia mide la rodilla delantera 34° más
+  estirada que la otra**~~ **Resuelto el 20-oct-2026: no se reproduce.** Ver
+  el punto siguiente. Lo de abajo es el registro de cómo se llegó.
+  (29-sep-2026). Sobre el video de Zenkutsu, los 637
   reconocidos salen **todos** con la derecha adelante. Las tres explicaciones
   que parecían obvias están **descartadas por medición**:
 
@@ -1479,12 +1481,81 @@ conviene tenerlo firmado antes de la primera visita.
   Dato para cualquier explicación que se intente: la puntuación de visibilidad
   **no delata** el error. MediaPipe infiere articulaciones ocultas sin bajarla.
 
+- **El sesgo de 34° no se reproduce, y la campaña queda desbloqueada**
+  (20-oct-2026). Sebastián grabó las cuatro tomas de control del protocolo
+  del 19-oct: las dos guardias de Zenkutsu, cada una de perfil desde los dos
+  costados, cámara trasera del teléfono (sin espejo), 1080p a 60 fps, brazos
+  pegados al cuerpo. Encuadre: pose detectada en el **100 %** de los
+  fotogramas, rodillas con visibilidad 0,99–1,00. Rodilla delantera, mediana
+  de perfil con la guardia correcta:
+
+  | | delantera cercana a la cámara | delantera lejana |
+  |---|---|---|
+  | derecha adelante | 129,0° (n 846) | 123,0° (n 704) |
+  | izquierda adelante | 131,0° (n 1125) | 129,1° (n 367) |
+
+  Efecto de la pierna, ~4°; de la cercanía, ~4°: los dos dentro de lo que
+  varía una ejecución. **El sesgo era de aquella grabación**, no del sistema
+  — el tercer caso que preveía el protocolo. Una misma persona se mide igual
+  con las dos guardias y desde los dos costados.
+
+  Las mismas tomas confirman **otra vez el 2D**: reconoce entre 3 y 100 veces
+  más que el 3D (31,7 % contra 1,6 %, 24,2 contra 4,7, 16,7 contra 3,6, 10,1
+  contra 0,1), sobre cinco grabaciones ya.
+
+  Y fijaron **`SEPARACION_MINIMA_EN_CADERAS` en 0,25** (decisión de
+  Sebastián sobre la cifra propuesta). Sumando las cuatro tomas, 2005
+  fotogramas en la postura:
+
+  | umbral | acierta | contraria | se abstiene |
+  |---|---|---|---|
+  | 0,00 | 1975 | 30 | 0 |
+  | **0,25** | **1968** | **24** | 13 |
+  | 0,50 (anterior) | 1605 | 24 | 376 |
+  | 0,75 | 939 | 13 | 1053 |
+
+  0,25 comete los mismos errores que 0,5 y decide 363 fotogramas más; con
+  0,5 el sistema se abstenía en el 65 % de un Zenkutsu correcto con la
+  izquierda adelante filmado desde la derecha (separación mediana 0,48). Los
+  24 errores que quedan están todos en `zen_der_desde_der`, decididos con
+  separaciones de hasta **0,92** —por encima de la mediana de los aciertos,
+  0,84—, así que ningún umbral los quita: es el sentido del eje lo que sale
+  invertido, la firma de MediaPipe estimando al revés la profundidad de las
+  caderas. Los contiene la regla del sostenido: 24 fotogramas a 60 fps son
+  0,4 s. TC-AUTO-078.
+
+  Límite que conviene decir: **una sola persona, una sola sesión**. Y el
+  barrido solo ve fotogramas que el clasificador reconoce con alguna guardia
+  (TC-AUTO-071). Conviene mirar, al analizar las tomas de Kiba (de frente),
+  que no aparezcan Zenkutsu o Kokutsu: de frente la guardia la decide la
+  profundidad, y con el umbral más bajo la decide más a menudo.
+
+- **ABIERTO: el criterio del Zenkutsu reprueba la ejecución de clase de
+  Sebastián** (20-oct-2026). En las cuatro tomas, la rodilla delantera mide
+  **123–131° de mediana** (P5 115–126), y él confirma que la ejecutó como en
+  clase. Dos consecuencias, y no son del mismo tipo:
+
+  | | Qué es | Efecto medido | Cómo se corrige |
+  |---|---|---|---|
+  | Rango de evaluación 90–115° | dato versionado (RF-08) | CORRECTO en 0 %, 8 %, 0 % y 0 % de lo reconocido | Pantalla de umbrales, con el sensei; las filas guardan los ángulos y se re-juzgan después |
+  | Corte del clasificador, delantera < 130° (`RODILLA_FLEXIONADA`) | código | La mediana cae en el corte: de perfil solo se reconoce entre el 17 y el 61 % | En el código, **antes de la campaña**: un fotograma no reconocido no deja fila que re-juzgar |
+
+  No es un error de medición: de perfil, la proyección 2D cierra los
+  ángulos, no los abre; si mide 125°, la rodilla real estaba en 125° o más.
+  El 29-sep la derecha midió 107°, así que el rango es alcanzable; la duda es
+  si es lo que se enseña. Subir el corte choca con Kiba Dachi, que se evalúa
+  antes en el clasificador y toma las dos rodillas entre 130 y 160°: un
+  Zenkutsu con la delantera en 135° y la trasera en 155° hoy sale Kiba. Hace
+  falta la distribución de los tramos **sostenidos** —no la de toda la toma,
+  que mezcla los pasos— antes de proponer cifras, y la última palabra sobre el
+  rango es del sensei, no de la ejecución de quien programa el sistema.
+
 - ~~**Veredicto por rodilla en posturas asimétricas**~~ **Resuelto el
   18-oct-2026**: el veredicto de Zenkutsu y Kokutsu nombra la rodilla y el
   sentido de la corrección. Ver «El veredicto de postura dice qué rodilla
   corregir».
-- **Calibrar `SEPARACION_MINIMA_EN_CADERAS`** contra grabaciones reales antes de
-  fijar el número en la tesis. **Desde el 19-oct la herramienta existe**:
+- ~~**Calibrar `SEPARACION_MINIMA_EN_CADERAS`**~~ **Calibrado el 20-oct-2026 en
+  0,25**, ver «El sesgo de 34° no se reproduce». La herramienta:
   `comparar_2d_3d.py --esperado zenkutsu_dachi` (o `kokutsu_dachi`) imprime
   «UMBRAL DE ABSTENCION DE LA GUARDIA», un barrido de 0 a 1,5 anchos de cadera
   que cuenta por umbral los fotogramas que deciden la guardia correcta, la

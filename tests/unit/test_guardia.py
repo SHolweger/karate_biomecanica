@@ -233,3 +233,96 @@ def test_la_orientacion_distingue_la_toma_frontal_de_la_de_perfil():
 def test_sin_caderas_utilizables_se_supone_la_toma_mas_desfavorable():
     """Sin información, el supuesto conservador es el que más avisa."""
     assert orientacion_frente_a_camara((0.5, 0.0), (0.5, 0.0)) == 1.0
+
+
+# ---------------------------------------------------------------------------
+# El umbral, contra las tomas de control del 20-oct-2026
+# ---------------------------------------------------------------------------
+
+# P5 de la separación con que se decidió la guardia CORRECTA en cada toma de
+# control, de perfil (`comparar_2d_3d.py`, sección «UMBRAL DE ABSTENCION»).
+# Son cifras medidas, no elegidas: el 5 % de los fotogramas de un Zenkutsu
+# bien ejecutado separó los pies menos que esto.
+P5_DE_LOS_ACIERTOS = {
+    "zen_der_desde_izq": (DER_ADELANTE, 0.75),
+    "zen_der_desde_der": (DER_ADELANTE, 0.71),
+    "zen_izq_desde_izq": (IZQ_ADELANTE, 0.62),
+    "zen_izq_desde_der": (IZQ_ADELANTE, 0.42),
+}
+
+
+def _tobillos_de_perfil(separacion):
+    """Tobillos separados `separacion` anchos de cadera; positivo = izquierdo adelante."""
+    avance = separacion * ANCHO_DE_CADERA / 2
+    return (0.50 + avance, 0.0), (0.50 - avance, 0.0)
+
+
+@ficha(
+    id_caso="TC-AUTO-078",
+    nombre="El umbral de abstención de la guardia decide los Zenkutsu de las cuatro "
+           "tomas de control, también el de pies más juntos",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="con el valor anterior (0,5 anchos de cadera), sacado de la "
+                         "definición de las posturas, el sistema se abstenía en el 65 % "
+                         "de un Zenkutsu correcto con la izquierda adelante: sus pies se "
+                         "separaron 0,48 de mediana. Barrido sobre 2005 fotogramas de las "
+                         "cuatro tomas de control, 0,25 comete los mismos 24 errores que "
+                         "0,5 y decide 363 fotogramas más",
+    componente="expert_system/guardia.py (SEPARACION_MINIMA_EN_CADERAS), "
+               "expert_system/analyzer.py",
+    requisitos="RF-03, RF-08",
+    precondiciones="Ninguna: geometría pura y el doble de MediaPipe",
+    datos_entrada="El P5 de la separación de los aciertos en cada toma de control "
+                  "(0,75 · 0,71 · 0,62 · 0,42) y un Zenkutsu sintético con 0,42",
+    pasos=[
+        PasoFicha("Decidir la guardia con el P5 de cada toma, de perfil",
+                  "assert sale la pierna que se ejecutó en esa toma"),
+        PasoFicha("Pasar un Zenkutsu con 0,42 anchos de separación por el analizador",
+                  "assert se reconoce ZENKUTSU (IZQ ADELANTE), no GUARDIA INDEFINIDA"),
+        PasoFicha("Medir con los pies a la misma altura",
+                  "assert la guardia sigue quedando sin definir"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`. Informes de las cuatro tomas en "
+              "~/Movies/shotokan_18oct/ de la Mac de Sebastián.",
+)
+@pytest.mark.parametrize("toma", sorted(P5_DE_LOS_ACIERTOS))
+def test_el_umbral_decide_el_p5_de_cada_toma_de_control(toma):
+    guardia, separacion = P5_DE_LOS_ACIERTOS[toma]
+    signo = 1 if guardia == IZQ_ADELANTE else -1
+    tobillo_izq, tobillo_der = _tobillos_de_perfil(signo * separacion)
+
+    medida = separacion_sagital(CADERA_IZQ_DE_PERFIL, CADERA_DER_DE_PERFIL,
+                                tobillo_izq, tobillo_der)
+
+    assert medida == pytest.approx(signo * separacion)
+    assert pierna_adelantada(medida) == guardia
+
+
+def test_un_zenkutsu_de_pies_juntos_se_reconoce_de_punta_a_punta():
+    """
+    El recorrido que fallaba: geometría, guardia, clasificador y mensaje. Con
+    0,5 esta pose salía «GUARDIA INDEFINIDA» y no se registraba ningún Zenkutsu.
+    """
+    from expert_system.analyzer import TechniqueAnalyzer
+    from helpers.fakes import pose_sintetica
+
+    mitad = 0.42 * ANCHO_DE_CADERA / 2
+    pose = pose_sintetica(angulo_rodilla_izq=110, angulo_rodilla_der=170,
+                          z_tobillo_izq=-mitad, z_tobillo_der=mitad)
+    analizador = TechniqueAnalyzer(umbral_visibilidad=0.65, ventana_filtro=1)
+    postura = next(r for r in analizador.analyze_stance(pose, 1000, 1000)
+                   if r["categoria"] == "postura")
+
+    assert postura["mensaje"].startswith("ZENKUTSU (IZQ ADELANTE)")
+
+
+def test_con_los_pies_a_la_misma_altura_sigue_absteniendose():
+    """Bajar el umbral no quita la abstención: la deja donde no hay separación."""
+    tobillo_izq, tobillo_der = _tobillos_de_perfil(0.0)
+    medida = separacion_sagital(CADERA_IZQ_DE_PERFIL, CADERA_DER_DE_PERFIL,
+                                tobillo_izq, tobillo_der)
+    assert pierna_adelantada(medida) is None
+    assert pierna_adelantada(SEPARACION_MINIMA_EN_CADERAS * 0.99) is None
