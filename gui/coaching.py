@@ -144,6 +144,19 @@ def traducir(mensaje):
     nueva, el panel seguirá siendo correcto aunque suene menos natural.
     """
     sin_lado, lado = separar_lado(mensaje or "")
+
+    # La Mae Geri entrega dos veredictos en uno —«MAE GERI: KIME EXCELENTE |
+    # HIKIASHI: PIERNA CAYO SIN RECOGER»— y hasta el 21-oct-2026 llegaba al
+    # panel sin traducir: las dos frases estaban en la tabla, pero nadie
+    # buscaba cada mitad. Se traduce cada una y se juntan en el mismo orden.
+    if " | " in sin_lado:
+        partes = [traducir(parte) for parte in sin_lado.split(" | ")]
+        instruccion = " · ".join(instruccion for instruccion, _ in partes)
+        motivo = "; ".join(motivo for _, motivo in partes if motivo) or None
+        if lado is not None:
+            instruccion = f"{instruccion} ({lado})"
+        return instruccion, motivo
+
     veredicto = veredicto_conocido(sin_lado)
     if veredicto is None:
         return sin_lado, None

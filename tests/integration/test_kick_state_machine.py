@@ -288,3 +288,84 @@ def test_todo_diagnostico_trae_las_claves_que_consume_la_capa_visual(maquina):
             f"faltan claves en el diagnostico: {resultado}"
         assert isinstance(resultado["mensaje"], str) and resultado["mensaje"]
         assert len(resultado["color"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# El Hikiashi, contra grabaciones reales (21-oct-2026)
+# ---------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-081",
+    nombre="La pierna que baja estirada recibe «Recoge la pierna», y un Hikiashi "
+           "correcto no se juzga contra un suelo tomado con el pie en el aire",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="sobre `err_mae_geri_sin_recoger` el sistema no emitió ningún "
+                         "veredicto: la rodilla nunca volvía a doblarse, la máquina "
+                         "seguía en EXTENSION y a los 3 s descartaba la patada en "
+                         "silencio, justo cuando había que corregir. Y sobre "
+                         "`tec_mae_geri_der`, 2 de 6 patadas correctas salían «PIERNA "
+                         "CAYO SIN RECOGER», porque la referencia del suelo se tomaba en "
+                         "el fotograma en que la rodilla ya estaba cargada y el pie en el aire",
+    componente="expert_system/kick_state_machine.py (MaeGeriStateMachine)",
+    requisitos=["RF-03", "RF-05"],
+    precondiciones="`MaeGeriStateMachine(ventana_filtro=1)` recién instanciada",
+    datos_entrada="Ángulos y alturas del tobillo de las dos grabaciones reales: suelo en "
+                  "0,87; carga detectada a 64° con el tobillo ya en 0,58; Kime a 168° en "
+                  "0,45; recogida a 74° en 0,547. Y una patada que baja a 0,80 con la "
+                  "rodilla a 159°",
+    pasos=[
+        Paso("Patear y bajar el pie al suelo con la rodilla extendida",
+             "assert veredicto «PIERNA CAYO SIN RECOGER», correcto False, Kime evaluado"),
+        Paso("Patear con la carga detectada con el pie ya en el aire y recoger",
+             "assert «HIKIASHI: CORRECTO»"),
+        Paso("Sostener la pierna extendida y en el aire",
+             "assert sigue descartándose por tiempo, sin veredicto"),
+    ],
+    resultado_esperado="PASSED: 2 veredictos donde había 0, y 6 de 6 Hikiashi correctos "
+                       "donde había 4",
+    evidencia="Reporte de consola de pytest. Contraste sobre los videos: "
+              "`revisar_correcciones.py` antes y después del cambio.",
+)
+def test_la_pierna_que_baja_estirada_recibe_su_correccion(maquina):
+    maquina.update(True, 178, ankle_y=0.81, t_ms=0)
+    maquina.update(True, 68, ankle_y=0.675, t_ms=11580)
+    maquina.update(True, 170, ankle_y=0.525, t_ms=11760)
+    assert maquina.estado == EXTENSION
+
+    en_el_aire = maquina.update(True, 169, ankle_y=0.60, t_ms=11900)
+    assert en_el_aire["correcto"] is None, "con el pie arriba la patada sigue en curso"
+
+    resultado = maquina.update(True, 159, ankle_y=0.80, t_ms=12050)
+
+    assert resultado["correcto"] is False
+    assert "KIME EXCELENTE" in resultado["mensaje"]
+    assert "PIERNA CAYO SIN RECOGER" in resultado["mensaje"]
+    assert maquina.estado == RECUPERANDO
+
+
+def test_el_suelo_se_toma_con_la_pierna_extendida():
+    """
+    La primera patada de `tec_mae_geri_der`: la rodilla cruza los 75° con el
+    tobillo ya a 0,58. Si eso fuera «el suelo», recoger a 0,547 no estaría por
+    encima del margen y un Hikiashi correcto saldría incorrecto.
+    """
+    maquina = MaeGeriStateMachine(ventana_filtro=1)
+    maquina.update(True, 177, ankle_y=0.87, t_ms=7900)
+    maquina.update(True, 120, ankle_y=0.75, t_ms=7950)
+    maquina.update(True, 64, ankle_y=0.583, t_ms=8010)
+    maquina.update(True, 168, ankle_y=0.45, t_ms=8150)
+
+    resultado = maquina.update(True, 74, ankle_y=0.547, t_ms=8300)
+
+    assert "HIKIASHI: CORRECTO" in resultado["mensaje"]
+    assert resultado["correcto"] is True
+
+
+def test_sostener_la_pierna_en_el_aire_se_sigue_descartando(maquina):
+    _poner_de_pie(maquina)
+    maquina.update(True, 45, ankle_y=PIE_EN_SUELO, t_ms=FRAME_MS)
+    maquina.update(True, 170, ankle_y=PIE_EN_AIRE, t_ms=2 * FRAME_MS)
+    resultado = maquina.update(True, 168, ankle_y=PIE_EN_AIRE,
+                               t_ms=2 * FRAME_MS + TIMEOUT_EXTENSION_MS + 1)
+    assert resultado is None and maquina.estado == REPOSO

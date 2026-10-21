@@ -98,3 +98,46 @@ def test_un_veredicto_desconocido_se_muestra_tal_cual_en_vez_de_inventar_consejo
 def test_un_mensaje_vacio_no_revienta():
     assert traducir("") == ("", None)
     assert traducir(None) == ("", None)
+
+
+@ficha(
+    id_caso="TC-AUTO-082",
+    nombre="El veredicto de la Mae Geri llega traducido, con sus dos fases",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="la Mae Geri entrega el Kime y el Hikiashi en un solo mensaje "
+                         "separado por « | », y la búsqueda de la tabla no lo partía: el "
+                         "alumno leía «MAE GERI: KIME EXCELENTE | HIKIASHI: PIERNA CAYO SIN "
+                         "RECOGER» en vez de «Recoge la pierna antes de bajarla». Se vio "
+                         "sobre video real el 21-oct-2026; la guarda de la tabla "
+                         "(TC-AUTO-034) pasaba, porque las dos frases estaban en ella",
+    componente="gui/coaching.py (traducir)",
+    requisitos="RF-05",
+    precondiciones="Ninguna: el mensaje sale de la máquina de estados real",
+    datos_entrada="Una patada con Kime y sin Hikiashi pasada por MaeGeriStateMachine, "
+                  "con el prefijo de lado que antepone el analizador",
+    pasos=[
+        Paso("Traducir el mensaje que emite la máquina para esa patada",
+             "assert «Patada con Kime · Recoge la pierna antes de bajarla (derecho)»"),
+        Paso("Traducir un veredicto simple",
+             "assert sigue igual que antes"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_la_mae_geri_llega_traducida_con_sus_dos_fases():
+    from expert_system.kick_state_machine import MaeGeriStateMachine
+
+    maquina = MaeGeriStateMachine(ventana_filtro=1)
+    maquina.update(True, 178, ankle_y=0.81, t_ms=0)
+    maquina.update(True, 68, ankle_y=0.675, t_ms=100)
+    maquina.update(True, 170, ankle_y=0.525, t_ms=200)
+    veredicto = maquina.update(True, 160, ankle_y=0.80, t_ms=300)
+    mensaje = f"DER - {veredicto['mensaje']}"
+
+    instruccion, motivo = traducir(mensaje)
+
+    assert instruccion == "Patada con Kime · Recoge la pierna antes de bajarla (derecho)"
+    assert "desequilibrado" in motivo
+    assert traducir("IZQ - TSUKI: EXCELENTE")[0] == "Kime correcto (izquierdo)"

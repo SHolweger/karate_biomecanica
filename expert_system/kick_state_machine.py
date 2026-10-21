@@ -66,6 +66,7 @@ class MaeGeriStateMachine:
         self.velocidad_pico = 0.0
         self.angulo_maximo_extension = 0.0
         self.ankle_y_reposo = None
+        self.pie_subio = False
         self.tiempo_entrada_estado_ms = None
         self.frames_ocultos = 0
         self.ultimo_resultado = None
@@ -134,8 +135,13 @@ class MaeGeriStateMachine:
         if self.estado == REPOSO:
             # Guardamos la referencia de "pie en el suelo" mientras el usuario
             # está de pie, para comparar después si el Hikiashi recogió el pie
-            # antes de bajarlo.
-            self.ankle_y_reposo = ankle_y
+            # antes de bajarlo. Solo con la pierna EXTENDIDA (21-oct-2026): el
+            # fotograma en que la rodilla cruza UMBRAL_CARGA ya tiene el pie en
+            # el aire —medido en video real, el tobillo a 0,58 con el suelo en
+            # 0,87—, y tomarlo como suelo hacía que un Hikiashi correcto se
+            # juzgara «PIERNA CAYO SIN RECOGER».
+            if angulo > UMBRAL_APOYO or self.ankle_y_reposo is None:
+                self.ankle_y_reposo = ankle_y
             if angulo < UMBRAL_CARGA:
                 self.velocidad_pico = 0.0
                 self._entrar_estado(CARGA, t_ms)
@@ -145,6 +151,7 @@ class MaeGeriStateMachine:
         if self.estado == CARGA:
             if angulo > self.umbral_extension:
                 self.angulo_maximo_extension = angulo
+                self.pie_subio = self._pie_en_el_aire(ankle_y)
                 self._entrar_estado(EXTENSION, t_ms)
                 return {"angulo": angulo, "mensaje": "MAE GERI: EXTENSION...", "color": NARANJA, "correcto": None}
             if self._tiempo_en_estado_actual(t_ms) > TIMEOUT_CARGA_MS:
@@ -157,25 +164,25 @@ class MaeGeriStateMachine:
         if self.estado == EXTENSION:
             self.angulo_maximo_extension = max(self.angulo_maximo_extension, angulo)
 
+            self.pie_subio = self.pie_subio or self._pie_en_el_aire(ankle_y)
+
             if angulo < UMBRAL_CARGA:
                 # Se cierra el Kime y se evalúa el Hikiashi en el mismo instante.
-                es_kime_ok, msg_kime, color_kime = self.reglas.evaluate_mae_geri(
-                    self.angulo_maximo_extension, self.velocidad_pico)
-                pie_recogido = ankle_y < (self.ankle_y_reposo - MARGEN_PIE_AIRE)
-                es_hiki_ok, msg_hiki, color_hiki = self.reglas.evaluate_hikiashi(pie_recogido)
+                return self._cerrar_kime(angulo, t_ms, self._pie_en_el_aire(ankle_y))
 
-                # El peor de los dos resultados manda el color mostrado. La técnica
-                # completa solo cuenta como "correcta" si AMBAS fases lo fueron.
-                color = color_kime if not es_kime_ok else color_hiki
-                es_correcto = es_kime_ok and es_hiki_ok
-
-                self._entrar_estado(RECUPERANDO, t_ms)
-                return {"angulo": angulo, "mensaje": f"{msg_kime} | {msg_hiki}", "color": color,
-                        "correcto": es_correcto,
-                        "id_umbral": self.reglas.id_umbral_principal("mae_geri")}
+            if self.pie_subio and not self._pie_en_el_aire(ankle_y):
+                # El pie volvió al suelo con la rodilla todavía extendida: la
+                # pierna cayó sin recogerse. Antes del 21-oct-2026 esto no
+                # cerraba la técnica —la rodilla nunca volvía a bajar de
+                # UMBRAL_CARGA— y a los TIMEOUT_EXTENSION_MS el intento se
+                # descartaba en silencio: confirmado sobre
+                # `err_mae_geri_sin_recoger`, dos patadas y ningún veredicto.
+                # «Recoge la pierna» solo aparecía si se recogía TARDE.
+                return self._cerrar_kime(angulo, t_ms, pie_recogido=False)
 
             if self._tiempo_en_estado_actual(t_ms) > TIMEOUT_EXTENSION_MS:
-                # Sostuvo el Kime sin recoger la pierna: se descarta el intento.
+                # Sostuvo la pierna extendida y en el aire más de lo que dura
+                # una patada: no es un Mae Geri evaluable, se descarta.
                 self._entrar_estado(REPOSO, t_ms)
                 return None
 
@@ -189,3 +196,21 @@ class MaeGeriStateMachine:
             return self.ultimo_resultado
 
         return None
+
+    def _pie_en_el_aire(self, ankle_y):
+        return ankle_y < (self.ankle_y_reposo - MARGEN_PIE_AIRE)
+
+    def _cerrar_kime(self, angulo, t_ms, pie_recogido):
+        es_kime_ok, msg_kime, color_kime = self.reglas.evaluate_mae_geri(
+            self.angulo_maximo_extension, self.velocidad_pico)
+        es_hiki_ok, msg_hiki, color_hiki = self.reglas.evaluate_hikiashi(pie_recogido)
+
+        # El peor de los dos resultados manda el color mostrado. La técnica
+        # completa solo cuenta como "correcta" si AMBAS fases lo fueron.
+        color = color_kime if not es_kime_ok else color_hiki
+        es_correcto = es_kime_ok and es_hiki_ok
+
+        self._entrar_estado(RECUPERANDO, t_ms)
+        return {"angulo": angulo, "mensaje": f"{msg_kime} | {msg_hiki}", "color": color,
+                "correcto": es_correcto,
+                "id_umbral": self.reglas.id_umbral_principal("mae_geri")}

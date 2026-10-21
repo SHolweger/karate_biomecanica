@@ -796,8 +796,9 @@ listaba **Age Uke** como técnica evaluada, y el análisis en vivo nunca la
 consulta —`evaluate_age_uke` solo la usa `reevaluacion.py`—. La tarjeta lo
 dice ahora. No se le dibuja figura.
 
-**Hallazgo pendiente de confirmar con video: la Mae Geri sin Hikiashi no
-recibe veredicto** (19-oct-2026, leyendo el código y simulándolo). Si la pierna
+~~**Hallazgo pendiente de confirmar con video: la Mae Geri sin Hikiashi no
+recibe veredicto**~~ **Confirmado y corregido el 21-oct-2026**, ver más abajo
+(19-oct-2026, leyendo el código y simulándolo). Si la pierna
 baja estirada, la rodilla nunca vuelve a doblarse por debajo de
 `UMBRAL_CARGA` (75°), la máquina sigue en EXTENSION y a los
 `TIMEOUT_EXTENSION_MS` (3 s) **descarta el intento en silencio**. «Recoge la
@@ -805,6 +806,31 @@ pierna antes de bajarla» solo aparece si se recoge **tarde**, no si no se
 recoge. Es el mismo tipo de silencio que el del Tsuki lento. La toma
 `err_mae_geri_sin_recoger.mp4` del protocolo del 19-oct existe para
 confirmarlo; si se confirma, va a la tesis como limitación.
+
+**Confirmado sobre video, y con un segundo defecto al lado** (21-oct-2026).
+`err_mae_geri_sin_recoger`: dos patadas, **ningún veredicto** — CARGA,
+EXTENSION y a los 3 s REPOSO en silencio. Y `tec_mae_geri_der`, seis patadas
+correctas, daba **2 «PIERNA CAYO SIN RECOGER» falsos**: la referencia del suelo
+se tomaba en REPOSO en cada fotograma, incluido aquel en que la rodilla cruza
+`UMBRAL_CARGA`, y ahí el tobillo ya está arriba (0,58 con el suelo en 0,87).
+Dos cambios en `kick_state_machine.py`:
+
+- La referencia del suelo solo se toma con la pierna extendida
+  (`> UMBRAL_APOYO`).
+- En EXTENSION, si el pie ya subió y **vuelve al suelo con la rodilla
+  extendida**, se cierra la técnica: Kime evaluado y «PIERNA CAYO SIN
+  RECOGER». Sostener la pierna en el aire se sigue descartando por tiempo.
+
+Sobre los mismos videos: de 0 a **2 veredictos** donde había que corregir, y
+de 4 a **6 de 6** Hikiashi correctos. TC-AUTO-081, con los ángulos y alturas
+reales de las dos grabaciones.
+
+**Y el veredicto llegaba sin traducir**: la Mae Geri junta Kime y Hikiashi
+con « | » y `traducir` no partía el mensaje, así que el panel decía «MAE GERI:
+KIME EXCELENTE | HIKIASHI: …». Las dos frases estaban en la tabla y la guarda
+de la tabla pasaba — el mismo patrón que las posturas del 18-oct. Ahora se
+traduce cada mitad: «Patada con Kime · Recoge la pierna antes de bajarla
+(derecho)». TC-AUTO-082.
 
 ---
 
@@ -1073,14 +1099,14 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1051 passed** (21-oct, medido en su Mac, lote `grabaciones21oct`); **1055 esperadas** tras `correcciones21oct` |
-| CI / sin entorno gráfico | igual | 929 passed, 7 skipped (21-oct, tras `correcciones21oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1055 passed** (21-oct, medido en su Mac, lote `correcciones21oct`); **1059 esperadas** tras `patada21oct` |
+| CI / sin entorno gráfico | igual | 933 passed, 7 skipped (21-oct, tras `patada21oct`) |
 
-Las 881, 905, 908, 922, 1023, 1033, 1041, 1047 y 1051 se predijeron y se
-contaron en su Mac: cuadraron todas, incluidas las de interfaz que el
-contenedor no puede ejecutar porque no tiene Tk. Las 1055 son otra
-**expectativa** —1051 + 4 de `test_revisar_correcciones.py`— y no se citan
-hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023, 1033, 1041, 1047, 1051 y 1055 se predijeron y
+se contaron en su Mac: cuadraron todas, incluidas las de interfaz que el
+contenedor no puede ejecutar porque no tiene Tk. Las 1059 son otra
+**expectativa** —1055 + 3 de `test_kick_state_machine.py` + 1 de
+`test_coaching.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1122,7 +1148,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-081**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-083**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1591,7 +1617,15 @@ conviene tenerlo firmado antes de la primera visita.
   1. **Heiko: 100 % reconocido y 100 % correcto** (1228 fotogramas, de frente).
   2. **El Kokutsu no se reconoce en ninguna de sus cuatro tomas** (0,0–1,1 %):
      de perfil, la rodilla trasera mide **168–176°**, casi recta, y la
-     postura sale Heiko. Hipótesis sin verificar: en Kokutsu la rodilla
+     postura sale Heiko. **Confirmado el 21-oct mirando el fotograma** de
+     `kokutsu_der_desde_izq` (pecho hacia la cámara, pierna de atrás vertical
+     y «recta» en la imagen). Calculado para una rodilla real de 110° según
+     el giro de su plano respecto de la cámara: 0° → 110, 30° → 115, 45° →
+     122, 60° → 134, 90° → **180**. Ninguna toma única sirve: de perfil la
+     trasera sale recta, de frente la delantera sale recta y la guardia
+     depende de la profundidad, a 45° las dos con 10–12° de error. Pendiente:
+     una toma a 45° y otra de frente; si no sirven, limitación y «no evaluado
+     en vivo». Explicación: en Kokutsu la rodilla
      trasera apunta hacia donde apunta su pie, girado 90°, o sea hacia la
      cámara o en contra; su flexión ocurre en un plano que contiene la línea
      de visión y la proyección la ve recta. Si se confirma, el Kokutsu no se
@@ -1631,6 +1665,28 @@ conviene tenerlo firmado antes de la primera visita.
   lista. El sostenido es por MENSAJE, y el veredicto alterna entre
   «FLEXIONA MAS LA RODILLA DELANTERA» y «CORREGIR AMBAS RODILLAS» cuando la
   trasera ronda los 165°: ningún texto dura medio segundo. Sin verificar.
+
+- **MediaPipe se mantiene; YOLO-pose se descarta** (21-oct-2026, pregunta de
+  Sebastián). YOLO-pose da 17 puntos (COCO) sin pies ni profundidad, rinde
+  mejor con GPU y su licencia es AGPL-3.0; MediaPipe da 33 con talón y punta
+  del pie, z estimada (la usa la guardia), corre en CPU (~10 ms en el M1) y es
+  Apache 2.0. **Ninguno de los dos resuelve los problemas de proyección**
+  (Kokutsu, Tsuki de frente): son 2D desde una cámara. Cambiar a diez días
+  del cierre invalidaría todo lo calibrado. Va a la tesis como alternativa
+  evaluada.
+
+- **La hiperextensión no se puede medir en 2D, y es una limitación real**
+  (21-oct-2026). `calculate_angle` no pasa de 180°; con signo tampoco
+  serviría: la hiperextensión son 5–10° y el ruido de MediaPipe en una
+  articulación es del mismo tamaño. Es una de las razones de los IMU del
+  diseño original. Propuesto: el máximo del Tsuki a 180° (dato, lo confirma
+  el sensei) para que un brazo recto deje de contar como «peligro».
+
+**Pendiente de documentación — que no se olvide:** todo lo del 19 al 21-oct
+va al **capítulo 6**. El resumen para el chat de documentación es
+`Hallazgos_19_21oct2026` (PDF y .md, entregados a Sebastián el 21-oct); lo
+que más pesa ahí es que los errores a propósito no recibían corrección y las
+limitaciones de Kokutsu, hiperextensión y Tsuki de frente.
 
 **Pendiente de escritura:**
 
