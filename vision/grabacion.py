@@ -36,8 +36,10 @@ import os
 import re
 import unicodedata
 
-# Carpeta por defecto. Fuera de `evidencias/`, que va versionada: un video de
+# Nombre de la carpeta. Fuera de `evidencias/`, que va versionada: un video de
 # sesión pesa cientos de megabytes y no tiene nada que hacer en el repositorio.
+# Relativo, solo sirve como valor de `ruta_de_sesion` sin carpeta; la pantalla
+# en vivo pide la carpeta a `directorio_configurado`, que la da absoluta.
 DIRECTORIO_POR_DEFECTO = "grabaciones"
 
 EXTENSION = ".mp4"
@@ -185,10 +187,17 @@ def grabacion_activada(valor_guardado):
     return str(valor_guardado).strip().lower() not in ("0", "false", "no", "off")
 
 
-def directorio_configurado(valor_guardado):
-    """Carpeta donde escribir, o la de por defecto si no se configuró ninguna."""
+def directorio_configurado(valor_guardado, por_defecto=None):
+    """
+    Carpeta donde escribir: la configurada o, si no hay ninguna, una ruta
+    ABSOLUTA que no depende de desde dónde se lanzó el programa
+    (`rutas.carpeta_de_grabaciones`).
+    """
     if valor_guardado is None or not str(valor_guardado).strip():
-        return DIRECTORIO_POR_DEFECTO
+        if por_defecto is not None:
+            return por_defecto
+        from rutas import carpeta_de_grabaciones
+        return carpeta_de_grabaciones()
     return str(valor_guardado).strip()
 
 

@@ -15,8 +15,9 @@ import pytest
 
 import rutas
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
-from rutas import (ModeloNoEncontrado, NOMBRE_BASE, NOMBRE_MODELO, VAR_BASE,
-                   VAR_MODELO, base_de_datos, carpeta_de_datos, modelo)
+from rutas import (ModeloNoEncontrado, NOMBRE_BASE, NOMBRE_GRABACIONES, NOMBRE_MODELO,
+                   VAR_BASE, VAR_MODELO, base_de_datos, carpeta_de_datos,
+                   carpeta_de_grabaciones, modelo)
 
 pytestmark = pytest.mark.unitaria
 
@@ -144,3 +145,65 @@ def test_la_raiz_no_es_el_directorio_de_trabajo():
     este archivo, no de desde dónde se invocó el programa.
     """
     assert rutas.raiz_aplicacion() == rutas.Path(rutas.__file__).resolve().parent
+
+
+# ---------------------------------------------------------------------------
+# La carpeta de grabaciones
+# ---------------------------------------------------------------------------
+
+@ficha(
+    id_caso="TC-AUTO-079",
+    nombre="Los videos de sesión van a una carpeta absoluta, sin abandonar la que "
+           "ya existe junto al código",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="la carpeta por defecto era la ruta relativa "
+                         "'grabaciones', el mismo defecto que se corrigió el 30-sep "
+                         "para la base de datos: con un .command abierto con doble "
+                         "clic los videos irían a la carpeta personal, y con un "
+                         "ejecutable de PyInstaller a una carpeta temporal que se borra "
+                         "al cerrar. Los videos son la evidencia de cada sesión del dojo",
+    componente="rutas.py (carpeta_de_grabaciones), vision/grabacion.py "
+               "(directorio_configurado)",
+    requisitos="RF-07, RNF-02",
+    precondiciones="Ninguna: el módulo no importa MediaPipe, OpenCV ni sqlite3",
+    datos_entrada="Carpetas temporales que simulan la raíz de la aplicación, con y sin "
+                  "una carpeta de grabaciones, y el directorio personal",
+    pasos=[
+        Paso("Resolver la carpeta sin grabaciones junto al código",
+             "assert es absoluta y cuelga de la carpeta de datos del sistema"),
+        Paso("Resolver la carpeta con grabaciones junto al código",
+             "assert se sigue usando esa, para no dejar huérfanos los videos"),
+        Paso("Resolver desde otro directorio de trabajo",
+             "assert el resultado no cambia"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_sin_carpeta_heredada_los_videos_van_a_la_de_datos(tmp_path):
+    raiz = tmp_path / "programa"
+    raiz.mkdir()
+    carpeta = carpeta_de_grabaciones(entorno={}, raiz=raiz, inicio=tmp_path / "casa")
+
+    assert os.path.isabs(carpeta)
+    assert carpeta == str(carpeta_de_datos(entorno={}, inicio=tmp_path / "casa")
+                          / NOMBRE_GRABACIONES)
+
+
+def test_una_carpeta_de_grabaciones_ya_existente_nunca_se_abandona(tmp_path):
+    raiz = tmp_path / "programa"
+    (raiz / NOMBRE_GRABACIONES).mkdir(parents=True)
+    carpeta = carpeta_de_grabaciones(entorno={}, raiz=raiz, inicio=tmp_path / "casa")
+    assert carpeta == str(raiz / NOMBRE_GRABACIONES)
+
+
+def test_la_carpeta_de_grabaciones_no_depende_del_directorio_de_trabajo(tmp_path, monkeypatch):
+    raiz = tmp_path / "programa"
+    raiz.mkdir()
+    antes = carpeta_de_grabaciones(entorno={}, raiz=raiz, inicio=tmp_path / "casa")
+    otro = tmp_path / "otro"
+    otro.mkdir()
+    (otro / NOMBRE_GRABACIONES).mkdir()
+    monkeypatch.chdir(otro)
+    assert carpeta_de_grabaciones(entorno={}, raiz=raiz, inicio=tmp_path / "casa") == antes

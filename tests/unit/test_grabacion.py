@@ -174,8 +174,14 @@ def test_cualquier_otro_valor_deja_la_grabacion_activada(guardado):
 
 
 def test_sin_carpeta_configurada_se_usa_la_de_por_defecto():
-    assert directorio_configurado(None) == "grabaciones"
-    assert directorio_configurado("   ") == "grabaciones"
+    assert directorio_configurado(None, por_defecto="/datos/grabaciones") == "/datos/grabaciones"
+    assert directorio_configurado("   ", por_defecto="/datos/grabaciones") == "/datos/grabaciones"
+
+
+def test_la_carpeta_por_defecto_es_absoluta():
+    """Relativa, se resolvía contra el directorio desde el que se lanzó el programa."""
+    import os
+    assert os.path.isabs(directorio_configurado(None))
 
 
 def test_la_carpeta_configurada_manda():

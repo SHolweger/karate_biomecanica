@@ -1072,13 +1072,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1041 passed** (19-oct, medido en su Mac, lote `estable19oct`); **1047 esperadas** tras `guardia20oct` |
-| CI / sin entorno gráfico | igual | 921 passed, 7 skipped (20-oct, tras `guardia20oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1047 passed** (20-oct, medido en su Mac, lote `guardia20oct`); **1051 esperadas** tras `grabaciones21oct` |
+| CI / sin entorno gráfico | igual | 925 passed, 7 skipped (21-oct, tras `grabaciones21oct`) |
 
-Las 881, 905, 908, 922, 1023, 1033 y 1041 se predijeron y se contaron en su
-Mac: cuadraron todas, incluidas las de interfaz que el contenedor no puede
-ejecutar porque no tiene Tk. Las 1047 son otra **expectativa** —1041 + 6 de
-`test_guardia.py`— y no se citan hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023, 1033, 1041 y 1047 se predijeron y se contaron
+en su Mac: cuadraron todas, incluidas las de interfaz que el contenedor no
+puede ejecutar porque no tiene Tk. Las 1051 son otra **expectativa** —1047 +
+3 de `test_rutas.py` + 1 de `test_grabacion.py`— y no se citan hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1120,7 +1120,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-079**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-080**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1550,6 +1550,17 @@ conviene tenerlo firmado antes de la primera visita.
   que mezcla los pasos— antes de proponer cifras, y la última palabra sobre el
   rango es del sensei, no de la ejecución de quien programa el sistema.
 
+  **Medido el 20-oct sobre los tramos sostenidos** (dos tomas subidas a 720p
+  y 360p, pose en el 100 %): delantera 123,4 · 124,1 · 133,4 · 124,2 · 125,7°
+  de mediana por repetición; trasera 170,4 · 170,5 · 167,8 · 162,6 · 165,4°.
+  Con el corte de 130 **todas las repeticiones se registran** —hay al menos
+  medio segundo reconocido en cada una—, pero la de 133° solo en el 14 % del
+  tramo; con 140, en el 99 %. Simulado con el filtro de 5 fotogramas y la
+  regla del sostenido, a 60 y a ~12 fps. **Decisión de Sebastián (20-oct):
+  subir el corte del Zenkutsu a 140° si las tomas de Kiba, de frente, no
+  empiezan a leerse como Zenkutsu.** Tiene que ser una constante propia: hoy
+  `RODILLA_FLEXIONADA` es también el límite inferior de Kiba.
+
 - ~~**Veredicto por rodilla en posturas asimétricas**~~ **Resuelto el
   18-oct-2026**: el veredicto de Zenkutsu y Kokutsu nombra la rodilla y el
   sentido de la corrección. Ver «El veredicto de postura dice qué rodilla
@@ -1574,14 +1585,16 @@ conviene tenerlo firmado antes de la primera visita.
 **Pendiente de escritura:**
 
 - Empaquetado: `.command` para Mac, `.exe` para Windows (lo compila él).
-  **Antes, la carpeta de grabaciones**: `vision/grabacion.DIRECTORIO_POR_DEFECTO`
-  es `"grabaciones"`, una ruta **relativa**, el mismo defecto que `rutas.py`
-  corrigió el 30-sep para la base. Lanzado desde la carpeta del proyecto
-  funciona —ahí aparecieron sus videos del 19-oct—, pero un `.command` abierto
-  con doble clic arranca en la carpeta personal y un ejecutable de
-  PyInstaller en una temporal: los videos irían a parar a otro lado o se
-  perderían. Tiene que resolverse como la base: carpeta de datos del sistema,
-  con excepción para la que ya existe junto al código.
+  ~~Antes, la carpeta de grabaciones~~ **Resuelto el 21-oct-2026**: sin carpeta
+  configurada, `vision/grabacion.directorio_configurado` pide la suya a
+  `rutas.carpeta_de_grabaciones()`, que la da **absoluta** y con el mismo orden
+  que la base: la `grabaciones/` que ya exista junto al código —la del
+  desarrollo, con sus videos— y si no, la de datos del sistema
+  (`~/Library/Application Support/ShotokanAI/grabaciones` en macOS,
+  `%APPDATA%\ShotokanAI\grabaciones` en Windows). El mismo código resuelve
+  las dos: el sistema operativo se mira al arrancar, no al empaquetar. Con
+  PyInstaller la raíz es la carpeta temporal del ejecutable, donde no hay
+  `grabaciones/`, así que va siempre a la de datos. TC-AUTO-079.
 - Ajustar el prototipo `.dc.html` para que no prometa «340 reglas» ni «red
   neuronal v0.9 entrenando».
 

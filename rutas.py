@@ -59,6 +59,7 @@ CARPETA_DATOS = "ShotokanAI"
 # el código. Tienen prioridad sobre todo lo demás.
 VAR_MODELO = "SHOTOKAN_MODELO"
 VAR_BASE = "SHOTOKAN_BD"
+NOMBRE_GRABACIONES = "grabaciones"
 
 
 class ModeloNoEncontrado(FileNotFoundError):
@@ -146,3 +147,27 @@ def base_de_datos(entorno=None, raiz=None, inicio=None):
         return str(heredada)
 
     return str(carpeta_de_datos(entorno, inicio) / NOMBRE_BASE)
+
+
+def carpeta_de_grabaciones(entorno=None, raiz=None, inicio=None):
+    """
+    Carpeta absoluta donde se graban los videos de sesión, si el sensei no
+    configuró otra.
+
+    Era `"grabaciones"`, una ruta relativa: el mismo defecto que este módulo
+    corrigió para la base de datos. Lanzado desde la carpeta del proyecto
+    funcionaba; con un `.command` de doble clic los videos irían a la carpeta
+    personal, y con un ejecutable de PyInstaller a una carpeta temporal que se
+    borra al cerrar.
+
+    Mismo orden que la base, y por el mismo motivo: si ya existe la carpeta
+    junto al código —ahí están los videos del desarrollo—, se sigue usando; si
+    no, la de datos del sistema, que en macOS es `~/Library/Application
+    Support/ShotokanAI/grabaciones` y en Windows
+    `%APPDATA%\\ShotokanAI\\grabaciones`. No se crea aquí: la crea el grabador
+    al escribir el primer video, y solo si la grabación está activada.
+    """
+    heredada = (Path(raiz) if raiz else raiz_aplicacion()) / NOMBRE_GRABACIONES
+    if heredada.is_dir():
+        return str(heredada)
+    return str(carpeta_de_datos(entorno, inicio) / NOMBRE_GRABACIONES)
