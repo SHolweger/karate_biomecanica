@@ -725,6 +725,48 @@ Tres cosas que conviene saber de este cambio:
   nombres. A cambio, «errores frecuentes» pasa a decir **qué rodilla** falla
   más, que es un dato que el sensei puede usar.
 
+**Y el clasificador reconoce los errores, según la toma** (21-oct-2026). Lo
+anterior servía de poco: sobre las tomas con errores a propósito del protocolo
+del 19-oct, **ninguna recibía su corrección**, porque los cortes del
+clasificador solo dejaban pasar ejecuciones casi correctas —al revés de lo que
+dice su propio encabezado—. El Zenkutsu alto salía Heiko y el sistema decía
+«**Estira las piernas**», lo contrario de lo necesario; la trasera doblada y
+los Kiba alto, muy bajo y cargado salían transición.
+
+Ampliar sin más inventaba posturas (un Kiba cargado de frente pasaba a
+Zenkutsu: de frente la guardia la decide la profundidad). Así que el árbol vive
+ahora en `analyzer.clasificar_postura` (puro; `comparar_2d_3d.py` lo llama en
+vez de copiarlo) y **cada ampliación vale solo desde la toma en que la postura
+se mide**, con la orientación de la cadera y la apertura de los tobillos:
+
+| Toma | Se reconoce además | Cifra medida que la separa |
+|---|---|---|
+| de perfil (< 0,5) | Zenkutsu con la delantera hasta 140° o la trasera doblada, si la delantera es la más doblada | Zenkutsu de clase 123–134° |
+| de perfil y cadera de frente al avance (< 0,25) con paso ≥ 0,45 caderas | Zenkutsu alto, rodillas casi rectas | Zenkutsu 0,05–0,17; Kokutsu de perfil 0,38–0,46 |
+| de perfil con paso largo y rodillas rectas, cadera de medio lado | **nada** (antes Heiko) | es el Kokutsu, que de perfil no se mide |
+| de frente (≥ 0,65) y tobillos abiertos ≥ 2,5 caderas | Kiba con las rodillas entre 90 y 165° | Kiba 2,7–3,1; de pie 1,3–2,3 |
+
+Y el Kiba **con una rodilla 20° más doblada que la otra** se corrige como
+«Reparte el peso» (cargado: 24–27°; alto, bajo y correctos: 7–12°).
+
+Contrastado con `revisar_correcciones.py --desde 3` sobre los nueve videos
+subidos (los de error y los correctos):
+
+| Toma | Antes | Ahora |
+|---|---|---|
+| Zenkutsu alto (2 rep.) | «Estira las piernas» | «Flexiona más la rodilla de adelante» ×2 |
+| Zenkutsu, trasera doblada (2) | nada | «Estira la pierna de atrás» ×2 |
+| Kiba alto / muy bajo / cargado | «Baja más» / nada / nada | «Baja más» / «Sube un poco» / «Reparte el peso» |
+| Zenkutsu de clase | 2.ª repetición sin registrar | registrada |
+| Kokutsu de perfil | «Estira las piernas» | nada |
+| Heiko, Kiba correcto, Mae Geri, Tsuki | — | sin cambios |
+
+**Sin orientación, el árbol es exactamente el de antes**, y todo lo que antes
+se reconocía se sigue reconociendo desde cualquier toma: lo fijan dos barridos
+sobre una rejilla de ángulos y guardias contra una copia del árbol anterior.
+TC-AUTO-083. Límite: una sola persona, y las cifras de orientación y apertura
+salen de sus tomas; conviene mirarlas en las grabaciones del dojo.
+
 Los veredictos que se construyen en un método y no en un `return` literal
 están declarados en `knowledge_base.VEREDICTOS_DECLARADOS`, porque
 `sin_traduccion()` lee el código fuente y no los vería.
@@ -1099,14 +1141,14 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1055 passed** (21-oct, medido en su Mac, lote `correcciones21oct`); **1059 esperadas** tras `patada21oct` |
-| CI / sin entorno gráfico | igual | 933 passed, 7 skipped (21-oct, tras `patada21oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1059 passed** (21-oct, medido en su Mac, lote `patada21oct`); **1073 esperadas** tras `clasificador21oct` |
+| CI / sin entorno gráfico | igual | 947 passed, 7 skipped (21-oct, tras `clasificador21oct`) |
 
-Las 881, 905, 908, 922, 1023, 1033, 1041, 1047, 1051 y 1055 se predijeron y
-se contaron en su Mac: cuadraron todas, incluidas las de interfaz que el
-contenedor no puede ejecutar porque no tiene Tk. Las 1059 son otra
-**expectativa** —1055 + 3 de `test_kick_state_machine.py` + 1 de
-`test_coaching.py`— y no se citan hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023, 1033, 1041, 1047, 1051, 1055 y 1059 se
+predijeron y se contaron en su Mac: cuadraron todas, incluidas las de interfaz
+que el contenedor no puede ejecutar porque no tiene Tk. Las 1073 son otra
+**expectativa** —1059 + 14 de `test_clasificar_postura.py`— y no se citan
+hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1148,7 +1190,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-083**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-084**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1586,8 +1628,10 @@ conviene tenerlo firmado antes de la primera visita.
   tramo; con 140, en el 99 %. Simulado con el filtro de 5 fotogramas y la
   regla del sostenido, a 60 y a ~12 fps. **Decisión de Sebastián (20-oct):
   subir el corte del Zenkutsu a 140° si las tomas de Kiba, de frente, no
-  empiezan a leerse como Zenkutsu.** Tiene que ser una constante propia: hoy
-  `RODILLA_FLEXIONADA` es también el límite inferior de Kiba.
+  empiezan a leerse como Zenkutsu.** No salían limpias; **hecho el 21-oct
+  solo de perfil** (`ZENKUTSU_FRONTAL_MAXIMA`), ver «Y el clasificador
+  reconoce los errores, según la toma». Queda abierto el rango de
+  evaluación, que es del sensei.
 
 - ~~**Veredicto por rodilla en posturas asimétricas**~~ **Resuelto el
   18-oct-2026**: el veredicto de Zenkutsu y Kokutsu nombra la rodilla y el
@@ -1631,7 +1675,9 @@ conviene tenerlo firmado antes de la primera visita.
      de visión y la proyección la ve recta. Si se confirma, el Kokutsu no se
      puede medir de perfil, y de frente la guardia depende de la
      profundidad. Hace falta mirar un fotograma.
-  3. **Los errores a propósito no reciben corrección: el clasificador no los
+  3. ~~**Los errores a propósito no reciben corrección**~~ **Corregido el
+     21-oct**, ver «Y el clasificador reconoce los errores, según la toma».
+     **Los errores a propósito no reciben corrección: el clasificador no los
      reconoce.** `err_zen_alto` (delantera 169°) sale Heiko; `err_zen_trasera`
      (trasera 137°) sale transición; en `tec_kiba`, el Kiba alto (157/165°),
      el muy bajo (111/123°) y el de peso cargado (135/162°) salen
@@ -1641,7 +1687,7 @@ conviene tenerlo firmado antes de la primera visita.
      solo dejan pasar ejecuciones casi correctas. Es lo contrario de lo que
      declara el comentario de esos cortes en `analyzer.py`. Mismo silencio
      que el del Tsuki lento.
-  4. **Subir el corte del Zenkutsu a 140° solo, NO es seguro**: el Kiba de
+  4. (Resuelto el 21-oct con la toma.) **Subir el corte del Zenkutsu a 140° solo, NO es seguro**: el Kiba de
      peso cargado (135/162°, de frente) se registraría como ZENKUTSU (IZQ
      ADELANTE) con veredicto, porque de frente la guardia la decide la
      profundidad (decidida en el 82 % de los fotogramas del Kiba). Simulado

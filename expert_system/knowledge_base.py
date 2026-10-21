@@ -111,6 +111,10 @@ KOKUTSU_CORRECTO = "POSTURA: ESTABLE"
 KIBA_FLEXIONA = "POSTURA: FLEXIONA MAS LAS RODILLAS"
 KIBA_EXTIENDE = "POSTURA: EXTIENDE LAS RODILLAS"
 KIBA_REPARTE = "POSTURA: REPARTE EL PESO EN LAS DOS PIERNAS"
+
+# Diferencia entre rodillas, en grados, a partir de la cual un Kiba fuera de su
+# rango se corrige como peso cargado en una pierna (ver evaluate_kiba_dachi).
+ASIMETRIA_KIBA_MAXIMA = 20.0
 VEREDICTOS_KIBA = (KIBA_FLEXIONA, KIBA_EXTIENDE, KIBA_REPARTE)
 
 VEREDICTOS_DECLARADOS = (VEREDICTOS_POR_RODILLA + VEREDICTOS_KIBA
@@ -217,6 +221,14 @@ class KarateRules:
         if (self._dentro(left_knee_angle, "kiba_dachi", "rodilla")
                 and self._dentro(right_knee_angle, "kiba_dachi", "rodilla")):
             return True, "POSTURA: FIRME", VERDE
+
+        # Una rodilla mucho más doblada que la otra es el peso cargado en una
+        # pierna, aunque las dos queden del mismo lado del rango (21-oct-2026).
+        # Medido en `tec_kiba`: el Kiba cargado separa sus rodillas 24–27°; el
+        # alto, el bajo y los correctos, 7–12°. Sin esto, 136°/162° pedía
+        # «Baja más la postura», que no es lo que hay que corregir.
+        if abs(left_knee_angle - right_knee_angle) > ASIMETRIA_KIBA_MAXIMA:
+            return False, KIBA_REPARTE, ROJO
 
         correcciones = {c for c in (self._correccion(left_knee_angle, "kiba_dachi", "rodilla"),
                                     self._correccion(right_knee_angle, "kiba_dachi", "rodilla"))

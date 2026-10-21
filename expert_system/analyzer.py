@@ -2,8 +2,8 @@ import math
 
 from biomechanics.geometry import BiomechanicsMath
 from biomechanics.filters import MovingAverageFilter
-from expert_system.guardia import (IZQ_ADELANTE, pierna_adelantada,
-                                   separacion_sagital)
+from expert_system.guardia import (IZQ_ADELANTE, orientacion_frente_a_camara,
+                                   pierna_adelantada, separacion_sagital)
 from expert_system.knowledge_base import KarateRules
 from expert_system.kick_state_machine import MaeGeriStateMachine
 from expert_system.tsuki import TsukiStateMachine
@@ -20,7 +20,8 @@ from expert_system.tsuki import TsukiStateMachine
 #
 # Se mantienen deliberadamente más amplios que los umbrales de evaluación: el
 # clasificador debe reconocer también las ejecuciones incorrectas, porque una
-# postura mal hecha que no se identifica tampoco se puede corregir.
+# postura mal hecha que no se identifica tampoco se puede corregir. Hasta el
+# 21-oct-2026 eso no se cumplía; ver «LA CÁMARA DECIDE» más abajo.
 # ---------------------------------------------------------------------------
 RODILLA_EXTENDIDA = 160.0      # por encima: pierna esencialmente recta
 RODILLA_FLEXIONADA = 130.0     # por debajo: flexión marcada
@@ -31,6 +32,100 @@ ZENKUTSU_TRASERA_MINIMA = 150.0   # la pierna de atrás del Zenkutsu va tensa y 
 # antes exigía la frontal flexionada y la postura nunca se reconocía).
 KOKUTSU_FRONTAL_MINIMA = 140.0
 KOKUTSU_TRASERA_MAXIMA = 135.0
+
+# ---------------------------------------------------------------------------
+# LA CÁMARA DECIDE QUÉ SE PUEDE RECONOCER (21-oct-2026)
+#
+# Los cortes de arriba solo dejaban pasar ejecuciones casi correctas, al revés
+# de lo que dice su propio encabezado. Sobre las tomas con errores a propósito
+# del protocolo del 19-oct, ninguna recibió su corrección: el Zenkutsu alto
+# salía Heiko —y el sistema decía «Estira las piernas», lo contrario de lo que
+# hacía falta—, el Zenkutsu con la trasera doblada salía transición, y el Kiba
+# alto, el muy bajo y el de peso cargado, también. Las frases existían y no
+# llegaban nunca.
+#
+# Ampliar los cortes sin más inventa posturas: con la delantera hasta 140°, un
+# Kiba de peso cargado filmado de frente (135°/162°) se registraba como
+# Zenkutsu, porque de frente la pierna adelantada la decide la profundidad, que
+# es ruido. Así que cada ampliación vale **solo desde la toma en que la postura
+# se puede medir** —la regla de planos del protocolo, ahora dentro del código—:
+#
+#   de perfil  (orientación < 0,5): Zenkutsu con la delantera hasta 140° o la
+#              trasera doblada, siempre que la delantera sea la más doblada.
+#   de perfil y con el cuerpo de frente al avance (< 0,25): Zenkutsu alto, con
+#              las dos rodillas casi rectas y el paso largo. El límite más
+#              estricto es lo que lo separa del Kokutsu filmado de perfil, que
+#              da las mismas rodillas —la trasera se dobla hacia la cámara y se
+#              ve recta— con la cadera de medio lado (0,38–0,46 medido).
+#   de frente  (orientación ≥ 0,65) y con los pies abiertos: Kiba con las
+#              rodillas entre 90° y 165°, para que lleguen «Sube un poco» y
+#              «Baja más».
+#
+# Lo que reconocían los cortes de arriba se sigue reconociendo desde cualquier
+# toma: nada de lo que funcionaba se pierde. Cifras medidas sobre las tomas del
+# 19-oct (rodillas en los tramos sostenidos, orientación y apertura):
+# ---------------------------------------------------------------------------
+ZENKUTSU_FRONTAL_MAXIMA = 140.0   # Zenkutsu de clase: delantera 123–134° (medido)
+PERFIL_MAXIMO = 0.5               # orientación de las tomas de Zenkutsu: 0,05–0,17
+AVANCE_DE_FRENTE_MAXIMO = 0.25    # Zenkutsu ≤ 0,17; Kokutsu de perfil 0,38–0,46
+FRENTE_MINIMO = 0.65              # Kiba: 0,81–0,98
+PASO_LARGO_EN_CADERAS = 0.45      # Zenkutsu alto: 0,55–0,68; de pie, ~0
+KIBA_APERTURA_MINIMA = 2.5        # tobillos / caderas en x: Kiba 2,7–3,1; de pie 1,3–2,3
+KIBA_AMPLIADO = (90.0, 165.0)     # Kiba muy bajo 111/124°; alto 158/165°
+
+
+def clasificar_postura(angulo_izq, angulo_der, guardia, separacion=0.0, vista=None,
+                       apertura=None):
+    """
+    Qué postura dibujan las rodillas: la clave de técnica, o «guardia_indefinida»
+    o «transicion».
+
+    `vista` es `orientacion_frente_a_camara` (0 de perfil, 1 de frente) y
+    `apertura` la separación de los tobillos en x medida en anchos de cadera.
+    Sin ellas —`None`— solo se aplican los cortes que valen desde cualquier
+    toma, que es lo que el clasificador hacía hasta el 21-oct-2026.
+
+    Puro y sin estado: lo usan `analyze_stance` y `comparar_2d_3d.py`, para que
+    la herramienta de medición no tenga que copiar el árbol.
+    """
+    de_perfil = vista is not None and vista < PERFIL_MAXIMO
+    de_frente = vista is not None and vista >= FRENTE_MINIMO
+    if guardia is not None:
+        frontal, trasero = ((angulo_izq, angulo_der) if guardia == IZQ_ADELANTE
+                            else (angulo_der, angulo_izq))
+
+    paso_largo_de_perfil = (de_perfil and guardia is not None
+                            and abs(separacion) >= PASO_LARGO_EN_CADERAS)
+    if (paso_largo_de_perfil and vista < AVANCE_DE_FRENTE_MAXIMO
+            and min(angulo_izq, angulo_der) >= ZENKUTSU_FRONTAL_MAXIMA):
+        return "zenkutsu_dachi"   # alto: el paso largo lo distingue de Heiko
+
+    if angulo_izq > RODILLA_EXTENDIDA and angulo_der > RODILLA_EXTENDIDA:
+        # De perfil, un pie bien adelantado no es una postura natural: con la
+        # cadera de medio lado es el Kokutsu, cuya rodilla trasera se ve recta,
+        # y llamarlo Heiko le decía «Estira las piernas».
+        return "transicion" if paso_largo_de_perfil else "heiko_dachi"
+
+    if (RODILLA_FLEXIONADA <= angulo_izq <= RODILLA_EXTENDIDA
+            and RODILLA_FLEXIONADA <= angulo_der <= RODILLA_EXTENDIDA):
+        return "kiba_dachi"
+    if (de_frente and apertura is not None and apertura >= KIBA_APERTURA_MINIMA
+            and KIBA_AMPLIADO[0] <= angulo_izq <= KIBA_AMPLIADO[1]
+            and KIBA_AMPLIADO[0] <= angulo_der <= KIBA_AMPLIADO[1]):
+        return "kiba_dachi"
+
+    if guardia is not None:
+        if frontal < RODILLA_FLEXIONADA and trasero > ZENKUTSU_TRASERA_MINIMA:
+            return "zenkutsu_dachi"
+        if de_perfil and frontal < ZENKUTSU_FRONTAL_MAXIMA and frontal < trasero:
+            return "zenkutsu_dachi"
+        if frontal >= KOKUTSU_FRONTAL_MINIMA and trasero <= KOKUTSU_TRASERA_MAXIMA:
+            return "kokutsu_dachi"
+    elif (min(angulo_izq, angulo_der) <= KOKUTSU_TRASERA_MAXIMA
+          and max(angulo_izq, angulo_der) >= KOKUTSU_FRONTAL_MINIMA):
+        return "guardia_indefinida"
+
+    return "transicion"
 
 #Brazos
 class TechniqueAnalyzer:
@@ -51,6 +146,9 @@ class TechniqueAnalyzer:
             # Sin filtrar, la guardia detectada puede "parpadear" entre IZQ y DER
             # de un fotograma a otro aunque el ejecutante esté quieto.
             "guardia": MovingAverageFilter(ventana_filtro),
+            # La orientación decide qué posturas se pueden reconocer desde esta
+            # toma (ver `clasificar_postura`); filtrada por el mismo motivo.
+            "vista": MovingAverageFilter(ventana_filtro),
         }
         # Una máquina de estados independiente por pierna: cualquiera de las dos
         # puede ser la que patea, no depende de la guardia/eje Z (ver diseño en
@@ -230,10 +328,17 @@ class TechniqueAnalyzer:
             # ---------------------------------------------------------
             # EL CLASIFICADOR (¿En qué postura está el usuario?)
             # ---------------------------------------------------------
+            vista = self.filtros["vista"].update(orientacion_frente_a_camara(
+                (cadera_izq_lm.x, cadera_izq_lm.z), (cadera_der_lm.x, cadera_der_lm.z)))
+            ancho_caderas = abs(cadera_izq_lm.x - cadera_der_lm.x)
+            apertura = (abs(tobillo_izq_lm.x - tobillo_der_lm.x) / ancho_caderas
+                        if ancho_caderas > 1e-6 else None)
+            postura = clasificar_postura(angulo_izq, angulo_der, guardia, separacion,
+                                         vista, apertura)
             
             # CASO 1: ambas rodillas esencialmente rectas -> postura natural
             # (Heiko Dachi / Hachiji Dachi).
-            if angulo_izq > RODILLA_EXTENDIDA and angulo_der > RODILLA_EXTENDIDA:
+            if postura == "heiko_dachi":
                 # Se evalúa la rodilla MÁS flexionada de las dos y no una
                 # cualquiera. Con un máximo de 180°, exigir que la peor esté
                 # dentro del rango equivale a exigirlo de ambas, que es el
@@ -252,8 +357,7 @@ class TechniqueAnalyzer:
             # CASO 2: AMBAS rodillas flexionadas por igual -> Kiba Dachi (postura
             # de jinete). Es simétrica y lateral: no depende de qué pierna esté
             # "adelante" según el eje Z, por eso usa izq/der y no frontal/trasera.
-            elif (RODILLA_FLEXIONADA <= angulo_izq <= RODILLA_EXTENDIDA
-                  and RODILLA_FLEXIONADA <= angulo_der <= RODILLA_EXTENDIDA):
+            elif postura == "kiba_dachi":
                 es_correcto, msg, color = self.reglas.evaluate_kiba_dachi(angulo_izq, angulo_der)
                 postura_detectada = "KIBA DACHI"
                 tecnica = "kiba_dachi"
@@ -269,9 +373,9 @@ class TechniqueAnalyzer:
             # Kokutsu. Son la misma postura con las piernas intercambiadas, así
             # que sin saber cuál va adelante NO se puede elegir entre las dos, y
             # elegir igualmente producía la otra postura con veredicto positivo.
-            elif (guardia is not None
-                  and angulo_frontal < RODILLA_FLEXIONADA
-                  and angulo_trasero > ZENKUTSU_TRASERA_MINIMA):
+            # Desde el 21-oct-2026 también de perfil con la delantera hasta 140°,
+            # con la trasera doblada o alto: ver `clasificar_postura`.
+            elif postura == "zenkutsu_dachi":
                 es_correcto, msg, color = self.reglas.evaluate_zenkutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"ZENKUTSU ({guardia})"
                 tecnica = "zenkutsu_dachi"
@@ -288,9 +392,7 @@ class TechniqueAnalyzer:
             # tenía al revés: exigía la frontal flexionada, de modo que un Kokutsu
             # bien ejecutado (frontal ~160°, trasera ~105°) no coincidía con
             # ninguna rama y terminaba reportado como "EN TRANSICION".
-            elif (guardia is not None
-                  and angulo_frontal >= KOKUTSU_FRONTAL_MINIMA
-                  and angulo_trasero <= KOKUTSU_TRASERA_MAXIMA):
+            elif postura == "kokutsu_dachi":
                 es_correcto, msg, color = self.reglas.evaluate_kokutsu_dachi(angulo_frontal, angulo_trasero)
                 postura_detectada = f"KOKUTSU ({guardia})"
                 tecnica = "kokutsu_dachi"
@@ -309,9 +411,7 @@ class TechniqueAnalyzer:
             # mensaje propio y no el de transición: el ejecutante no se está
             # moviendo, es la toma la que no permite decidir. Decirlo convierte
             # un fallo mudo en una instrucción accionable (grabar de perfil).
-            elif (guardia is None
-                  and min(angulo_izq, angulo_der) <= KOKUTSU_TRASERA_MAXIMA
-                  and max(angulo_izq, angulo_der) >= KOKUTSU_FRONTAL_MINIMA):
+            elif postura == "guardia_indefinida":
                 es_correcto = None
                 msg = "NO SE DISTINGUE QUE PIERNA VA ADELANTE"
                 color = (0, 165, 255)  # Naranja

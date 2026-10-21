@@ -39,9 +39,7 @@ import sys
 from collections import Counter
 
 from biomechanics.geometry import BiomechanicsMath
-from expert_system.analyzer import (KOKUTSU_FRONTAL_MINIMA, KOKUTSU_TRASERA_MAXIMA,
-                                    RODILLA_EXTENDIDA, RODILLA_FLEXIONADA,
-                                    ZENKUTSU_TRASERA_MINIMA)
+from expert_system.analyzer import clasificar_postura
 from expert_system.guardia import (DER_ADELANTE, IZQ_ADELANTE,
                                    SEPARACION_MINIMA_EN_CADERAS,
                                    orientacion_frente_a_camara,
@@ -81,32 +79,16 @@ POSTURAS = ("heiko_dachi", "kiba_dachi", "zenkutsu_dachi", "kokutsu_dachi",
 
 def _clasificar(angulo_izq, angulo_der, guardia):
     """
-    El mismo árbol de decisión que `analyze_stance`, reducido a su respuesta.
+    El árbol de decisión de `analyze_stance`, reducido a su respuesta.
 
-    Se replica aquí en vez de invocar al analizador porque este script tiene
-    que alimentarlo con DOS juegos de ángulos distintos —los proyectados y los
-    tridimensionales— sobre los mismos landmarks, y el analizador calcula los
-    suyos por dentro. Si el árbol de `analyze_stance` cambia, este hay que
-    actualizarlo: es una herramienta de medición, no parte del sistema.
+    Hasta el 21-oct-2026 se replicaba aquí, con el aviso de mantenerlo al día a
+    mano. Ahora el árbol vive en `expert_system.analyzer.clasificar_postura` y
+    esta función lo llama, así que no puede desfasarse. Se le pasan solo los
+    ángulos y la guardia: la herramienta compara la medida 2D contra la 3D, y
+    para eso aplica los cortes que valen desde cualquier toma, sin las
+    ampliaciones que dependen de la orientación de la cámara.
     """
-    if angulo_izq > RODILLA_EXTENDIDA and angulo_der > RODILLA_EXTENDIDA:
-        return "heiko_dachi"
-    if (RODILLA_FLEXIONADA <= angulo_izq <= RODILLA_EXTENDIDA
-            and RODILLA_FLEXIONADA <= angulo_der <= RODILLA_EXTENDIDA):
-        return "kiba_dachi"
-
-    if guardia is not None:
-        frontal, trasero = ((angulo_izq, angulo_der) if guardia == IZQ_ADELANTE
-                            else (angulo_der, angulo_izq))
-        if frontal < RODILLA_FLEXIONADA and trasero > ZENKUTSU_TRASERA_MINIMA:
-            return "zenkutsu_dachi"
-        if frontal >= KOKUTSU_FRONTAL_MINIMA and trasero <= KOKUTSU_TRASERA_MAXIMA:
-            return "kokutsu_dachi"
-    elif (min(angulo_izq, angulo_der) <= KOKUTSU_TRASERA_MAXIMA
-          and max(angulo_izq, angulo_der) >= KOKUTSU_FRONTAL_MINIMA):
-        return "guardia_indefinida"
-
-    return "transicion"
+    return clasificar_postura(angulo_izq, angulo_der, guardia)
 
 
 def _angulos_2d(landmarks, ancho, alto):
