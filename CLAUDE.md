@@ -21,6 +21,7 @@ python3 diagnostico_video.py "grabacion.mp4"         # por qué no se detecta po
 python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3D?
 python3 revisar_base.py                              # qué hay en la base (solo lectura)
 python3 revisar_tsuki.py "grabacion.mp4" --golpes 8  # ¿a qué velocidad son los Tsuki?
+python3 revisar_correcciones.py "grabacion.mp4"      # qué correcciones habría leído el alumno
 python3 plan_de_pruebas.py                           # regenera docs/plan_de_pruebas.{csv,md}
 python3 -m pytest -q         # suite completa
 ```
@@ -1072,13 +1073,14 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1047 passed** (20-oct, medido en su Mac, lote `guardia20oct`); **1051 esperadas** tras `grabaciones21oct` |
-| CI / sin entorno gráfico | igual | 925 passed, 7 skipped (21-oct, tras `grabaciones21oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1051 passed** (21-oct, medido en su Mac, lote `grabaciones21oct`); **1055 esperadas** tras `correcciones21oct` |
+| CI / sin entorno gráfico | igual | 929 passed, 7 skipped (21-oct, tras `correcciones21oct`) |
 
-Las 881, 905, 908, 922, 1023, 1033, 1041 y 1047 se predijeron y se contaron
-en su Mac: cuadraron todas, incluidas las de interfaz que el contenedor no
-puede ejecutar porque no tiene Tk. Las 1051 son otra **expectativa** —1047 +
-3 de `test_rutas.py` + 1 de `test_grabacion.py`— y no se citan hasta contarlas. Una de las pruebas
+Las 881, 905, 908, 922, 1023, 1033, 1041, 1047 y 1051 se predijeron y se
+contaron en su Mac: cuadraron todas, incluidas las de interfaz que el
+contenedor no puede ejecutar porque no tiene Tk. Las 1055 son otra
+**expectativa** —1051 + 4 de `test_revisar_correcciones.py`— y no se citan
+hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
 
@@ -1120,7 +1122,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-080**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-081**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1581,6 +1583,54 @@ conviene tenerlo firmado antes de la primera visita.
   clasificador **reconoce** con alguna de las dos guardias. Si el sesgo de 34°
   impide reconocer una guardia, sus fotogramas no aparecen en el barrido.
   No elige el umbral: lo dice. TC-AUTO-071.
+
+- **Lo que dijeron las 28 tomas del protocolo** (21-oct-2026; los `.txt` de
+  `comparar_2d_3d.py` y `revisar_tsuki.py` sobre los videos del 19-oct, más
+  `tec_kiba` analizado aquí). Cinco hallazgos, ninguno decidido todavía:
+
+  1. **Heiko: 100 % reconocido y 100 % correcto** (1228 fotogramas, de frente).
+  2. **El Kokutsu no se reconoce en ninguna de sus cuatro tomas** (0,0–1,1 %):
+     de perfil, la rodilla trasera mide **168–176°**, casi recta, y la
+     postura sale Heiko. Hipótesis sin verificar: en Kokutsu la rodilla
+     trasera apunta hacia donde apunta su pie, girado 90°, o sea hacia la
+     cámara o en contra; su flexión ocurre en un plano que contiene la línea
+     de visión y la proyección la ve recta. Si se confirma, el Kokutsu no se
+     puede medir de perfil, y de frente la guardia depende de la
+     profundidad. Hace falta mirar un fotograma.
+  3. **Los errores a propósito no reciben corrección: el clasificador no los
+     reconoce.** `err_zen_alto` (delantera 169°) sale Heiko; `err_zen_trasera`
+     (trasera 137°) sale transición; en `tec_kiba`, el Kiba alto (157/165°),
+     el muy bajo (111/123°) y el de peso cargado (135/162°) salen
+     transición. Las frases «Flexiona más la rodilla de adelante», «Estira la
+     pierna de atrás», «Baja más / Sube un poco la postura» y «Reparte el
+     peso» existen y **no llegan nunca**, porque los cortes del clasificador
+     solo dejan pasar ejecuciones casi correctas. Es lo contrario de lo que
+     declara el comentario de esos cortes en `analyzer.py`. Mismo silencio
+     que el del Tsuki lento.
+  4. **Subir el corte del Zenkutsu a 140° solo, NO es seguro**: el Kiba de
+     peso cargado (135/162°, de frente) se registraría como ZENKUTSU (IZQ
+     ADELANTE) con veredicto, porque de frente la guardia la decide la
+     profundidad (decidida en el 82 % de los fotogramas del Kiba). Simulado
+     con filtro y sostenido: con 140 y **la guardia solo de perfil**
+     (orientación < 0,5) el Kiba da 0 Zenkutsu falsos y las dos tomas de
+     Zenkutsu siguen registrando sus 5 repeticiones. Choca con el punto 2
+     si el Kokutsu hubiera de filmarse de frente.
+  5. **Casi todo Tsuki sale «HIPEREXTENDIDO (Peligro)»**: el pico medido es
+     176–180° en la mayoría de los golpes de todas las tomas. En 2D
+     `calculate_angle` no pasa de 180°, así que no puede ver una
+     hiperextensión: «más de 175°» es «brazo recto». El reporte de
+     prevención contaría bloqueos que no se midieron. Además, la duración y
+     la velocidad por golpe de `revisar_tsuki.py` salen de segundos en tomas
+     «rápidas» (hasta 9,9 s a 13°/s), así que esa columna no sirve para
+     fijar la banda del Tsuki lento tal como está; el barrido de umbrales
+     apenas cambia la cuenta de golpes. `err_tsuki_sin_hikite` no puede dar
+     corrección: ninguna regla mira el Hikite.
+
+  Y una observación al pasar `revisar_correcciones.py` por
+  `zen_der_desde_izq`: la segunda repetición de Zenkutsu no aparece en la
+  lista. El sostenido es por MENSAJE, y el veredicto alterna entre
+  «FLEXIONA MAS LA RODILLA DELANTERA» y «CORREGIR AMBAS RODILLAS» cuando la
+  trasera ronda los 165°: ningún texto dura medio segundo. Sin verificar.
 
 **Pendiente de escritura:**
 
