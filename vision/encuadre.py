@@ -72,11 +72,17 @@ SIN_PERSONA = "No se detecta a nadie en cuadro."
 # Para qué sirve cada posición de cámara. Sale de la medición del 29-sep sobre
 # Zenkutsu Dachi (0,0 % de frente contra 40,5 % de perfil) y del principio que
 # la explica: cada técnica se mide en el plano en que ocurre.
+#
+# El Kokutsu salió de la lista del perfil el 23-oct-2026: en las cuatro tomas de
+# control la rodilla trasera se flexiona hacia la cámara y de perfil se ve recta
+# (168–176°), y de frente es la delantera la que se ve recta. Ninguna toma única
+# lo mide; prometerlo aquí haría filmar una campaña inservible.
 PLANO = {
     "frontal": "Cámara de frente: sirve para Heiko Dachi y Kiba Dachi. "
-               "Zenkutsu, Kokutsu, Tsuki y Mae Geri necesitan perfil.",
-    "perfil": "Cámara de perfil: sirve para Zenkutsu, Kokutsu, Tsuki y Mae Geri. "
-              "Heiko Dachi y Kiba Dachi se miden mejor de frente.",
+               "Zenkutsu, Tsuki y Mae Geri necesitan perfil.",
+    "perfil": "Cámara de perfil: sirve para Zenkutsu, Tsuki y Mae Geri. "
+              "Heiko Dachi y Kiba Dachi se miden mejor de frente; "
+              "el Kokutsu no se mide bien con una sola cámara.",
     "oblicuo": "Cámara en diagonal: ninguna técnica se mide bien así. "
                "Colócala de frente o de perfil.",
 }

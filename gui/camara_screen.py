@@ -4,7 +4,8 @@ import customtkinter as ctk
 
 from gui import theme
 from vision.camera import CamaraNoDisponible, Camera, describir, es_url, listar_camaras
-from vision.fuentes import EXTENSIONES_VIDEO, es_archivo, validar_grabacion
+from vision.fuentes import (EXTENSIONES_VIDEO, aviso_fuente_guardada, es_archivo,
+                            validar_grabacion)
 from vision.grabacion import CLAVE_GRABAR, grabacion_activada
 
 # Clave con la que se recuerda la fuente elegida en la tabla `configuracion`.
@@ -233,12 +234,10 @@ class CamaraScreen(ctk.CTkFrame):
         # actual: para entonces el bloque de cámara IP ya puede haber puesto su
         # valor interno, y compararlo daba el aviso falso
         # "La cámara configurada (índice __ip__) no está disponible".
-        guardada = self.fuente_guardada
-        if guardada and not es_url(guardada):
-            if guardada not in [str(c["indice"]) for c in self.disponibles]:
-                self.error_var.set(
-                    f"La cámara configurada (índice {guardada}) no está disponible ahora. "
-                    f"Elige otra o vuelve a conectarla.")
+        aviso = aviso_fuente_guardada(self.fuente_guardada,
+                                      [c["indice"] for c in self.disponibles])
+        if aviso:
+            self.error_var.set(aviso)
 
     def _tarjeta_ip(self):
         """Bloque de cámara IP: un teléfono en la red local del dojo."""

@@ -34,6 +34,16 @@ NO_EVALUADAS_EN_VIVO = {
                 "queda cargado para cuando se incorpore."),
 }
 
+# Técnicas que se evalúan en vivo pero que una sola cámara no mide de forma
+# fiable. Confirmado el 21-oct-2026 sobre las cuatro tomas de control del
+# Kokutsu: de perfil la rodilla trasera se flexiona hacia la cámara y se ve
+# recta. La tarjeta lo dice para que nadie use esos veredictos como evaluación.
+MEDICION_LIMITADA = {
+    "kokutsu_dachi": ("Con una sola cámara esta postura no se mide de forma fiable: de "
+                      "perfil la rodilla trasera se flexiona hacia la cámara y se ve recta. "
+                      "Sus veredictos no deben usarse como evaluación."),
+}
+
 # Técnicas que el motor evalúa pero que no se miden contra un rango angular, de
 # modo que no aparecen en la tabla de umbrales. Declararlas evita que la
 # biblioteca dé a entender que el sistema hace menos de lo que hace.
@@ -137,8 +147,9 @@ class TecnicasScreen(ctk.CTkFrame):
                      font=(theme.FUENTE, 11.5), text_color=theme.TEXTO_MUTED,
                      wraplength=ancho_texto, justify="left").pack(anchor="w", padx=18,
                                                                   pady=(0, 10))
-        if tecnica in NO_EVALUADAS_EN_VIVO:
-            ctk.CTkLabel(contenido, text=NO_EVALUADAS_EN_VIVO[tecnica],
+        aviso = NO_EVALUADAS_EN_VIVO.get(tecnica) or MEDICION_LIMITADA.get(tecnica)
+        if aviso:
+            ctk.CTkLabel(contenido, text=aviso,
                          font=(theme.FUENTE, 11), text_color=theme.ACENTO_AMARILLO,
                          wraplength=ancho_texto, justify="left").pack(anchor="w", padx=18,
                                                                       pady=(0, 8))

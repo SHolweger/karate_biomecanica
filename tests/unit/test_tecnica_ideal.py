@@ -209,6 +209,12 @@ def test_el_plano_de_la_figura_es_el_del_aviso_de_encuadre(tecnica):
     nombre = ti.NOMBRES[tecnica].replace(" Dachi", "")
     clave = "perfil" if ti.PLANO[tecnica] == ti.PERFIL else "frontal"
     primera_frase = AVISO_DE_PLANO[clave].split(".")[0]
+    if tecnica == "kokutsu_dachi":
+        # Se dibuja de perfil, que es como se ve la postura, pero el aviso no la
+        # promete: ninguna toma única la mide (23-oct-2026). Que lo diga.
+        assert nombre not in primera_frase
+        assert "Kokutsu no se mide bien" in AVISO_DE_PLANO[clave]
+        return
     assert nombre in primera_frase, (
         f"{tecnica} se dibuja {ti.PLANO[tecnica]} pero el aviso dice: {primera_frase}")
 

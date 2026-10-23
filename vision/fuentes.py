@@ -55,6 +55,33 @@ def es_archivo(fuente):
     return os.path.splitext(fuente.strip().lower())[1] in EXTENSIONES_VIDEO
 
 
+def aviso_fuente_guardada(guardada, indices_disponibles):
+    """
+    Qué decir, al abrir la pantalla de cámara, de la fuente que quedó guardada.
+    None si no hay nada que advertir.
+
+    Hasta el 23-oct-2026 todo lo que no era una URL se trataba como índice de
+    dispositivo, así que un video grabado —el que queda configurado tras volver
+    a analizar una sesión— se anunciaba como «La cámara configurada (índice
+    grabaciones/sesion.mov) no está disponible». Un aviso en rojo sobre una
+    fuente que funciona enseña a ignorar los avisos.
+
+    Una URL no se comprueba aquí: saber si un teléfono responde exige abrir la
+    conexión, y eso lo hace «Probar».
+    """
+    if not guardada or es_url(guardada):
+        return None
+    if es_archivo(guardada):
+        if os.path.isfile(guardada):
+            return None
+        return (f"El video configurado ({os.path.basename(guardada)}) ya no está en su "
+                f"carpeta. Elige otro archivo o una cámara.")
+    if guardada in [str(indice) for indice in indices_disponibles]:
+        return None
+    return (f"La cámara configurada (índice {guardada}) no está disponible ahora. "
+            f"Elige otra o vuelve a conectarla.")
+
+
 def normalizar(fuente):
     """
     Convierte la fuente al tipo que espera OpenCV: int para dispositivos

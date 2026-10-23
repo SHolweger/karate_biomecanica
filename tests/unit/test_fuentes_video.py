@@ -8,7 +8,8 @@ haberlas separado de la clase `Camera`.
 """
 import pytest
 
-from vision.fuentes import (CamaraNoDisponible, describir, es_archivo, es_url,
+from vision.fuentes import (CamaraNoDisponible, aviso_fuente_guardada, describir,
+                            es_archivo, es_url,
                             marca_de_grabacion_ms, motivo_fuente_no_abre,
                             normalizar, validar_grabacion)
 from reporte.plantilla import Paso, Prioridad, TipoPrueba, ficha
@@ -295,3 +296,51 @@ def test_una_carpeta_no_se_confunde_con_una_grabacion(tmp_path):
     carpeta.mkdir()
 
     assert "es una carpeta" in motivo_fuente_no_abre(str(carpeta))
+
+
+@ficha(
+    id_caso="TC-AUTO-084",
+    nombre="La pantalla de cámara no anuncia como desconectado un video grabado que existe",
+    tipo=TipoPrueba.UNITARIA,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="tras volver a analizar una grabación, el video queda como fuente "
+                         "guardada, y la pantalla de cámara lo leía como índice de "
+                         "dispositivo: «La cámara configurada (índice grabaciones/x.mov) no "
+                         "está disponible», en rojo, sobre una fuente que funcionaba. Se vio "
+                         "al capturar las figuras del manual de usuario el 23-oct-2026",
+    componente="vision/fuentes.py (aviso_fuente_guardada), gui/camara_screen.py",
+    requisitos="RF-01",
+    precondiciones="Ninguna: función pura y un archivo temporal",
+    datos_entrada="Un video que existe, uno que ya no está, un índice conectado, uno "
+                  "desconectado y una URL",
+    pasos=[
+        Paso("Pedir el aviso con un video grabado que existe", "assert no hay aviso"),
+        Paso("Pedir el aviso con un video que se movió",
+             "assert lo nombra como video, no como índice"),
+        Paso("Pedir el aviso con un índice desconectado", "assert el aviso de siempre"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest.",
+)
+def test_un_video_grabado_que_existe_no_es_una_camara_desconectada(tmp_path):
+    video = tmp_path / "sesion.mov"
+    video.write_bytes(b"")
+
+    assert aviso_fuente_guardada(str(video), [0, 1]) is None
+
+    movido = aviso_fuente_guardada(str(tmp_path / "otra.mp4"), [0, 1])
+    assert "otra.mp4" in movido and "índice" not in movido
+
+
+@pytest.mark.parametrize("guardada, disponibles, avisa", [
+    ("0", [0, 1], False),
+    ("4", [0, 1], True),
+    ("http://192.168.1.50:8080/video", [], False),
+    ("", [], False),
+    (None, [], False),
+])
+def test_el_aviso_de_dispositivos_y_direcciones_no_cambia(guardada, disponibles, avisa):
+    aviso = aviso_fuente_guardada(guardada, disponibles)
+    assert (aviso is not None) is avisa
+    if avisa:
+        assert aviso.startswith("La cámara configurada (índice 4) no está disponible ahora.")

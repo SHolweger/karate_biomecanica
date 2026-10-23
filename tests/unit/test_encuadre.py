@@ -103,7 +103,7 @@ def test_la_visibilidad_de_un_grupo_es_la_de_su_punto_peor_visto():
     pasos=[
         Paso("Evaluar una toma frontal con el cuerpo completo visible",
              "assert se emite un aviso que nombra Heiko y Kiba como medibles y "
-             "Zenkutsu, Kokutsu, Tsuki y Mae Geri como necesitados de perfil"),
+             "Zenkutsu, Tsuki y Mae Geri como necesitados de perfil"),
         Paso("Evaluar la misma pose con orientación de perfil",
              "assert el aviso se invierte: nombra las técnicas del plano sagital"),
         Paso("Evaluar una toma en diagonal",
@@ -126,6 +126,10 @@ def test_avisa_del_plano_aunque_todo_se_vea():
 
     assert "Zenkutsu" in de_perfil[0]["mensaje"]
     assert "de frente" in de_perfil[0]["mensaje"]
+
+    assert "Kokutsu no se mide bien" in de_perfil[0]["mensaje"], \
+        "de perfil la rodilla trasera del Kokutsu se ve recta: el aviso no puede prometerlo"
+    assert "Kokutsu" not in de_frente[0]["mensaje"]
 
     assert en_diagonal[0]["nivel"] == NIVEL_MEDIO, \
         "la diagonal no sirve para ninguna técnica y merece más que un dato"

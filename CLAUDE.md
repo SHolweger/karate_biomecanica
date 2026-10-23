@@ -1141,13 +1141,13 @@ empiece con el ejecutante colocado.
 
 | Entorno | Comando | Resultado |
 |---|---|---|
-| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1059 passed** (21-oct, medido en su Mac, lote `patada21oct`); **1073 esperadas** tras `clasificador21oct` |
-| CI / sin entorno gráfico | igual | 947 passed, 7 skipped (21-oct, tras `clasificador21oct`) |
+| Completo (con cámara y pantalla) | `python3 -m pytest -q` | **1073 passed** (21-oct, medido en su Mac, lote `clasificador21oct`); **1079 esperadas** tras `manual23oct` |
+| CI / sin entorno gráfico | igual | 953 passed, 7 skipped (23-oct, tras `manual23oct`) |
 
-Las 881, 905, 908, 922, 1023, 1033, 1041, 1047, 1051, 1055 y 1059 se
+Las 881, 905, 908, 922, 1023, 1033, 1041, 1047, 1051, 1055, 1059 y 1073 se
 predijeron y se contaron en su Mac: cuadraron todas, incluidas las de interfaz
-que el contenedor no puede ejecutar porque no tiene Tk. Las 1073 son otra
-**expectativa** —1059 + 14 de `test_clasificar_postura.py`— y no se citan
+que el contenedor no puede ejecutar porque no tiene Tk. Las 1079 son otra
+**expectativa** —1073 + 6 de `test_fuentes_video.py`— y no se citan
 hasta contarlas. Una de las pruebas
 (`test_el_csv_de_evidencia_guarda_el_intervalo`) importa OpenCV y se omite sola
 donde no esté instalado.
@@ -1190,7 +1190,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-084**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-085**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1406,15 +1406,19 @@ prevención de lesiones, biblioteca de técnicas, calibración de umbrales,
 selección de cámara, **grabación del video crudo de cada sesión** y
 **re-análisis de una grabación** desde la pantalla de cámara.
 
-**Hecho el 19-oct y pendiente de verlo en su Mac** (el contenedor no tiene Tk,
-así que la parte de pantalla solo se verificó con un lienzo simulado): la
-técnica ideal en «Técnicas» y en «Análisis en vivo», la articulación que falla
-en rojo sobre el video y los ángulos contra el criterio en el reporte.
+**Hecho el 19-oct y visto en la interfaz real el 23-oct** (Linux con Xvfb, al
+capturar las figuras del manual sobre las grabaciones de control): la técnica
+ideal en «Técnicas» y en «Análisis en vivo», la articulación que falla en rojo
+sobre el video y los ángulos contra el criterio en el reporte. Falta verlo en
+su Mac.
 
 **Bloqueado por hardware:** RF-02 y RF-04 (sensores inerciales). Sebastián
-tiene los IMU —**Adafruit BNO055**, 9-DOF con fusión en el propio
-encapsulado—, el ESP32 y, desde el 15-oct, **cautín y estaño**; le faltan el
-resto de materiales. La contingencia ya está tomada: el sistema funciona solo
+tiene **cuatro Adafruit BNO055** —9-DOF con fusión en el propio
+encapsulado—, correas de velcro para muñeca y tobillo, protoboard y jumpers,
+batería de 9 V con regulador de 5 V y, desde el 15-oct, **cautín y estaño**.
+**No tiene ESP32**: no se compró (corregido el 23-oct; este archivo lo daba
+por adquirido y se lo repetí). Para el microcontrolador, una Raspberry Pi
+Pico WH (RP2040 con Wi-Fi) sirve; una Raspberry Pi con Linux no hace falta. La contingencia ya está tomada: el sistema funciona solo
 con visión y declara la ausencia.
 
 **Recomendación del 15-oct: cerrarlo como está.** Soldar es la parte corta; lo
@@ -1728,6 +1732,28 @@ conviene tenerlo firmado antes de la primera visita.
   diseño original. Propuesto: el máximo del Tsuki a 180° (dato, lo confirma
   el sensei) para que un brazo recto deje de contar como «peligro».
 
+**Manual de usuario 2.0 entregado el 23-oct-2026** (`.docx` y PDF, para anexo)
+y fragmentos para el apartado 6.6 del capítulo 6. Sus figuras salen de la
+**interfaz real** analizando las grabaciones de control desde «Análisis en
+vivo», no de una cámara sintética: lo que muestran lo midió el sistema.
+Al capturarlas aparecieron dos defectos, corregidos en el lote `manual23oct`:
+
+- La pantalla de cámara anunciaba un video grabado como cámara desconectada
+  («La cámara configurada (índice grabaciones/x.mov) no está disponible»): todo
+  lo que no era URL se leía como índice. Pasaba siempre después de re-analizar
+  una grabación. `vision/fuentes.aviso_fuente_guardada` (puro). TC-AUTO-084.
+- El aviso de encuadre prometía el Kokutsu de perfil. Ya no; y la tarjeta de
+  Kokutsu en «Técnicas» declara que una sola cámara no lo mide
+  (`MEDICION_LIMITADA`), como la de Age Uke declara que no se evalúa.
+
+**El contenedor puede correr las pruebas de interfaz** (23-oct). Python 3.11
+de `/usr/local` no trae Tk, pero `apt-get install python3-tk` lo instala para
+`/usr/bin/python3.12`; con un venv de 3.12 y `requirements.txt`,
+`xvfb-run -a .../venv/bin/python -m pytest tests/e2e/...` las ejecuta. Se
+corrieron así las 18 de `test_gui_camara.py`. Cierra en parte el punto ciego
+de los módulos que CI omite, **pero la Mac sigue mandando**: en Linux no se
+reproducen los fallos de temporizadores de macOS.
+
 **Pendiente de documentación — que no se olvide:** todo lo del 19 al 21-oct
 va al **capítulo 6**. El resumen para el chat de documentación es
 `Hallazgos_19_21oct2026` (PDF y .md, entregados a Sebastián el 21-oct); lo
@@ -1749,6 +1775,11 @@ limitaciones de Kokutsu, hiperextensión y Tsuki de frente.
   `grabaciones/`, así que va siempre a la de datos. TC-AUTO-079.
 - Ajustar el prototipo `.dc.html` para que no prometa «340 reglas» ni «red
   neuronal v0.9 entrenando».
+- **Antes de empaquetar:** «Generar reporte» del perfil del alumno guarda la
+  gráfica en `evidencias/` **relativa al directorio de trabajo**
+  (`persistence/reportes.py`, `carpeta="evidencias"`). Es el mismo defecto que
+  tenían la base y las grabaciones: con un `.command` iría a la carpeta personal
+  y con PyInstaller a una temporal. Visto el 23-oct al escribir el manual.
 
 **Qué documento del capítulo 4 manda** (aclarado por Sebastián el 29-sep-2026,
 y es la principal fuente de desorden entre chats):
