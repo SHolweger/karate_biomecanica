@@ -22,6 +22,8 @@ python3 comparar_2d_3d.py "grabacion.mp4" --esperado zenkutsu_dachi   # ¿2D o 3
 python3 revisar_base.py                              # qué hay en la base (solo lectura)
 python3 revisar_tsuki.py "grabacion.mp4" --golpes 8  # ¿a qué velocidad son los Tsuki?
 python3 revisar_correcciones.py "grabacion.mp4"      # qué correcciones habría leído el alumno
+python3 analizar_lote.py ~/Movies/dojo --plantilla  # inventario de los videos de una carpeta
+python3 analizar_lote.py ~/Movies/dojo              # indicador (a) del 6.10, por deportista y técnica
 python3 plan_de_pruebas.py                           # regenera docs/plan_de_pruebas.{csv,md}
 python3 -m pytest -q         # suite completa
 ```
@@ -1190,7 +1192,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-085**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-086**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1396,6 +1398,20 @@ Lecciones aprendidas, todas por haberlas sufrido:
   `git ls-files --error-unmatch <archivo>`.
 
 ---
+
+**Los videos del dojo se analizan por lotes, sin la interfaz** (1-nov-2026).
+`analizar_lote.py` (raíz, solo lectura) recorre los videos de una carpeta según
+un `inventario.csv` que Sebastián llena a mano —código de deportista, técnica,
+orientación, vestimenta, repeticiones ejecutadas y, si hace falta, el tramo— y
+escribe el indicador (a) del 6.10: por deportista y técnica, cuántas
+evaluaciones habría registrado la base y cuántas correctas. Cuenta con el
+`MedicionLogger` REAL sobre una base en memoria, no con una copia de su regla:
+«evaluaciones» significa exactamente lo mismo que en una sesión, incluido que
+dos repeticiones seguidas sin otra postura en medio son una sola fila. El Heiko
+entre repeticiones se informa pero no entra al indicador. `--rubrica` genera la
+planilla del sensei, una fila por repetición declarada y **sin el veredicto del
+sistema**, para que la concordancia que se mida después sea independiente.
+Verificado de punta a punta con MediaPipe real en el contenedor. TC-AUTO-085.
 
 ## Estado y pendientes
 
