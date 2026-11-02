@@ -2,13 +2,13 @@
 Los videos del dojo, analizados por lotes: qué evaluó el sistema, por
 deportista y por técnica, sin abrir la interfaz video por video.
 
-Herramienta de consola, como `revisar_correcciones.py`, y como ella NO escribe
+Herramienta de consola, como `revisar_correcciones.py`. Por omisión NO escribe
 en la base: recorre cada grabación con el mismo analizador de la pantalla en
 vivo y cuenta las evaluaciones con la MISMA regla con que `MedicionLogger` las
 escribe en una sesión (medio segundo sostenido en la postura, una fila cada vez
 que el diagnóstico cambia). Lo que aquí sale como «evaluaciones» es, por tanto,
 lo que la base habría registrado si cada tramo se hubiera analizado desde la
-interfaz.
+interfaz. Con `--registrar` además lo escribe (ver el paso 4).
 
 ---------------------------------------------------------------------------
 POR QUÉ EXISTE
@@ -33,7 +33,11 @@ CÓMO SE USA: TRES PASOS
    video tiene tramos de técnicas distintas: copia la fila y pon `desde` y
    `hasta`). Columnas:
 
-   - deportista: un CÓDIGO, no el nombre (D1, D2, D3, D4; SH para ti).
+   - deportista: un CÓDIGO, no el nombre (D1, D2, D3, D4; SH para ti). Con
+     `--registrar` es el nombre del alumno en el sistema: si no existe, se
+     inscribe con ese nombre.
+   - fecha: el día en que se GRABÓ (2026-11-03 o 3/11/2026). Vacía, se toma
+     del nombre de la carpeta del video si es una fecha (dojo/2026-11-03/).
    - tecnica: heiko, kiba, zenkutsu, kokutsu, tsuki, mae_geri o combinada.
    - orientacion: frente, perfil o 45.
    - vestimenta: karategi o casual.
@@ -64,6 +68,21 @@ CÓMO SE USA: TRES PASOS
      el alumno. Es lo que se contrasta con la planilla del sensei.
    - resumen.txt: lo mismo que imprime en la terminal.
 
+4. Registrar en la base, para las gráficas de evolución de cada alumno:
+
+       python3 analizar_lote.py ~/Movies/dojo_24oct --registrar --sensei usuario
+
+   Pide la contraseña del sensei, que firma las sesiones como en la interfaz.
+   Cada video de cada alumno en cada fecha queda como UNA sesión, con la fecha
+   de grabación y el video atado a ella, juzgada con los umbrales VIGENTES de
+   la base. Se registra todo lo que la interfaz registraría en los tramos del
+   inventario —también el Heiko entre repeticiones— y nada fuera de ellos (el
+   saludo, la guardia de combate). Correrlo dos veces no duplica: un video ya
+   registrado para ese alumno y esa fecha se salta. Si después corriges su
+   inventario, ese video no se vuelve a registrar.
+
+   La base es la misma que usa la interfaz (o la de `SHOTOKAN_BD`).
+
 ---------------------------------------------------------------------------
 LO QUE CONVIENE SABER AL LEER LOS NÚMEROS
 ---------------------------------------------------------------------------
@@ -78,10 +97,15 @@ LO QUE CONVIENE SABER AL LEER LOS NÚMEROS
 - «Izquierda» y «derecha» son las del sistema, que analiza en modo espejo, igual
   que la pantalla en vivo.
 - Sin evaluaciones, el porcentaje de correctas es un guion, nunca 0 %.
+- Sin `--registrar` juzga con los umbrales de literatura; con él, con los
+  vigentes de la base, que son los que quedarán anotados en cada fila.
+- La sesión registrada no sabe a qué hora se grabó el video: lleva las 00:00
+  de su fecha, y termina tantos segundos después como dure lo analizado.
 """
 import argparse
 import csv
 import datetime
+import getpass
 import statistics
 import sys
 import unicodedata
@@ -97,7 +121,7 @@ EXTENSIONES_DE_VIDEO = {".mp4", ".mov", ".m4v", ".avi", ".mkv"}
 INVENTARIO = "inventario.csv"
 RUBRICA = "rubrica_sensei.csv"
 
-COLUMNAS_INVENTARIO = ["archivo", "deportista", "tecnica", "orientacion", "vestimenta",
+COLUMNAS_INVENTARIO = ["archivo", "deportista", "fecha", "tecnica", "orientacion", "vestimenta",
                        "repeticiones", "desde", "hasta", "espejado", "notas"]
 COLUMNAS_RUBRICA = ["codigo", "archivo", "deportista", "tecnica", "desde", "hasta",
                     "repeticion", "lado", "valoracion", "motivo"]
@@ -154,6 +178,30 @@ def leer_segundos(texto):
         minutos, segundos = texto.split(":", 1)
         return int(minutos) * 60 + float(segundos.replace(",", "."))
     return float(texto.replace(",", "."))
+
+
+def leer_fecha(texto, archivo=""):
+    """
+    El día de grabación: «2026-11-03», «3/11/2026» o «03-11-2026».
+
+    Vacío, se busca en las carpetas del archivo (dojo/2026-11-03/video.mp4).
+    Devuelve una `datetime.date` o None; lanza ValueError si hay algo escrito
+    que no es una fecha.
+    """
+    texto = (texto or "").strip()
+    if not texto:
+        for parte in reversed(Path(archivo).parts[:-1]):
+            try:
+                return leer_fecha(parte)
+            except ValueError:
+                continue
+        return None
+    for formato in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y"):
+        try:
+            return datetime.datetime.strptime(texto, formato).date()
+        except ValueError:
+            continue
+    raise ValueError(texto)
 
 
 def buscar_videos(carpeta):
@@ -237,6 +285,11 @@ def leer_inventario(ruta, carpeta=None):
             problemas.append("hasta debe ser mayor que desde")
         if carpeta is not None and not (Path(carpeta) / archivo).exists():
             problemas.append("el archivo no está en la carpeta")
+        try:
+            fecha = leer_fecha(fila.get("fecha"), archivo)
+        except ValueError:
+            fecha = None
+            problemas.append(f"fecha «{fila.get('fecha')}» no se entiende (usa 2026-11-03 o 3/11/2026)")
         if problemas:
             errores.append(f"fila {numero} ({archivo}): " + "; ".join(problemas))
             continue
@@ -251,6 +304,7 @@ def leer_inventario(ruta, carpeta=None):
             "desde": desde,
             "hasta": hasta,
             "espejado": _simplificar(fila.get("espejado")) in ("si", "s", "x", "1"),
+            "fecha": fecha,
         })
     return segmentos, errores
 
@@ -293,12 +347,15 @@ class _BaseEnMemoria:
 
     def __init__(self):
         self.filas = []
+        self.llamadas = []   # tal cual, para repetirlas sobre la base real
 
     def guardar_medicion(self, id_sesion, nombre_tecnica, angulo_promedio, diagnostico,
-                         timestamp_ms, correcto=None, tecnica_clave=None, **_):
+                         timestamp_ms, correcto=None, tecnica_clave=None, **resto):
         self.filas.append({"nombre": nombre_tecnica, "mensaje": diagnostico,
                            "timestamp_ms": timestamp_ms, "correcto": correcto,
                            "tecnica_clave": tecnica_clave})
+        self.llamadas.append(((nombre_tecnica, angulo_promedio, diagnostico, timestamp_ms),
+                              dict(resto, correcto=correcto, tecnica_clave=tecnica_clave)))
 
 
 def _tecnica_y_lado(fila):
@@ -323,8 +380,11 @@ def contar(fotogramas):
     registrador = MedicionLogger(base, id_sesion=None)
     total = con_pose = 0
     orientaciones = []
+    primero = ultimo = None
     for timestamp_ms, diagnosticos, orientacion in fotogramas:
         total += 1
+        primero = timestamp_ms if primero is None else primero
+        ultimo = timestamp_ms
         if diagnosticos is None:
             continue
         con_pose += 1
@@ -347,6 +407,8 @@ def contar(fotogramas):
         "con_pose": con_pose,
         "orientacion": statistics.median(orientaciones) if orientaciones else None,
         "evaluaciones": evaluaciones,
+        "duracion_ms": (ultimo - primero) if total else 0,
+        "registro": base.llamadas,
     }
 
 
@@ -464,6 +526,63 @@ def filas_de_evaluaciones(resultados):
     return filas
 
 
+def clave_de_importacion(segmento):
+    """Lo que hace que dos sesiones importadas sean la misma: fecha, alumno y video."""
+    return f"{segmento['fecha'].isoformat()}|{segmento['deportista'].lower()}|{segmento['archivo']}"
+
+
+def _atleta(db, nombre, escribir):
+    """El alumno con ese nombre (sin distinguir mayúsculas), inscrito si no existe."""
+    for atleta in db.listar_atletas():
+        if atleta["nombre"].strip().lower() == nombre.strip().lower():
+            return atleta["id_atleta"]
+    escribir(f"  + Alumno nuevo inscrito: {nombre}")
+    return db.crear_atleta(nombre)
+
+
+def registrar(db, id_entrenador, resultados, carpeta, escribir=print):
+    """
+    Escribe en la base una sesión por video, alumno y fecha de grabación.
+
+    Repite las mismas llamadas que `MedicionLogger` hizo en `contar`, así que
+    cada fila es la que la interfaz habría escrito re-analizando ese tramo.
+    Va en orden de fecha y se salta lo ya registrado. Devuelve cuántas
+    sesiones creó.
+    """
+    grupos = defaultdict(list)
+    for segmento, conteo in resultados:
+        if segmento["fecha"] is None:
+            escribir(f"  ! {segmento['archivo']} ({segmento['deportista']}): sin fecha de "
+                     "grabación, no se registra")
+            continue
+        grupos[clave_de_importacion(segmento)].append((segmento, conteo))
+
+    creadas = 0
+    for clave in sorted(grupos, key=lambda c: (c.split("|")[0], c)):
+        tramos = sorted(grupos[clave], key=lambda par: par[0]["desde"] or 0)
+        primero = tramos[0][0]
+        if db.sesion_importada(clave) is not None:
+            escribir(f"  = Ya registrado: {primero['archivo']} · {primero['deportista']} · "
+                     f"{primero['fecha'].isoformat()}")
+            continue
+        inicio = datetime.datetime.combine(primero["fecha"], datetime.time())
+        id_sesion = db.iniciar_sesion(_atleta(db, primero["deportista"], escribir),
+                                      id_entrenador, inicio=inicio)
+        filas = 0
+        for _, conteo in tramos:
+            for argumentos, extra in conteo["registro"]:
+                db.guardar_medicion(id_sesion, *argumentos, **extra)
+                filas += 1
+        duracion_ms = sum(conteo["duracion_ms"] for _, conteo in tramos)
+        db.cerrar_sesion(id_sesion, fin=inicio + datetime.timedelta(milliseconds=duracion_ms))
+        db.registrar_video_de_sesion(id_sesion, str((Path(carpeta) / primero["archivo"]).resolve()))
+        db.marcar_importada(clave, id_sesion)
+        creadas += 1
+        escribir(f"  ✓ Sesión {id_sesion}: {primero['archivo']} · {primero['deportista']} · "
+                 f"{primero['fecha'].isoformat()} ({filas} filas)")
+    return creadas
+
+
 def _porcentaje(parte, total):
     # Sin denominador no hay porcentaje: un guion, nunca 0 % (ver CLAUDE.md).
     return f"{100 * parte / total:.1f} %".replace(".", ",") if total else "—"
@@ -503,8 +622,13 @@ def resumen(filas_agregadas, filas_segmentos, errores=()):
 # Lo que necesita OpenCV y MediaPipe: se importa dentro, como en las demás herramientas
 # ---------------------------------------------------------------------------
 
-def recorrer(ruta, desde_s=None, hasta_s=None, espejado=False):
-    """`(timestamp_ms, diagnosticos, orientacion)` de cada fotograma del tramo."""
+def recorrer(ruta, desde_s=None, hasta_s=None, espejado=False, reglas=None):
+    """
+    `(timestamp_ms, diagnosticos, orientacion)` de cada fotograma del tramo.
+
+    Sin `reglas`, los umbrales de literatura; para registrar, los vigentes de la
+    base, que son los que cada fila tiene que anotar como su criterio.
+    """
     from expert_system.analyzer import TechniqueAnalyzer
     from vision.camera import Camera
     from vision.tracker import PoseTracker
@@ -512,7 +636,7 @@ def recorrer(ruta, desde_s=None, hasta_s=None, espejado=False):
     # La pantalla en vivo voltea los archivos; un video ya espejado se deja como está.
     camara = Camera(str(ruta), espejo=not espejado)
     rastreador = PoseTracker()
-    analizador = TechniqueAnalyzer(umbral_visibilidad=0.65)
+    analizador = TechniqueAnalyzer(umbral_visibilidad=0.65, reglas=reglas)
     desde_ms = (desde_s or 0) * 1000
     hasta_ms = None if hasta_s is None else hasta_s * 1000
     try:
@@ -541,7 +665,7 @@ def recorrer(ruta, desde_s=None, hasta_s=None, espejado=False):
         rastreador.close()
 
 
-def analizar(carpeta, segmentos, escribir=print):
+def analizar(carpeta, segmentos, escribir=print, reglas=None):
     """Recorre cada tramo y devuelve `[(segmento, conteo)]`."""
     resultados = []
     for indice, segmento in enumerate(segmentos, start=1):
@@ -551,7 +675,7 @@ def analizar(carpeta, segmentos, escribir=print):
                  f"{segmento['deportista']} · {NOMBRES[segmento['tecnica']]}")
         inicio = datetime.datetime.now()
         conteo = contar(recorrer(Path(carpeta) / segmento["archivo"], segmento["desde"],
-                                 segmento["hasta"], segmento["espejado"]))
+                                 segmento["hasta"], segmento["espejado"], reglas))
         segundos = (datetime.datetime.now() - inicio).total_seconds()
         escribir(f"         {conteo['fotogramas']} fotogramas en {segundos:.0f} s; "
                  f"{len(conteo['evaluaciones'])} evaluaciones")
@@ -570,7 +694,13 @@ def main(argv=None):
                       help="crea el inventario, o le añade los videos nuevos")
     modo.add_argument("--rubrica", action="store_true",
                       help="crea la planilla del sensei, una fila por repetición")
+    parser.add_argument("--registrar", action="store_true",
+                        help="además escribe cada video en la base, con su fecha de grabación")
+    parser.add_argument("--sensei", metavar="USUARIO",
+                        help="con --registrar: el sensei que firma las sesiones")
     args = parser.parse_args(argv)
+    if args.registrar and not args.sensei:
+        parser.error("--registrar necesita --sensei USUARIO: alguien tiene que firmar las sesiones")
 
     carpeta = Path(args.carpeta).expanduser()
     if not carpeta.is_dir():
@@ -603,8 +733,23 @@ def main(argv=None):
         print("viendo cada repetición SIN consultar antes lo que dijo el sistema.")
         return 0
 
-    print(f"Analizando {len(segmentos)} tramo(s) de {carpeta} con los umbrales de literatura")
-    resultados = analizar(carpeta, segmentos)
+    db = reglas = entrenador = None
+    if args.registrar:
+        from expert_system.knowledge_base import (CORRECCIONES_LITERATURA, KarateRules,
+                                                  UMBRALES_LITERATURA)
+        from persistence.database import Database
+        db = Database()
+        db.sembrar_umbrales(UMBRALES_LITERATURA)
+        db.corregir_umbrales_de_literatura(CORRECCIONES_LITERATURA)
+        entrenador = db.autenticar_entrenador(args.sensei, getpass.getpass(f"Contraseña de {args.sensei}: "))
+        if entrenador is None:
+            print("Usuario o contraseña incorrectos: no se registró nada.")
+            return 1
+        reglas = KarateRules(db.cargar_umbrales_vigentes())
+        print(f"Analizando {len(segmentos)} tramo(s) de {carpeta} con los umbrales vigentes de la base")
+    else:
+        print(f"Analizando {len(segmentos)} tramo(s) de {carpeta} con los umbrales de literatura")
+    resultados = analizar(carpeta, segmentos, reglas=reglas)
 
     salida = carpeta / f"resultados_{datetime.datetime.now():%Y%m%d_%H%M}"
     salida.mkdir(exist_ok=True)
@@ -621,6 +766,11 @@ def main(argv=None):
     print()
     print("\n".join(lineas))
     print(f"\nResultados en {salida}")
+    if db is not None:
+        print("\nREGISTRO EN LA BASE")
+        creadas = registrar(db, entrenador["id_entrenador"], resultados, carpeta)
+        print(f"{creadas} sesión(es) nueva(s). Se ven en «Alumnos y progreso».")
+        db.close()
     return 0
 
 

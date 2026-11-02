@@ -24,6 +24,7 @@ python3 revisar_tsuki.py "grabacion.mp4" --golpes 8  # ¿a qué velocidad son lo
 python3 revisar_correcciones.py "grabacion.mp4"      # qué correcciones habría leído el alumno
 python3 analizar_lote.py ~/Movies/dojo --plantilla  # inventario de los videos de una carpeta
 python3 analizar_lote.py ~/Movies/dojo              # indicador (a) del 6.10, por deportista y técnica
+python3 analizar_lote.py ~/Movies/dojo --registrar --sensei USUARIO   # y lo escribe en la base
 python3 plan_de_pruebas.py                           # regenera docs/plan_de_pruebas.{csv,md}
 python3 -m pytest -q         # suite completa
 ```
@@ -1192,7 +1193,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-087**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-088**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1430,6 +1431,41 @@ Windows. El empaquetado con PyInstaller (carpeta, no un solo archivo; con
 `--collect-data/--collect-binaries mediapipe`, `--collect-data customtkinter` y
 el modelo con `--add-data`) se probó en Linux: la interfaz abre y la consola
 analiza y registra. `rutas.py` ya resuelve `sys._MEIPASS` y `%APPDATA%`.
+
+**Los videos re-analizados entran a la base con su fecha de grabación**
+(2-nov-2026). Sebastián no puede ir al dojo a diario: los alumnos se graban y
+él analiza después, y la gráfica de evolución tiene que salir de eso.
+`analizar_lote.py --registrar --sensei USUARIO` (pide la contraseña: el
+sensei firma, como en la interfaz) escribe **una sesión por video, alumno y
+fecha**, repitiendo sobre la base real las llamadas que `MedicionLogger` hizo en
+memoria, y juzgando con los umbrales **vigentes** de la base para que cada fila
+anote su `id_umbral`. La fecha sale de la columna `fecha` del inventario o del
+nombre de la carpeta (`dojo/2026-11-03/`). Solo se registran los tramos del
+inventario —el saludo y la guardia de combate no—, el Heiko entre repeticiones
+sí, como en la interfaz.
+
+Dos cosas que hizo falta cambiar en la base, y la segunda era un defecto:
+
+- `iniciar_sesion(…, inicio=)` y `cerrar_sesion(…, fin=)`, opcionales. La
+  sesión importada lleva las 00:00 de su fecha —la hora de grabación no se
+  sabe— y termina tantos segundos después como dure lo analizado.
+- **`listar_sesiones` ordenaba por `id_sesion`**, es decir, por orden de
+  registro, y la gráfica de evolución se arma con esa lista. Un video del 24-oct
+  importado después de uno del 1-nov salía a la derecha. Ahora ordena por
+  `hora_inicio` y desempata por `id_sesion`. La prueba se comprobó fallando con
+  el orden viejo.
+
+La tabla nueva `importacion_video` (clave fecha|alumno|archivo) impide duplicar:
+correrlo dos veces no crea nada. Consecuencia: si se corrige el inventario de un
+video ya registrado, no se vuelve a registrar. Visto de punta a punta con
+MediaPipe real y la interfaz bajo Xvfb: dos carpetas fechadas, dos sesiones, la
+gráfica en orden. TC-AUTO-087.
+
+Límite que conviene saber: el reporte reconstruye el rango «que regía al
+empezar la sesión» por fecha (`umbral_en`), y la sesión importada lleva la fecha
+del video. Si se recalibra entre la grabación y la importación, el reporte
+mostraría el rango de la fecha del video aunque la fila se juzgó con el vigente
+al importar (que es el que guarda su `id_umbral`).
 
 ## Estado y pendientes
 

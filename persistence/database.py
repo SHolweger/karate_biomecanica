@@ -117,6 +117,17 @@ class Database:
                 clave  TEXT PRIMARY KEY,
                 valor  TEXT
             );
+
+            -- Videos ya registrados por analizar_lote.py --registrar. Sin esto,
+            -- correr el lote dos veces duplicaria las sesiones y la grafica de
+            -- evolucion contaria dos veces el mismo dia. La clave es fecha,
+            -- deportista y archivo: lo que hace que dos sesiones sean la misma.
+            CREATE TABLE IF NOT EXISTS importacion_video (
+                clave      TEXT PRIMARY KEY,
+                id_sesion  INTEGER NOT NULL,
+                importado  TEXT NOT NULL,
+                FOREIGN KEY (id_sesion) REFERENCES sesion(id_sesion)
+            );
         """)
         self._migrar_columnas()
         self.conn.commit()
@@ -242,8 +253,13 @@ class Database:
 
     # ---------------- Sesiones de entrenamiento ----------------
 
-    def iniciar_sesion(self, id_atleta, id_entrenador):
-        ahora = datetime.now()
+    def iniciar_sesion(self, id_atleta, id_entrenador, inicio=None):
+        """
+        Abre una sesion. `inicio` es para un video re-analizado despues: la
+        sesion lleva la fecha en que se grabo, no la de hoy, o la grafica de
+        evolucion pondria todo el entrenamiento en el dia en que se analizo.
+        """
+        ahora = inicio or datetime.now()
         cursor = self.conn.execute(
             "INSERT INTO sesion (id_atleta, id_entrenador, fecha, hora_inicio) VALUES (?, ?, ?, ?)",
             (id_atleta, id_entrenador, ahora.date().isoformat(), ahora.isoformat()),
@@ -263,11 +279,23 @@ class Database:
                           (ruta_video, id_sesion))
         self.conn.commit()
 
-    def cerrar_sesion(self, id_sesion):
+    def cerrar_sesion(self, id_sesion, fin=None):
         self.conn.execute(
             "UPDATE sesion SET hora_fin = ? WHERE id_sesion = ?",
-            (datetime.now().isoformat(), id_sesion),
+            ((fin or datetime.now()).isoformat(), id_sesion),
         )
+        self.conn.commit()
+
+    def sesion_importada(self, clave):
+        """La sesion que ya registro este video, o None."""
+        fila = self.conn.execute(
+            "SELECT id_sesion FROM importacion_video WHERE clave = ?", (clave,)).fetchone()
+        return fila["id_sesion"] if fila else None
+
+    def marcar_importada(self, clave, id_sesion):
+        self.conn.execute(
+            "INSERT INTO importacion_video (clave, id_sesion, importado) VALUES (?, ?, ?)",
+            (clave, id_sesion, datetime.now().isoformat()))
         self.conn.commit()
 
     # ---------------- Mediciones de técnicas ----------------
@@ -458,7 +486,13 @@ class Database:
         return [self._con_precision(dict(f)) for f in filas]
 
     def listar_sesiones(self, id_atleta):
-        """Sesiones de un atleta, de la más reciente a la más antigua."""
+        """
+        Sesiones de un atleta, de la más reciente a la más antigua.
+
+        Por cuándo ocurrieron, no por cuándo se registraron: un video del
+        24-oct importado después de una sesión en vivo del 3-nov tiene que
+        quedar antes en la gráfica de evolución, que se arma con esta lista.
+        """
         filas = self.conn.execute("""
             SELECT s.id_sesion,
                    s.fecha,
@@ -473,7 +507,7 @@ class Database:
                    ON t.id_sesion = s.id_sesion AND t.correcto IS NOT NULL
             WHERE s.id_atleta = ?
             GROUP BY s.id_sesion
-            ORDER BY s.id_sesion DESC
+            ORDER BY s.hora_inicio DESC, s.id_sesion DESC
         """, (id_atleta,)).fetchall()
         return [self._con_precision(dict(f)) for f in filas]
 

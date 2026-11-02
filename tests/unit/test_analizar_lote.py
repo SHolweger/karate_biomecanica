@@ -189,3 +189,103 @@ def test_importarla_no_exige_camara_ni_mediapipe():
     arbol = ast.parse(inspect.getsource(al))
     arriba = {nodo.module for nodo in arbol.body if isinstance(nodo, ast.ImportFrom)}
     assert not arriba & {"vision.camera", "vision.tracker", "expert_system.analyzer"}
+
+
+# ---------------------------------------------------------------------------
+# --registrar: los videos re-analizados entran a la base con su fecha
+# ---------------------------------------------------------------------------
+
+import datetime as _dt
+
+
+def _con_fecha(fecha, deportista="D1", archivo="zen.mp4", **extra):
+    return _segmento(deportista=deportista, archivo=archivo, fecha=_dt.date.fromisoformat(fecha), **extra)
+
+
+@pytest.fixture
+def sensei(db):
+    db.crear_entrenador("Sensei Prueba", "sensei", "s@d.gt", "clave123", rol="principal")
+    return db.autenticar_entrenador("sensei", "clave123")["id_entrenador"]
+
+
+@ficha(
+    id_caso="TC-AUTO-087",
+    nombre="Un video re-analizado entra a la base como una sesión con su fecha de grabación, "
+           "sin duplicarse y en orden en la gráfica de evolución",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.ALTA,
+    justificacion_riesgo="los videos del dojo se re-analizan días después de grabarse y son la "
+                         "única fuente de la evolución de cada alumno. Con la fecha de hoy, todo "
+                         "el entrenamiento caería en un solo día; registrado dos veces, la "
+                         "precisión contaría doble; y la gráfica ordenaba por orden de registro, "
+                         "así que importar un video viejo después de uno nuevo la desordenaba",
+    componente="analizar_lote.py (registrar); persistence/database.py (iniciar_sesion, "
+               "listar_sesiones, importacion_video)",
+    requisitos="RF-07, RF-05",
+    precondiciones="Base SQLite temporal con un sensei; diagnósticos escritos a mano",
+    datos_entrada="Dos videos de D1 (3-nov y, importado después, 24-oct) y uno de D2",
+    pasos=[
+        Paso("Registrar el video del 3-nov y después el del 24-oct",
+             "assert cada sesión lleva su fecha de grabación y la gráfica los ordena por fecha"),
+        Paso("Contar las filas escritas",
+             "assert son las mismas que la interfaz habría escrito, con su criterio"),
+        Paso("Volver a registrar lo mismo",
+             "assert no se crea ninguna sesión nueva"),
+        Paso("Registrar un alumno que no existe",
+             "assert queda inscrito con el nombre del inventario"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_registra_cada_video_con_su_fecha_y_sin_duplicar(db, sensei, tmp_path):
+    conteo = al.contar(_dos_zenkutsu_con_heiko_en_medio())
+    nuevo = [(_con_fecha("2026-11-03", archivo="b.mp4"), conteo)]
+    viejo = [(_con_fecha("2026-10-24", archivo="a.mp4"), conteo)]
+    otro = [(_con_fecha("2026-10-24", deportista="D2", archivo="a.mp4"), conteo)]
+
+    assert al.registrar(db, sensei, nuevo, tmp_path, escribir=lambda _: None) == 1
+    assert al.registrar(db, sensei, viejo + otro, tmp_path, escribir=lambda _: None) == 2
+
+    [d1] = [a for a in db.listar_atletas() if a["nombre"] == "D1"]
+    sesiones = db.listar_sesiones(d1["id_atleta"])
+    assert [s["fecha"] for s in sesiones] == ["2026-11-03", "2026-10-24"], \
+        "la gráfica se arma con esta lista: tiene que ir por fecha, no por orden de registro"
+    assert sesiones[0]["evaluaciones"] == 3
+    assert {a["nombre"] for a in db.listar_atletas()} == {"D1", "D2"}
+
+    filas = db.conn.execute("SELECT COUNT(*) FROM tecnica_evaluada").fetchone()[0]
+    assert filas == 3 * len(conteo["registro"])
+
+    assert al.registrar(db, sensei, nuevo + viejo + otro, tmp_path, escribir=lambda _: None) == 0
+    assert db.conn.execute("SELECT COUNT(*) FROM sesion").fetchone()[0] == 3
+
+
+def test_los_tramos_de_un_video_son_una_sola_sesion(db, sensei, tmp_path):
+    conteo = al.contar(_dos_zenkutsu_con_heiko_en_medio())
+    tramos = [(_con_fecha("2026-10-24", desde=40.0, hasta=60.0), conteo),
+              (_con_fecha("2026-10-24", tecnica="heiko_dachi", desde=0.0, hasta=6.0), conteo)]
+
+    assert al.registrar(db, sensei, tramos, tmp_path, escribir=lambda _: None) == 1
+
+    [sesion] = db.conn.execute("SELECT fecha, hora_inicio, hora_fin, ruta_video FROM sesion").fetchall()
+    assert sesion["fecha"] == "2026-10-24"
+    assert sesion["hora_inicio"] == "2026-10-24T00:00:00"
+    assert sesion["hora_fin"] == "2026-10-24T00:00:08.900000"   # dos tramos de 4,45 s
+    assert sesion["ruta_video"].endswith("zen.mp4")
+
+
+def test_sin_fecha_no_se_registra_y_lo_dice(db, sensei, tmp_path):
+    avisos = []
+    sin_fecha = [(_segmento(fecha=None), al.contar(_dos_zenkutsu_con_heiko_en_medio()))]
+    assert al.registrar(db, sensei, sin_fecha, tmp_path, escribir=avisos.append) == 0
+    assert "sin fecha de grabación" in avisos[0]
+
+
+def test_la_fecha_sale_de_la_columna_o_de_la_carpeta():
+    assert al.leer_fecha("2026-11-03") == _dt.date(2026, 11, 3)
+    assert al.leer_fecha("3/11/2026") == _dt.date(2026, 11, 3)
+    assert al.leer_fecha("", "dojo/2026-10-24/clip.mp4") == _dt.date(2026, 10, 24)
+    assert al.leer_fecha("", "clip.mp4") is None
+    with pytest.raises(ValueError):
+        al.leer_fecha("ayer")
