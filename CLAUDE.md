@@ -1192,7 +1192,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-086**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-087**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1412,6 +1412,24 @@ entre repeticiones se informa pero no entra al indicador. `--rubrica` genera la
 planilla del sensei, una fila por repetición declarada y **sin el veredicto del
 sistema**, para que la concordancia que se mida después sea independiente.
 Verificado de punta a punta con MediaPipe real en el contenedor. TC-AUTO-085.
+
+**El video en vivo ya no lleva los textos de veredicto** (2-nov-2026, a
+pedido de Sebastián). «IZQ - TSUKI: …», «ZENKUTSU (…): POSTURA: …» y los
+estados de transición se escribían encima del video y tapaban al deportista,
+cuando el panel de la derecha ya muestra el veredicto, la técnica ideal de lo
+reconocido y cada corrección traducida. `SkeletonRenderer.draw_diagnostics`
+recibe `con_mensajes` y la pantalla en vivo lo pasa en `False`: sobre el video
+quedan el esqueleto, los grados y el anillo rojo. La consola (`main.py
+--consola`) no tiene panel y conserva los textos. Visto en la interfaz real bajo
+Xvfb, antes y después. TC-AUTO-086. Lo que se pierde: los estados sin veredicto
+(«EN TRANSICION», «GUARDIA INDEFINIDA», «PIERNAS: OCULTAS») ya no se ven en
+pantalla; el aviso de encuadre sigue diciendo si la toma sirve.
+
+**Windows: guía en `docs/guia_windows.md`** (2-nov-2026). Nunca se ha corrido en
+Windows. El empaquetado con PyInstaller (carpeta, no un solo archivo; con
+`--collect-data/--collect-binaries mediapipe`, `--collect-data customtkinter` y
+el modelo con `--add-data`) se probó en Linux: la interfaz abre y la consola
+analiza y registra. `rutas.py` ya resuelve `sys._MEIPASS` y `%APPDATA%`.
 
 ## Estado y pendientes
 

@@ -123,3 +123,60 @@ def test_el_color_del_diagnostico_llega_al_frame(renderer, frame_negro):
 
     azul, verde, rojo = frame_negro[..., 0].sum(), frame_negro[..., 1].sum(), frame_negro[..., 2].sum()
     assert verde > 0 and azul == 0 and rojo == 0, "el texto no se dibujó en el color indicado"
+
+
+@ficha(
+    id_caso="TC-AUTO-086",
+    nombre="En el análisis en vivo el video lleva el esqueleto y los grados, y los textos de "
+           "veredicto quedan solo en el panel",
+    tipo=TipoPrueba.INTEGRACION,
+    prioridad=Prioridad.MEDIA,
+    justificacion_riesgo="el veredicto, la corrección y la técnica reconocida se escribían "
+                         "encima del video y tapaban al deportista, cuando el panel de la "
+                         "derecha ya los muestra. Quitarlos del todo dejaría a la consola, "
+                         "que no tiene panel, sin ninguna retroalimentación",
+    componente="biomechanics/renderer.py (draw_diagnostics); gui/live_screen.py",
+    requisitos="RF-06",
+    precondiciones="OpenCV instalado; el resto no necesita cámara ni pantalla",
+    datos_entrada="Un diagnóstico con mensaje y ángulo sobre un fotograma negro",
+    pasos=[
+        Paso("Dibujar sin mensajes un diagnóstico con ángulo",
+             "assert la franja del mensaje sigue negra y el número junto a la articulación sí aparece"),
+        Paso("Dibujar sin mensajes un diagnóstico sin ángulo",
+             "assert el fotograma queda intacto"),
+        Paso("Leer la llamada de la pantalla en vivo",
+             "assert pasa con_mensajes=False"),
+    ],
+    resultado_esperado="PASSED en los dos entornos, con y sin interfaz gráfica",
+    evidencia="Reporte de consola de pytest y documento de casos generado con "
+              "`--reporte-formal`.",
+)
+def test_sin_mensajes_quedan_los_grados_y_no_el_texto(renderer, frame_negro):
+    diagnostico = [{"mensaje": "IZQ - TSUKI: EXCELENTE", "color": (0, 255, 0), "y_offset": 50,
+                    "angulo": 170.0, "pos_angulo": (300, 300)}]
+
+    renderer.draw_diagnostics(frame_negro, diagnostico, con_mensajes=False)
+
+    assert frame_negro[30:60, :].sum() == 0, "el mensaje se dibujó sobre el video"
+    assert frame_negro[270:310, 290:360].sum() > 0, "faltan los grados junto a la articulación"
+
+    otro = np.zeros_like(frame_negro)
+    renderer.draw_diagnostics(otro, [{"mensaje": "PIERNAS: OCULTAS/NO VISIBLES", "color": (0, 165, 255),
+                                      "y_offset": 130, "angulo": None, "pos_angulo": None}],
+                              con_mensajes=False)
+    assert otro.sum() == 0
+
+
+def test_la_pantalla_en_vivo_no_escribe_los_mensajes_sobre_el_video():
+    """La costura: la pantalla tiene que pedirlo, o el cambio no llega a verse."""
+    import ast
+    from pathlib import Path
+
+    fuente = Path(__file__).resolve().parents[2] / "gui" / "live_screen.py"
+    llamadas = [nodo for nodo in ast.walk(ast.parse(fuente.read_text(encoding="utf-8")))
+                if isinstance(nodo, ast.Call) and getattr(nodo.func, "attr", "") == "draw_diagnostics"]
+    assert llamadas, "la pantalla en vivo ya no llama a draw_diagnostics: revisar esta prueba"
+    for llamada in llamadas:
+        argumentos = {k.arg: k.value for k in llamada.keywords}
+        assert isinstance(argumentos.get("con_mensajes"), ast.Constant) \
+            and argumentos["con_mensajes"].value is False

@@ -613,8 +613,10 @@ class LiveScreen(ctk.CTkFrame):
                 if self.monitor is not None:
                     self.monitor.marcar("analisis")
 
+                # Sin los textos de veredicto: viven en el panel de la derecha.
+                # Sobre el video quedan el esqueleto, los grados y el rojo.
                 for diagnostico in diagnosticos:
-                    frame = self.renderer.draw_diagnostics(frame, diagnostico)
+                    frame = self.renderer.draw_diagnostics(frame, diagnostico, con_mensajes=False)
                 # La articulación que falla, marcada en rojo sobre el esqueleto:
                 # desde el 18-oct el veredicto dice qué rodilla corregir, y aquí
                 # se ve cuál es sin leer el texto.

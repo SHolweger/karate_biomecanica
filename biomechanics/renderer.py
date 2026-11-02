@@ -35,14 +35,21 @@ class SkeletonRenderer:
         
         return frame
     
-    def draw_diagnostics(self, frame, diagnostics_results):
+    def draw_diagnostics(self, frame, diagnostics_results, con_mensajes=True):
         """
         Recibe los resultados del Analyzer y los pinta en la pantalla.
+
+        `con_mensajes=False` deja solo los grados junto a cada articulación. Lo
+        usa el análisis en vivo de la interfaz (2-nov-2026): el veredicto, la
+        corrección y la técnica reconocida ya están en el panel de la derecha,
+        y repetidos encima del video tapaban justo al deportista. La consola
+        (`main.py --consola`) no tiene panel y los conserva.
         """
         for res in diagnostics_results:
             # 1. Dibujar el texto principal arriba a la izquierda
-            cv2.putText(frame, res['mensaje'], (20, res['y_offset']), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, res['color'], 2)
+            if con_mensajes:
+                cv2.putText(frame, res['mensaje'], (20, res['y_offset']),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, res['color'], 2)
             
             # 2. Dibujar el número de los grados junto a la articulación (si es visible)
             if res['angulo'] is not None:
