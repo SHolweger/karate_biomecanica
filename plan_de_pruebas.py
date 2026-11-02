@@ -122,7 +122,7 @@ def leer_casos(carpeta=CARPETA_PRUEBAS):
                     datos=campos.get("datos_entrada", ""),
                     pasos=campos.get("pasos", []),
                     esperado=campos.get("resultado_esperado", ""),
-                    archivo=str(archivo.relative_to(RAIZ)),
+                    archivo=archivo.relative_to(RAIZ).as_posix(),
                     funcion=nodo.name))
     return sorted(casos, key=lambda c: c.id)
 
@@ -251,7 +251,7 @@ def escribir_md(casos, destino):
     # del final y se termina en un único salto, como cualquier archivo de texto.
     while lineas and not lineas[-1].strip():
         lineas.pop()
-    Path(destino).write_text("\n".join(lineas) + "\n", encoding="utf-8")
+    Path(destino).write_text("\n".join(lineas) + "\n", encoding="utf-8", newline="\n")
     return destino
 
 

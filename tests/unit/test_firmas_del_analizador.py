@@ -127,7 +127,7 @@ def test_la_busqueda_encuentra_las_llamadas_que_debe():
     vistos = {}
     for archivo in _archivos_de_python():
         for metodo, _, _, _ in _llamadas_a_los_metodos(archivo):
-            vistos.setdefault(str(archivo.relative_to(RAIZ)), set()).add(metodo)
+            vistos.setdefault(archivo.relative_to(RAIZ).as_posix(), set()).add(metodo)
 
     assert "main.py" in vistos, "el modo consola llama al analizador y debe verse"
     assert "gui/live_screen.py" in vistos, "la pantalla en vivo también"

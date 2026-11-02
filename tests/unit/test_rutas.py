@@ -10,6 +10,7 @@ se ha hecho ejecutando `python3 main.py` desde la carpeta del proyecto, donde
 una ruta relativa funciona por casualidad.
 """
 import os
+from pathlib import Path
 
 import pytest
 
@@ -112,7 +113,7 @@ def test_lo_declarado_por_el_usuario_manda_sobre_todo(tmp_path):
     entorno = {VAR_MODELO: str(otro_modelo), VAR_BASE: "/dojo/compartida.db"}
 
     assert modelo(entorno=entorno, raiz=raiz) == str(otro_modelo)
-    assert base_de_datos(entorno=entorno, raiz=raiz) == "/dojo/compartida.db"
+    assert base_de_datos(entorno=entorno, raiz=raiz) == str(Path("/dojo/compartida.db"))
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ dispositivos—, nunca la navegación: esa se ejerce tal cual.
 """
 import os
 import pathlib
+import shutil
 
 import pytest
 
@@ -244,7 +245,12 @@ def taller(tmp_path, monkeypatch):
     """
     modelo = pathlib.Path(MODELO_POSE).resolve()
     if modelo.exists():
-        (tmp_path / MODELO_POSE).symlink_to(modelo)
+        try:
+            (tmp_path / MODELO_POSE).symlink_to(modelo)
+        except OSError:
+            # Windows solo crea enlaces con modo de desarrollador o como
+            # administrador (WinError 1314); una copia sirve igual.
+            shutil.copyfile(modelo, tmp_path / MODELO_POSE)
     monkeypatch.chdir(tmp_path)
 
 

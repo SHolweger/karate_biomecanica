@@ -6,6 +6,7 @@ integración continua, donde no hay cámara ni códecs. Lo que se verifica son l
 tres decisiones que, mal tomadas, arruinan una toma de datos en el dojo: cómo se
 llama el archivo, a qué velocidad se escribe y qué se le informa al sensei.
 """
+import os
 from datetime import datetime
 
 import pytest
@@ -61,7 +62,7 @@ def test_un_nombre_larguisimo_se_recorta_sin_dejar_guion_colgando():
 def test_la_ruta_va_bajo_la_carpeta_de_grabaciones_y_no_bajo_evidencias():
     """Un video de sesión pesa cientos de MB: no entra al repositorio."""
     ruta = ruta_de_sesion(14, "Ana Gómez", CUANDO)
-    assert ruta.startswith("grabaciones/")
+    assert ruta.startswith(os.path.join("grabaciones", ""))
 
 
 def test_la_carpeta_se_puede_cambiar(tmp_path):

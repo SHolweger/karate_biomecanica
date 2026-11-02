@@ -39,6 +39,26 @@ py -3.11 --version
 
 Tiene que decir `Python 3.11.x`.
 
+**Lo que pasó la primera vez (2-nov-2026), para no repetirlo.** El equipo ya
+tenía Python 3.14 en `C:\Python314`, y `py -3.11` respondía «No suitable
+Python runtime found». La 3.11 **no estaba instalada**: lo que se había
+instalado desde Microsoft Store (`9NQ7512CXL7T`) es el *Python Install
+Manager*, un administrador de versiones, no Python 3.11; y sus órdenes
+(`py install`, `py list`) no funcionan mientras siga presente el `py` antiguo.
+No hace falta tocar nada de eso. Lo que funcionó, sin permisos de
+administrador:
+
+```powershell
+Invoke-WebRequest "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" -OutFile "$HOME\Downloads\python-3.11.9-amd64.exe"
+Start-Process -Wait "$HOME\Downloads\python-3.11.9-amd64.exe" -ArgumentList "/passive InstallAllUsers=0 PrependPath=0 Include_tcltk=1"
+& "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe" --version
+```
+
+La 3.11.9 es la última 3.11 con instalador para Windows. Con esa ruta
+completa se crea el entorno del paso 4 aunque `py` no la vea. **No uses la
+3.14**: el sistema no se ha probado en ella y pip le trae versiones mayores
+nuevas de OpenCV, NumPy y CustomTkinter.
+
 ---
 
 ## 3. Traer el código
@@ -62,8 +82,18 @@ comprueba que está en la carpeta.
 ```powershell
 py -3.11 -m venv venv
 .\venv\Scripts\Activate.ps1
+python -c "import sys, tkinter; print(sys.version, tkinter.TkVersion)"
 python -m pip install --upgrade pip
 pip install -r requirements.txt -r requirements-dev.txt
+```
+
+La tercera orden tiene que decir `3.11.x` y un número de Tk (`8.6`); si dice
+otra versión, el entorno se creó con otro Python y hay que borrarlo y
+rehacerlo. Un entorno ya existente se reconoce por su `pyvenv.cfg`, y la línea
+`version =` dice con qué Python se creó:
+
+```powershell
+Get-ChildItem -Recurse -Depth 2 -Force -Filter pyvenv.cfg | Select-Object FullName
 ```
 
 Si PowerShell no deja activar el entorno («la ejecución de scripts está
@@ -81,6 +111,20 @@ python -m pytest -q
 En tu Mac salen **1090** (1088 más las 2 del lote `vivo2nov`). En Windows deberían ser las mismas.
 **Anota la cifra exacta y si falla alguna**: es la primera evidencia de que el
 sistema corre en Windows, y va a la tesis tal cual.
+
+**Primera corrida en Windows (2-nov-2026, Python 3.11.9): 1071 passed, 6
+failed, 17 errors de 1094.** Ninguno era del sistema en uso:
+
+| Cuántas | Qué era | Arreglo |
+|---|---|---|
+| 16 errores | `test_navegacion_rnf04.py` enlazaba el modelo con `symlink_to`, y Windows solo crea enlaces con modo de desarrollador o como administrador (`WinError 1314`) | Si el enlace falla, se copia |
+| 2 fallos | `plan_de_pruebas.py` guardaba la ruta de cada caso con `\`, así que no reconocía ningún caso de `tests/e2e/`: el plan generado en Windows salía **sin los casos de interfaz** | La ruta se guarda con `/` (`as_posix`) |
+| 1 fallo | El mismo generador escribía el `.md` con CRLF | `newline="\n"` |
+| 3 fallos | Pruebas que comparaban rutas escritas con `/` contra lo que Windows devuelve con `\` | La prueba compara contra la ruta del sistema |
+| 1 error | Tk no encontró `ttk/cursors.tcl` al crear la ventana, en una sola prueba; las otras ~110 de interfaz crearon la suya sin problema | Ninguno todavía: parece intermitente, causa sin identificar. Si se repite al correr esa prueba sola, es un problema de la instalación de Tk |
+
+Los dos del generador sí eran defectos reales, aunque de una herramienta y no
+de la aplicación. La cifra con los arreglos se cuenta en la siguiente corrida.
 
 ---
 
