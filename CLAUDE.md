@@ -1193,7 +1193,7 @@ un módulo puro** (`gui/panel_vivo.py`, `gui/coaching.py`,
 
 **Fichas de caso de prueba.** Los casos formales llevan `@ficha(...)` de
 `tests/reporte/plantilla.py`, validado al importar. Los IDs `TC-AUTO-NNN` deben
-ser únicos y correlativos — **el siguiente libre es TC-AUTO-088**. Cada módulo
+ser únicos y correlativos — **el siguiente libre es TC-AUTO-089**. Cada módulo
 de pruebas necesita al menos una ficha o `--exigir-fichas` falla.
 
 ```bash
@@ -1431,6 +1431,16 @@ Windows. El empaquetado con PyInstaller (carpeta, no un solo archivo; con
 `--collect-data/--collect-binaries mediapipe`, `--collect-data customtkinter` y
 el modelo con `--add-data`) se probó en Linux: la interfaz abre y la consola
 analiza y registra. `rutas.py` ya resuelve `sys._MEIPASS` y `%APPDATA%`.
+
+**Primera corrida en Windows** (2/3-nov-2026, Python 3.11.9 de python.org, la
+3.14 descartada): **1090 de 1094**. Las cuatro que faltan no son del programa:
+dos veces Tk no lee su propio `init.tcl` al crear la ventana —intermitente,
+otras pruebas cada corrida— y las dos de «cambiar de sensei», que simulan el
+clic sobre la tarjeta con la ventana oculta y Windows lo descarta. **Verificado
+a mano por Sebastián**: cambiar perfil, elegir tarjeta, contraseña, Entrar.
+Detalle en `docs/guia_windows.md`. Y un defecto real visto ahí: «Registrar
+alumno» se abría y quedaba **detrás** de la principal. `gui/ventanas.al_frente`
+lo corrige **solo en Windows** (en la Mac no cambia nada). TC-AUTO-088.
 
 **Los videos re-analizados entran a la base con su fecha de grabación**
 (2-nov-2026). Sebastián no puede ir al dojo a diario: los alumnos se graban y

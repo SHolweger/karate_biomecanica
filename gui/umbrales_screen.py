@@ -4,6 +4,7 @@ from expert_system.knowledge_base import KarateRules
 from expert_system.reevaluacion import comparar
 from gui import impacto_umbrales
 from gui import theme
+from gui.ventanas import al_frente
 from gui.validacion_umbrales import ValorInvalido, formatear_valor, interpretar_rango
 
 
@@ -351,6 +352,7 @@ class UmbralesScreen(ctk.CTkFrame):
         self.ventana_impacto.geometry("560x420")
         self.ventana_impacto.configure(fg_color=theme.CARD)
         self.ventana_impacto.protocol("WM_DELETE_WINDOW", self._cerrar_impacto)
+        al_frente(self.ventana_impacto)
 
         ctk.CTkLabel(self.ventana_impacto, text="Si adoptas estos umbrales",
                      font=(theme.FUENTE, 15, "bold"), text_color=theme.TEXTO).pack(
@@ -403,6 +405,7 @@ class UmbralesScreen(ctk.CTkFrame):
         self.ventana_historial.geometry("520x360")
         self.ventana_historial.configure(fg_color=theme.CARD)
         self.ventana_historial.protocol("WM_DELETE_WINDOW", self._cerrar_historial)
+        al_frente(self.ventana_historial)
 
         ctk.CTkLabel(self.ventana_historial, text=etiqueta_umbral(tecnica, articulacion),
                      font=(theme.FUENTE, 15, "bold"), text_color=theme.TEXTO,

@@ -2,6 +2,7 @@ import customtkinter as ctk
 
 from gui import componentes as cp
 from gui import theme
+from gui.ventanas import al_frente
 from gui.registro_alumno import (COLORES_CINTA, DatosInvalidos, grados_de,
                                  interpretar_formulario, pide_grado)
 
@@ -117,6 +118,7 @@ class HistorialScreen(ctk.CTkFrame):
 
     def abrir_registro(self):
         if self.ventana_registro is not None:
+            self.ventana_registro.lift()
             self.ventana_registro.focus()
             return self.ventana_registro
 
@@ -131,6 +133,7 @@ class HistorialScreen(ctk.CTkFrame):
         ventana.configure(fg_color=theme.CARD)
         ventana.protocol("WM_DELETE_WINDOW", self.cerrar_registro)
         self.ventana_registro = ventana
+        al_frente(ventana)
 
         ctk.CTkLabel(ventana, text="Registrar nuevo alumno", font=(theme.FUENTE, 17, "bold"),
                      text_color=theme.TEXTO).pack(padx=26, pady=(22, 2), anchor="w")
